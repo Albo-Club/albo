@@ -1,15 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration Supabase externe - AI Deal Lens
-// Votre projet Supabase: kpvbcqilzfeitxzwhmou
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kpvbcqilzfeitxzwhmou.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+// Projet: hello@alboteam.com's Project (Organization Albote)
+const SUPABASE_URL = 'https://kpvbcqilzfeitxzwhmou.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NTg1MzQsImV4cCI6MjA4MTUzNDUzNH0.3am-RD8EWk9RtgeHyWYS9HFa9CQGnZzZ-ro6QRKD0f8';
 
-if (!SUPABASE_PUBLISHABLE_KEY) {
-  console.warn('⚠️ VITE_SUPABASE_PUBLISHABLE_KEY non configurée. Ajoutez-la dans les variables d\'environnement.');
-}
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
