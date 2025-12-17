@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/Logo';
 import { Sparkles, BarChart3, Zap } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -35,12 +36,7 @@ export default function Landing() {
       {/* Header */}
       <header className="relative z-50 border-b bg-background/50 backdrop-blur-sm sticky top-0">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl">AI Deal Lens</span>
-          </div>
+          <Logo width={100} height={36} />
           <Button 
             onClick={() => navigate('/auth')} 
             className="bg-foreground text-background hover:bg-foreground/90"
