@@ -5,39 +5,59 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ArrowLeft, FileText, Loader2, ExternalLink, Download } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import AnalysisLoader from '@/components/AnalysisLoader';
+import { InvestmentMemoDisplay } from '@/components/InvestmentMemoDisplay';
+
+const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/619a0db8-a332-4d7d-bcbb-79e2fcd06141';
 
 interface Deal {
   id: string;
-  startup_name: string;
+  startup_name: string | null;
   company_name: string | null;
-  website: string | null;
-  sector: string;
-  stage: string;
-  country: string;
+  sector: string | null;
+  stage: string | null;
+  country: string | null;
   status: string;
+  memo_content: any;
   memo_html: string | null;
-  solution_summary: string | null;
-  recommandation: string | null;
   created_at: string;
-}
-
-interface DeckFile {
-  id: string;
-  file_name: string;
-  storage_path: string;
+  analyzed_at: string | null;
+  error_message: string | null;
 }
 
 export default function DealDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [deal, setDeal] = useState<Deal | null>(null);
-  const [deckFile, setDeckFile] = useState<DeckFile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadDeal();
+
+      // Subscribe to real-time updates
+      const channel = supabase
+        .channel(`deal-${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'deals',
+            filter: `id=eq.${id}`
+          },
+          (payload) => {
+            console.log('Deal updated:', payload);
+            setDeal(prev => prev ? { ...prev, ...payload.new } as Deal : null);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [id]);
 
@@ -51,14 +71,6 @@ export default function DealDetail() {
 
       if (dealError) throw dealError;
       setDeal(dealData);
-
-      const { data: deckData } = await supabase
-        .from('deck_files')
-        .select('id, file_name, storage_path')
-        .eq('deal_id', id)
-        .maybeSingle();
-
-      setDeckFile(deckData);
     } catch (error: any) {
       console.error('Error loading deal:', error);
       toast.error('Erreur lors du chargement du deal');
@@ -68,32 +80,88 @@ export default function DealDetail() {
     }
   };
 
-  const handleDownloadDeck = async () => {
-    if (!deckFile) return;
-
+  const handleRetryAnalysis = async () => {
+    if (!deal) return;
+    
+    setRetrying(true);
+    
     try {
-      const { data, error } = await supabase.storage
-        .from('deck-files')
-        .createSignedUrl(deckFile.storage_path, 60 * 60);
+      // Update status to pending
+      await supabase
+        .from('deals')
+        .update({ status: 'pending', error_message: null })
+        .eq('id', deal.id);
 
-      if (error) throw error;
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank', 'noopener');
+      toast.info('Relance de l\'analyse...');
+
+      // Note: In a real scenario, you'd need to re-upload the file or store it
+      // For now, we'll just call the webhook with the deal_id
+      const formData = new FormData();
+      formData.append('deal_id', deal.id);
+
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`N8N Error: ${response.status}`);
       }
+
+      const result = await response.json();
+
+      await supabase
+        .from('deals')
+        .update({
+          company_name: result.company_name || deal.company_name,
+          startup_name: result.company_name || deal.startup_name,
+          memo_content: result.memo_content,
+          status: 'completed',
+          analyzed_at: new Date().toISOString(),
+        })
+        .eq('id', deal.id);
+
+      toast.success('Analyse terminée !');
     } catch (error: any) {
-      console.error('Error downloading deck:', error);
-      toast.error('Échec du téléchargement');
+      console.error('Retry error:', error);
+      
+      await supabase
+        .from('deals')
+        .update({
+          status: 'error',
+          error_message: error.message || 'Erreur lors de l\'analyse',
+        })
+        .eq('id', deal.id);
+
+      toast.error('Erreur lors de l\'analyse');
+    } finally {
+      setRetrying(false);
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-success text-success-foreground">Analysé</Badge>;
+        return (
+          <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Terminé
+          </Badge>
+        );
       case 'pending':
-        return <Badge variant="secondary">En cours d'analyse</Badge>;
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+            <Clock className="h-3 w-3 mr-1 animate-pulse" />
+            Analyse en cours...
+          </Badge>
+        );
       case 'error':
-        return <Badge variant="destructive">Erreur</Badge>;
+        return (
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Erreur
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -118,6 +186,78 @@ export default function DealDetail() {
     );
   }
 
+  // Show analysis loader for pending deals
+  if (deal.status === 'pending') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name || 'Analyse en cours...'}</h1>
+              {getStatusBadge(deal.status)}
+            </div>
+          </div>
+        </div>
+
+        <AnalysisLoader />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (deal.status === 'error') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name || 'Sans nom'}</h1>
+              {getStatusBadge(deal.status)}
+            </div>
+          </div>
+        </div>
+
+        <Card className="border-red-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Erreur d'analyse
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              {deal.error_message || 'Une erreur s\'est produite lors de l\'analyse du pitch deck.'}
+            </p>
+            <Button onClick={handleRetryAnalysis} disabled={retrying}>
+              {retrying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Relance en cours...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Relancer l'analyse
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show completed analysis with memo
+  const memoContent = deal.memo_content 
+    ? (typeof deal.memo_content === 'string' ? deal.memo_content : JSON.stringify(deal.memo_content, null, 2))
+    : deal.memo_html || '';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -126,139 +266,36 @@ export default function DealDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{deal.startup_name}</h1>
+            <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name}</h1>
             {getStatusBadge(deal.status)}
           </div>
-          {deal.company_name && (
-            <p className="text-muted-foreground">{deal.company_name}</p>
+          {deal.analyzed_at && (
+            <p className="text-sm text-muted-foreground">
+              Analysé le {new Date(deal.analyzed_at).toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Deal Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Informations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Secteur</p>
-              <p className="font-medium">{deal.sector}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Stade</p>
-              <p className="font-medium">{deal.stage}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Pays</p>
-              <p className="font-medium">{deal.country}</p>
-            </div>
-            {deal.website && (
-              <div>
-                <p className="text-sm text-muted-foreground">Site Web</p>
-                <a
-                  href={deal.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary hover:underline flex items-center gap-1"
-                >
-                  Visiter <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Deck File */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Pitch Deck</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {deckFile ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
-                  <FileText className="h-8 w-8 text-primary" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{deckFile.file_name}</p>
-                  </div>
-                </div>
-                <Button onClick={handleDownloadDeck} className="w-full" variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Télécharger
-                </Button>
-              </div>
-            ) : (
-              <p className="text-muted-foreground">Aucun fichier</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Statut</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {getStatusBadge(deal.status)}
-              <p className="text-sm text-muted-foreground">
-                Créé le {new Date(deal.created_at).toLocaleDateString('fr-FR')}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Analysis Results */}
-      {deal.status === 'completed' && (
-        <div className="space-y-6">
-          {deal.solution_summary && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Résumé</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{deal.solution_summary}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {deal.recommandation && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Recommandation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{deal.recommandation}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {deal.memo_html && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Mémo d'Investissement</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div 
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: deal.memo_html }}
-                />
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {deal.status === 'pending' && (
+      {memoContent ? (
+        <InvestmentMemoDisplay 
+          memoMarkdown={memoContent}
+          dealData={{
+            companyName: deal.company_name || deal.startup_name || undefined,
+            sector: deal.sector || undefined,
+          }}
+        />
+      ) : (
         <Card>
           <CardContent className="py-12 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Analyse en cours</h3>
             <p className="text-muted-foreground">
-              L'analyse de votre pitch deck est en cours. Cela peut prendre quelques minutes.
+              Aucun mémo disponible pour ce deal.
             </p>
           </CardContent>
         </Card>

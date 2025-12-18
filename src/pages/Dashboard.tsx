@@ -1,61 +1,76 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, FileText, Loader2 } from 'lucide-react';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface Deal {
   id: string;
-  startup_name: string;
+  startup_name: string | null;
   company_name: string | null;
-  sector: string;
+  sector: string | null;
   status: string;
-  memo_html: string | null;
-  deck_files: { storage_path: string; file_name: string }[] | null;
+  created_at: string;
+  analyzed_at: string | null;
+  error_message: string | null;
 }
 
 export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    loadDeals();
+    if (user) {
+      loadDeals();
 
-    // Subscribe to real-time updates on deals table
-    const channel = supabase
-      .channel('deals-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'deals'
-        },
-        (payload) => {
-          console.log('Deal updated:', payload);
-          setDeals(prev =>
-            prev.map(deal =>
-              deal.id === payload.new.id ? { ...deal, ...payload.new } as Deal : deal
-            )
-          );
-        }
-      )
-      .subscribe();
+      // Subscribe to real-time updates on deals table
+      const channel = supabase
+        .channel('deals-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'deals',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Deal updated:', payload);
+            if (payload.eventType === 'INSERT') {
+              setDeals(prev => [payload.new as Deal, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+              setDeals(prev =>
+                prev.map(deal =>
+                  deal.id === payload.new.id ? { ...deal, ...payload.new } as Deal : deal
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setDeals(prev => prev.filter(deal => deal.id !== payload.old.id));
+            }
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
 
   const loadDeals = async () => {
     try {
       const { data, error } = await supabase
         .from('deals')
-        .select('id, startup_name, company_name, sector, status, memo_html, deck_files(storage_path, file_name)')
+        .select('id, startup_name, company_name, sector, status, created_at, analyzed_at, error_message')
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -72,11 +87,26 @@ export default function Dashboard() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-success text-success-foreground">Analysé</Badge>;
+        return (
+          <Badge className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Terminé
+          </Badge>
+        );
       case 'pending':
-        return <Badge variant="secondary">En cours</Badge>;
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 hover:bg-yellow-500/20">
+            <Clock className="h-3 w-3 mr-1 animate-pulse" />
+            Analyse en cours...
+          </Badge>
+        );
       case 'error':
-        return <Badge variant="destructive">Erreur</Badge>;
+        return (
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Erreur
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -122,28 +152,36 @@ export default function Dashboard() {
           {deals.map((deal) => (
             <Card 
               key={deal.id} 
-              className="cursor-pointer hover:shadow-elegant transition-all duration-300"
+              className="cursor-pointer hover:shadow-elegant transition-all duration-300 group"
               onClick={() => navigate(`/deal/${deal.id}`)}
             >
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{deal.startup_name}</CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg line-clamp-1">
+                    {deal.company_name || deal.startup_name || 'Sans nom'}
+                  </CardTitle>
                   {getStatusBadge(deal.status)}
                 </div>
-                {deal.company_name && (
-                  <p className="text-sm text-muted-foreground">{deal.company_name}</p>
-                )}
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="outline">{deal.sector}</Badge>
+                <div className="space-y-2">
+                  {deal.sector && (
+                    <Badge variant="outline" className="text-xs">
+                      {deal.sector}
+                    </Badge>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Créé {formatDistanceToNow(new Date(deal.created_at), { 
+                      addSuffix: true, 
+                      locale: fr 
+                    })}
+                  </p>
+                  {deal.status === 'error' && deal.error_message && (
+                    <p className="text-xs text-red-500 line-clamp-2">
+                      {deal.error_message}
+                    </p>
+                  )}
                 </div>
-                {deal.deck_files && deal.deck_files.length > 0 && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="h-4 w-4" />
-                    <span>{deal.deck_files[0].file_name}</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
