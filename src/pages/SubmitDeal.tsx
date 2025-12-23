@@ -121,12 +121,14 @@ export default function SubmitDeal() {
       
       setAnalysisId(analysisRecord.id);
 
-      // Step 2: Create deal in "pending" status
+      // Step 2: Create deal in "pending" status with initial company name from filename
+      const initialCompanyName = file.name.replace('.pdf', '').replace(/[-_]/g, ' ');
+      
       const { data: deal, error: dealError } = await supabase
         .from('deals')
         .insert({
           user_id: user.id,
-          company_name: null,
+          company_name: initialCompanyName,
           status: 'pending',
           source: 'form',
           additional_context: additionalContext || null,
@@ -136,7 +138,25 @@ export default function SubmitDeal() {
 
       if (dealError) throw dealError;
 
-      // Step 3: Send PDF to N8N webhook with analysis_id
+      // Step 3: Store PDF in deck_files BEFORE sending to N8N
+      try {
+        const base64Content = await fileToBase64(file);
+        
+        await supabase
+          .from('deck_files')
+          .insert({
+            deal_id: deal.id,
+            filename: file.name,
+            base64_content: base64Content,
+            mime_type: 'application/pdf',
+          });
+        
+        console.log('Deck file stored successfully');
+      } catch (storageError) {
+        console.error('Error storing deck file:', storageError);
+      }
+
+      // Step 4: Send PDF to N8N webhook with analysis_id
       const formData = new FormData();
       formData.append('file', file);
       formData.append('deal_id', deal.id);
@@ -154,6 +174,7 @@ export default function SubmitDeal() {
         }
 
         const result = await response.json();
+        console.log('N8N Response:', result);
 
         // Check if analysis was cancelled
         if (result?.cancelled === true) {
@@ -162,16 +183,26 @@ export default function SubmitDeal() {
           return;
         }
 
-        // Step 4: Update deal with N8N response
+        // Step 5: Update deal with N8N response
         if (result.status === 'completed') {
+          const updateData: any = {
+            status: 'completed',
+            analyzed_at: new Date().toISOString(),
+          };
+          
+          // Update company_name if provided by N8N
+          if (result.company_name) {
+            updateData.company_name = result.company_name;
+          }
+          
+          // Update memo_html if provided
+          if (result.memo_html) {
+            updateData.memo_html = result.memo_html;
+          }
+
           await supabase
             .from('deals')
-            .update({
-              company_name: result.company_name,
-              memo_html: result.memo_html,
-              status: 'completed',
-              analyzed_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('id', deal.id);
 
           // Update analysis_request status
@@ -196,22 +227,6 @@ export default function SubmitDeal() {
             .eq('id', analysisRecord.id);
 
           toast.error(result.error || 'Échec de l\'analyse');
-        }
-
-        // Step 5: Store PDF in deck_files
-        try {
-          const base64Content = await fileToBase64(file);
-          
-          await supabase
-            .from('deck_files')
-            .insert({
-              deal_id: deal.id,
-              filename: file.name,
-              base64_content: base64Content,
-              mime_type: 'application/pdf',
-            });
-        } catch (storageError) {
-          console.error('Error storing deck file:', storageError);
         }
 
         navigate('/dashboard');
