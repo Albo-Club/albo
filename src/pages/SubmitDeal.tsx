@@ -111,7 +111,14 @@ export default function SubmitDeal() {
         .select('id')
         .single();
 
-      if (analysisError) throw analysisError;
+      // Vérifier que ça a marché
+      if (analysisError || !analysisRecord?.id) {
+        console.error('Failed to create analysis request:', analysisError);
+        toast.error('Failed to start analysis');
+        setIsAnalyzing(false);
+        return;
+      }
+      
       setAnalysisId(analysisRecord.id);
 
       // Step 2: Create deal in "pending" status
