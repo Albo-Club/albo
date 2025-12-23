@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Mail, FileText } from 'lucide-react';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Mail, FileText, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { MemoModal } from '@/components/MemoModal';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { displayCompanyName } from '@/lib/utils';
+
 
 interface DeckFile {
   id: string;
@@ -35,6 +38,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string } | null>(null);
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
+  const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
+  const [deletingDeal, setDeletingDeal] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -163,7 +168,7 @@ export default function Dashboard() {
     if (deal.memo_html) {
       setSelectedMemo({
         html: deal.memo_html,
-        companyName: deal.company_name || deal.startup_name || 'Sans nom',
+        companyName: displayCompanyName(deal.company_name || deal.startup_name) || 'Sans nom',
       });
     }
   };
@@ -199,6 +204,38 @@ export default function Dashboard() {
       toast.error('Erreur lors du téléchargement');
     } finally {
       setDownloadingDeck(null);
+    }
+  };
+  const handleDeleteDeal = async () => {
+    if (!user?.id || !dealToDelete) return;
+
+    setDeletingDeal(true);
+
+    try {
+      // Delete attached deck files first (if any)
+      const { error: deckDeleteError } = await supabase
+        .from('deck_files')
+        .delete()
+        .eq('deal_id', dealToDelete.id);
+
+      if (deckDeleteError) throw deckDeleteError;
+
+      const { error: dealDeleteError } = await supabase
+        .from('deals')
+        .delete()
+        .eq('id', dealToDelete.id)
+        .eq('user_id', user.id);
+
+      if (dealDeleteError) throw dealDeleteError;
+
+      setDeals((prev) => prev.filter((d) => d.id !== dealToDelete.id));
+      toast.success('Deal supprimé');
+      setDealToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting deal:', error);
+      toast.error(error.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeletingDeal(false);
     }
   };
 
@@ -252,9 +289,22 @@ export default function Dashboard() {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-lg line-clamp-1">
-                    {deal.company_name || deal.startup_name || 'Analyse en cours...'}
+                    {displayCompanyName(deal.company_name || deal.startup_name) || 'Analyse en cours...'}
                   </CardTitle>
-                  {getStatusBadge(deal.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(deal.status)}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDealToDelete(deal);
+                      }}
+                      aria-label="Supprimer le deal"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -310,6 +360,29 @@ export default function Dashboard() {
           companyName={selectedMemo.companyName}
         />
       )}
+
+      <AlertDialog open={!!dealToDelete} onOpenChange={(open) => !open && setDealToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce deal ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le deal et son deck associé seront supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingDeal}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deletingDeal}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteDeal();
+              }}
+            >
+              {deletingDeal ? 'Suppression…' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

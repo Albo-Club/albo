@@ -141,8 +141,8 @@ export default function SubmitDeal() {
       // Step 3: Store PDF in deck_files BEFORE sending to N8N
       try {
         const base64Content = await fileToBase64(file);
-        
-        await supabase
+
+        const { error: deckInsertError } = await supabase
           .from('deck_files')
           .insert({
             deal_id: deal.id,
@@ -150,7 +150,9 @@ export default function SubmitDeal() {
             base64_content: base64Content,
             mime_type: 'application/pdf',
           });
-        
+
+        if (deckInsertError) throw deckInsertError;
+
         console.log('Deck file stored successfully');
       } catch (storageError) {
         console.error('Error storing deck file:', storageError);
@@ -189,31 +191,35 @@ export default function SubmitDeal() {
             status: 'completed',
             analyzed_at: new Date().toISOString(),
           };
-          
+
           // Update company_name if provided by N8N
           if (result.company_name) {
             updateData.company_name = result.company_name;
           }
-          
+
           // Update memo_html if provided
           if (result.memo_html) {
             updateData.memo_html = result.memo_html;
           }
 
-          await supabase
+          const { error: updateDealError } = await supabase
             .from('deals')
             .update(updateData)
             .eq('id', deal.id);
 
+          if (updateDealError) throw updateDealError;
+
           // Update analysis_request status
-          await supabase
+          const { error: updateAnalysisError } = await supabase
             .from('analysis_requests')
             .update({ status: 'completed' })
             .eq('id', analysisRecord.id);
 
+          if (updateAnalysisError) throw updateAnalysisError;
+
           toast.success('Analyse terminée !');
         } else {
-          await supabase
+          const { error: updateDealError } = await supabase
             .from('deals')
             .update({
               status: 'error',
@@ -221,10 +227,14 @@ export default function SubmitDeal() {
             })
             .eq('id', deal.id);
 
-          await supabase
+          if (updateDealError) throw updateDealError;
+
+          const { error: updateAnalysisError } = await supabase
             .from('analysis_requests')
             .update({ status: 'error' })
             .eq('id', analysisRecord.id);
+
+          if (updateAnalysisError) throw updateAnalysisError;
 
           toast.error(result.error || 'Échec de l\'analyse');
         }
