@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2, RefreshCw, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import AnalysisLoader from '@/components/AnalysisLoader';
 import { InvestmentMemoDisplay } from '@/components/InvestmentMemoDisplay';
+import { MemoHtmlFrame } from '@/components/MemoHtmlFrame';
+import { displayCompanyName } from '@/lib/utils';
 
 const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/619a0db8-a332-4d7d-bcbb-79e2fcd06141';
 
@@ -188,6 +190,8 @@ export default function DealDetail() {
 
   // Show analysis loader for pending deals
   if (deal.status === 'pending') {
+    const displayName = displayCompanyName(deal.company_name || deal.startup_name) || 'Analyse en cours...';
+
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -196,7 +200,7 @@ export default function DealDetail() {
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name || 'Analyse en cours...'}</h1>
+              <h1 className="text-3xl font-bold">{displayName}</h1>
               {getStatusBadge(deal.status)}
             </div>
           </div>
@@ -209,6 +213,8 @@ export default function DealDetail() {
 
   // Show error state
   if (deal.status === 'error') {
+    const displayName = displayCompanyName(deal.company_name || deal.startup_name) || 'Sans nom';
+
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -217,7 +223,7 @@ export default function DealDetail() {
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name || 'Sans nom'}</h1>
+              <h1 className="text-3xl font-bold">{displayName}</h1>
               {getStatusBadge(deal.status)}
             </div>
           </div>
@@ -254,19 +260,18 @@ export default function DealDetail() {
   }
 
   // Show completed analysis with memo
-  const memoContent = deal.memo_content 
-    ? (typeof deal.memo_content === 'string' ? deal.memo_content : JSON.stringify(deal.memo_content, null, 2))
-    : deal.memo_html || '';
+  const displayName = displayCompanyName(deal.company_name || deal.startup_name) || '';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{deal.company_name || deal.startup_name}</h1>
+            <h1 className="text-3xl font-bold">{displayName}</h1>
             {getStatusBadge(deal.status)}
           </div>
           {deal.analyzed_at && (
@@ -283,9 +288,15 @@ export default function DealDetail() {
         </div>
       </div>
 
-      {memoContent ? (
-        <InvestmentMemoDisplay 
-          memoMarkdown={memoContent}
+      {deal.memo_html ? (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 h-[75vh]">
+            <MemoHtmlFrame html={deal.memo_html} title={`Mémo - ${displayName}`} />
+          </CardContent>
+        </Card>
+      ) : deal.memo_content ? (
+        <InvestmentMemoDisplay
+          memoMarkdown={typeof deal.memo_content === 'string' ? deal.memo_content : JSON.stringify(deal.memo_content, null, 2)}
           dealData={{
             companyName: deal.company_name || deal.startup_name || undefined,
             sector: deal.sector || undefined,
@@ -294,9 +305,7 @@ export default function DealDetail() {
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              Aucun mémo disponible pour ce deal.
-            </p>
+            <p className="text-muted-foreground">Aucun mémo disponible pour ce deal.</p>
           </CardContent>
         </Card>
       )}
