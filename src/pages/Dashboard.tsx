@@ -67,31 +67,47 @@ export default function Dashboard() {
   }, [user]);
 
   const loadDeals = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const { data, error } = await supabase
+      console.log('Loading deals for user:', user.id);
+      
+      // First, try to load deals
+      const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
-        .select(`
-          id, 
-          startup_name, 
-          company_name, 
-          sector, 
-          status, 
-          source,
-          memo_html,
-          created_at, 
-          analyzed_at, 
-          error_message,
-          deck_files (id, filename)
-        `)
-        .eq('user_id', user?.id)
+        .select('id, startup_name, company_name, sector, status, source, memo_html, created_at, analyzed_at, error_message')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (dealsError) {
+        console.error('Deals query error:', dealsError);
+        throw dealsError;
+      }
 
-      setDeals((data || []) as Deal[]);
+      console.log('Deals loaded:', dealsData?.length || 0);
+
+      // Then load deck_files separately for each deal
+      const dealsWithFiles = await Promise.all(
+        (dealsData || []).map(async (deal) => {
+          const { data: files } = await supabase
+            .from('deck_files')
+            .select('id, filename')
+            .eq('deal_id', deal.id);
+          
+          return {
+            ...deal,
+            deck_files: files || [],
+          };
+        })
+      );
+
+      setDeals(dealsWithFiles as Deal[]);
     } catch (error: any) {
       console.error('Error loading deals:', error);
-      toast.error('Échec du chargement des deals');
+      toast.error(`Échec du chargement des deals: ${error.message || 'Erreur inconnue'}`);
     } finally {
       setLoading(false);
     }
