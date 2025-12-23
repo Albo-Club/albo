@@ -175,8 +175,10 @@ export default function SubmitDeal() {
           throw new Error(`N8N Error: ${response.status}`);
         }
 
-        const result = await response.json();
-        console.log('N8N Response:', result);
+        const n8nRaw = await response.json();
+        const result = Array.isArray(n8nRaw) ? n8nRaw?.[0] : n8nRaw;
+        console.log('N8N Response (raw):', n8nRaw);
+        console.log('N8N Response (normalized):', result);
 
         // Check if analysis was cancelled
         if (result?.cancelled === true) {
@@ -186,7 +188,7 @@ export default function SubmitDeal() {
         }
 
         // Step 5: Update deal with N8N response
-        if (result.status === 'completed') {
+        if (result?.status === 'completed') {
           const updateData: any = {
             status: 'completed',
             analyzed_at: new Date().toISOString(),
@@ -223,7 +225,7 @@ export default function SubmitDeal() {
             .from('deals')
             .update({
               status: 'error',
-              error_message: result.error || 'Échec de l\'analyse',
+              error_message: result?.error || "Échec de l'analyse",
             })
             .eq('id', deal.id);
 
@@ -236,7 +238,7 @@ export default function SubmitDeal() {
 
           if (updateAnalysisError) throw updateAnalysisError;
 
-          toast.error(result.error || 'Échec de l\'analyse');
+          toast.error(result?.error || "Échec de l'analyse");
         }
 
         navigate('/dashboard');
