@@ -177,9 +177,13 @@ export default function Dashboard() {
         .from('deck_files')
         .select('filename, base64_content, mime_type')
         .eq('deal_id', dealId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!deckFile) {
+        toast.error('Aucun deck trouvé pour ce deal');
+        return;
+      }
 
       if (deckFile) {
         const link = document.createElement('a');
