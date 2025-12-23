@@ -4,16 +4,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Upload, Loader2, FileText, X } from 'lucide-react';
 
-const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/619a0db8-a332-4d7d-bcbb-79e2fcd06141';
+const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/2551cfc4-1892-4926-9f17-746c9a51be71';
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+};
 
 export default function SubmitDeal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [additionalContext, setAdditionalContext] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -50,20 +65,6 @@ export default function SubmitDeal() {
     e.preventDefault();
   };
 
-  const extractCompanyName = (fileName: string): string => {
-    // Remove .pdf extension and clean up the name
-    const name = fileName.replace(/\.pdf$/i, '');
-    // Remove common patterns like "pitch deck", "deck", dates, etc.
-    const cleaned = name
-      .replace(/[-_]/g, ' ')
-      .replace(/pitch\s*deck/gi, '')
-      .replace(/deck/gi, '')
-      .replace(/\d{4}/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return cleaned || 'Analyse en cours...';
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -81,34 +82,27 @@ export default function SubmitDeal() {
 
     try {
       // Step 1: Create deal in "pending" status
-      const companyName = extractCompanyName(file.name);
-      
       const { data: deal, error: dealError } = await supabase
         .from('deals')
         .insert({
           user_id: user.id,
-          company_name: companyName,
-          startup_name: companyName,
+          company_name: null, // Will be filled by N8N
           status: 'pending',
-          sector: 'Other',
-          stage: 'Seed',
-          country: 'France',
+          source: 'form',
+          additional_context: additionalContext || null,
         })
         .select()
         .single();
 
       if (dealError) throw dealError;
 
-      toast.info('Analyse en cours...', { duration: 10000 });
-      
-      // Navigate immediately to the deal page (will show loader)
-      navigate(`/deal/${deal.id}`);
+      toast.info('Analyse en cours... Cela peut prendre jusqu\'à une minute.', { duration: 60000 });
 
-      // Step 2: Send to N8N webhook
+      // Step 2: Send PDF to N8N webhook
       const formData = new FormData();
       formData.append('file', file);
       formData.append('deal_id', deal.id);
-      formData.append('user_id', user.id);
+      formData.append('additional_context', additionalContext || '');
 
       try {
         const response = await fetch(N8N_WEBHOOK_URL, {
@@ -122,21 +116,49 @@ export default function SubmitDeal() {
 
         const result = await response.json();
 
-        // Step 4: Update deal with N8N response
-        const { error: updateError } = await supabase
-          .from('deals')
-          .update({
-            company_name: result.company_name || companyName,
-            startup_name: result.company_name || companyName,
-            memo_content: result.memo_content,
-            status: 'completed',
-            analyzed_at: new Date().toISOString(),
-          })
-          .eq('id', deal.id);
+        // Step 3: Update deal with N8N response
+        if (result.status === 'completed') {
+          await supabase
+            .from('deals')
+            .update({
+              company_name: result.company_name,
+              memo_html: result.memo_html,
+              status: 'completed',
+              analyzed_at: new Date().toISOString(),
+            })
+            .eq('id', deal.id);
 
-        if (updateError) throw updateError;
+          toast.success('Analyse terminée !');
+        } else {
+          await supabase
+            .from('deals')
+            .update({
+              status: 'error',
+              error_message: result.error || 'Échec de l\'analyse',
+            })
+            .eq('id', deal.id);
 
-        toast.success('Analyse terminée !');
+          toast.error(result.error || 'Échec de l\'analyse');
+        }
+
+        // Step 4: Store PDF in deck_files
+        try {
+          const base64Content = await fileToBase64(file);
+          
+          await supabase
+            .from('deck_files')
+            .insert({
+              deal_id: deal.id,
+              filename: file.name,
+              base64_content: base64Content,
+              mime_type: 'application/pdf',
+            });
+        } catch (storageError) {
+          console.error('Error storing deck file:', storageError);
+          // Non-blocking error - deal is still created
+        }
+
+        navigate('/dashboard');
       } catch (n8nError: any) {
         console.error('N8N Error:', n8nError);
         
@@ -149,7 +171,8 @@ export default function SubmitDeal() {
           })
           .eq('id', deal.id);
 
-        toast.error('Erreur lors de l\'analyse. Vous pouvez relancer l\'analyse depuis la page du deal.');
+        toast.error('Erreur lors de l\'analyse. Vous pouvez réessayer depuis la page du deal.');
+        navigate('/dashboard');
       }
     } catch (error: any) {
       console.error('Error submitting deal:', error);
@@ -223,6 +246,19 @@ export default function SubmitDeal() {
               </div>
             </div>
 
+            {/* Additional Context */}
+            <div className="space-y-2">
+              <Label htmlFor="additional-context">Contexte additionnel (optionnel)</Label>
+              <Textarea
+                id="additional-context"
+                placeholder="Fournissez tout contexte utile pour l'analyse (ex: contenu d'email, notes, questions spécifiques...)"
+                value={additionalContext}
+                onChange={(e) => setAdditionalContext(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+
             <div className="flex gap-4 pt-4">
               <Button
                 type="button"
@@ -241,7 +277,7 @@ export default function SubmitDeal() {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Envoi en cours...
+                    Analyse en cours...
                   </>
                 ) : (
                   <>
