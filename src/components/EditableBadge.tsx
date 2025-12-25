@@ -21,6 +21,33 @@ const variantStyles = {
   funding: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/20',
 };
 
+// Format amount to K€/M€
+const formatAmount = (value: string | null): string => {
+  if (!value) return '';
+  const num = parseInt(value.toString().replace(/[^0-9]/g, ''));
+  if (isNaN(num)) return value;
+  if (num >= 1000000) {
+    const millions = num / 1000000;
+    return millions % 1 === 0 ? `${millions}M€` : `${millions.toFixed(1)}M€`;
+  } else if (num >= 1000) {
+    const thousands = num / 1000;
+    return thousands % 1 === 0 ? `${thousands}k€` : `${thousands.toFixed(1)}k€`;
+  }
+  return `${num}€`;
+};
+
+// Parse formatted amount back to raw number string
+const parseAmount = (formatted: string): string => {
+  if (!formatted) return '';
+  const str = formatted.toString().toLowerCase().replace('€', '').trim();
+  if (str.includes('m')) {
+    return String(Math.round(parseFloat(str.replace('m', '')) * 1000000));
+  } else if (str.includes('k')) {
+    return String(Math.round(parseFloat(str.replace('k', '')) * 1000));
+  }
+  return str.replace(/[^0-9]/g, '');
+};
+
 export function EditableBadge({
   value,
   field,
@@ -41,16 +68,27 @@ export function EditableBadge({
     }
   }, [isEditing]);
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  // Single click to edit (not double click)
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setEditValue(value || '');
+    // For amount field, show raw value for editing
+    if (variant === 'amount' && value) {
+      setEditValue(parseAmount(value));
+    } else {
+      setEditValue(value || '');
+    }
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    if (editValue !== value) {
-      await onSave(dealId, field, editValue);
+    let saveValue = editValue;
+    // For amount field, format and save raw number
+    if (variant === 'amount' && editValue) {
+      saveValue = parseAmount(editValue);
+    }
+    if (saveValue !== value) {
+      await onSave(dealId, field, saveValue);
     }
     setIsEditing(false);
   };
@@ -108,6 +146,9 @@ export function EditableBadge({
     );
   }
 
+  // Display formatted amount for amount variant
+  const displayValue = variant === 'amount' && value ? formatAmount(value) : value;
+
   return (
     <Badge
       variant="outline"
@@ -115,11 +156,10 @@ export function EditableBadge({
         'cursor-pointer text-xs transition-all select-none',
         variantStyles[variant]
       )}
-      onDoubleClick={handleDoubleClick}
-      onClick={(e) => e.stopPropagation()}
-      title="Double-cliquez pour modifier"
+      onClick={handleClick}
+      title="Cliquez pour modifier"
     >
-      {value || placeholder}
+      {displayValue || placeholder}
     </Badge>
   );
 }
