@@ -68,7 +68,7 @@ export default function Landing() {
               className="group gap-2 text-base bg-foreground text-background hover:bg-foreground/90" 
               onClick={() => navigate('/auth')}
             >
-              Start Analyzing
+              Start Analysing
               <Zap className="h-4 w-4 transition-transform group-hover:scale-110" />
             </Button>
           </div>

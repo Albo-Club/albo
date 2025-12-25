@@ -16,7 +16,7 @@ export function MemoModal({ open, onOpenChange, memoHtml, companyName }: MemoMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 [&>button.absolute]:hidden">
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">{displayName}</DialogTitle>
