@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Mail, FileText, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Mail, FileText, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { fr } from 'date-fns/locale';
 import { MemoModal } from '@/components/MemoModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { displayCompanyName } from '@/lib/utils';
-
+import { EditableBadge } from '@/components/EditableBadge';
 
 interface DeckFile {
   id: string;
@@ -24,6 +25,9 @@ interface Deal {
   startup_name: string | null;
   company_name: string | null;
   sector: string | null;
+  stage: string | null;
+  amount_sought: string | null;
+  funding_type: string | null;
   status: string;
   source: string | null;
   memo_html: string | null;
@@ -33,9 +37,14 @@ interface Deal {
   deck_files: DeckFile[];
 }
 
+const STAGE_OPTIONS = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth'];
+const SECTOR_OPTIONS = ['FinTech', 'HealthTech', 'EdTech', 'CleanTech', 'SaaS', 'Marketplace', 'B2B', 'B2C', 'DeepTech', 'AI/ML', 'Other'];
+const FUNDING_TYPE_OPTIONS = ['BSA-AIR', 'Equity', 'Obligations convertibles', 'Royalties', 'SAFE', 'Prêt participatif', 'Subvention', 'Revenue-based financing', 'Other'];
+
 export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string } | null>(null);
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
@@ -83,7 +92,7 @@ export default function Dashboard() {
       // First, try to load deals
       const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
-        .select('id, startup_name, company_name, sector, status, source, memo_html, created_at, analyzed_at, error_message')
+        .select('id, startup_name, company_name, sector, stage, amount_sought, funding_type, status, source, memo_html, created_at, analyzed_at, error_message')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -117,6 +126,12 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  const filteredDeals = deals.filter(deal =>
+    (deal.company_name || deal.startup_name || '')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -190,14 +205,16 @@ export default function Dashboard() {
         return;
       }
 
-      if (deckFile) {
+      if (deckFile.base64_content) {
         const link = document.createElement('a');
-        link.href = `data:${deckFile.mime_type};base64,${deckFile.base64_content}`;
-        link.download = deckFile.filename;
+        link.href = `data:${deckFile.mime_type || 'application/pdf'};base64,${deckFile.base64_content}`;
+        link.download = deckFile.filename || 'pitch-deck.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.success('Téléchargement démarré');
+        toast.success('Deck téléchargé !');
+      } else {
+        toast.error('Contenu du deck non disponible');
       }
     } catch (error: any) {
       console.error('Error downloading deck:', error);
@@ -206,6 +223,29 @@ export default function Dashboard() {
       setDownloadingDeck(null);
     }
   };
+
+  const handleSaveBadge = async (dealId: string, field: string, value: string) => {
+    try {
+      const updateValue = value === '_none_' ? null : value;
+      const { error } = await supabase
+        .from('deals')
+        .update({ [field]: updateValue })
+        .eq('id', dealId);
+
+      if (error) throw error;
+
+      setDeals(prev =>
+        prev.map(d =>
+          d.id === dealId ? { ...d, [field]: updateValue } : d
+        )
+      );
+      toast.success('Saved!');
+    } catch (error: any) {
+      console.error('Error saving badge:', error);
+      toast.error('Erreur lors de la sauvegarde');
+    }
+  };
+
   const handleDeleteDeal = async () => {
     if (!user?.id || !dealToDelete) return;
 
@@ -253,34 +293,52 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold">Mes Deals</h1>
           <p className="text-muted-foreground">
-            {deals.length > 0 
-              ? `${deals.length} deal${deals.length > 1 ? 's' : ''}`
+            {filteredDeals.length > 0 
+              ? `${filteredDeals.length} deal${filteredDeals.length > 1 ? 's' : ''}`
               : 'Suivez et analysez vos opportunités d\'investissement'}
           </p>
         </div>
-        <Button onClick={() => navigate('/submit')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Soumettre un Deal
-        </Button>
+        <div className="flex gap-4 items-center">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by company name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 pl-9"
+            />
+          </div>
+          <Button onClick={() => navigate('/submit')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Soumettre un Deal
+          </Button>
+        </div>
       </div>
 
-      {deals.length === 0 ? (
+      {filteredDeals.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
             <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Aucun deal</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {searchQuery ? 'No deals found matching your search' : 'Aucun deal'}
+            </h3>
             <p className="text-muted-foreground mb-4">
-              Commencez par soumettre votre premier pitch deck pour analyse
+              {searchQuery 
+                ? 'Essayez un autre terme de recherche'
+                : 'Commencez par soumettre votre premier pitch deck pour analyse'}
             </p>
-            <Button onClick={() => navigate('/submit')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Soumettre un Deal
-            </Button>
+            {!searchQuery && (
+              <Button onClick={() => navigate('/submit')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Soumettre un Deal
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {deals.map((deal) => (
+          {filteredDeals.map((deal) => (
             <Card 
               key={deal.id} 
               className="cursor-pointer hover:shadow-elegant transition-all duration-300 group"
@@ -308,6 +366,45 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Category badges */}
+                <div className="flex flex-wrap gap-2">
+                  <EditableBadge
+                    value={deal.stage}
+                    field="stage"
+                    dealId={deal.id}
+                    options={STAGE_OPTIONS}
+                    placeholder="Stage"
+                    variant="stage"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.sector}
+                    field="sector"
+                    dealId={deal.id}
+                    options={SECTOR_OPTIONS}
+                    placeholder="Secteur"
+                    variant="sector"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.amount_sought}
+                    field="amount_sought"
+                    dealId={deal.id}
+                    placeholder="Montant"
+                    variant="amount"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.funding_type}
+                    field="funding_type"
+                    dealId={deal.id}
+                    options={FUNDING_TYPE_OPTIONS}
+                    placeholder="Type"
+                    variant="funding"
+                    onSave={handleSaveBadge}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
                     Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
