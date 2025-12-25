@@ -43,6 +43,7 @@ export function EditableBadge({
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setEditValue(value || '');
     setIsEditing(true);
   };
@@ -111,10 +112,11 @@ export function EditableBadge({
     <Badge
       variant="outline"
       className={cn(
-        'cursor-pointer text-xs transition-all',
+        'cursor-pointer text-xs transition-all select-none',
         variantStyles[variant]
       )}
       onDoubleClick={handleDoubleClick}
+      onClick={(e) => e.stopPropagation()}
       title="Double-cliquez pour modifier"
     >
       {value || placeholder}
