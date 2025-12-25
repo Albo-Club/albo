@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Mail, FileText, Trash2, Search } from 'lucide-react';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -93,10 +93,12 @@ export default function Dashboard() {
       console.log('Loading deals for user:', user.id, 'and email:', user.email);
       
       // Load deals where user_id matches OR sender_email matches user's email
+      // Filter out hidden deals
       const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
         .select('id, user_id, company_name, sector, stage, amount_sought, funding_type, status, source, sender_email, memo_html, additional_context, created_at, updated_at, analyzed_at, error_message')
         .or(`user_id.eq.${user.id},sender_email.eq.${user.email}`)
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false });
 
       if (dealsError) {
@@ -164,22 +166,6 @@ export default function Dashboard() {
     }
   };
 
-  const getSourceLabel = (source: string | null) => {
-    if (source === 'email') {
-      return (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Mail className="h-3 w-3" />
-          Reçu par email
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <FileText className="h-3 w-3" />
-        Soumis via formulaire
-      </span>
-    );
-  };
 
   const handleViewMemo = (deal: Deal, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -261,34 +247,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteDeal = async () => {
-    if (!user?.id || !dealToDelete) return;
+  const handleHideDeal = async () => {
+    if (!dealToDelete) return;
 
     setDeletingDeal(true);
 
     try {
-      // Delete attached deck files first (if any)
-      const { error: deckDeleteError } = await supabase
-        .from('deck_files')
-        .delete()
-        .eq('deal_id', dealToDelete.id);
-
-      if (deckDeleteError) throw deckDeleteError;
-
-      const { error: dealDeleteError } = await supabase
+      const { error } = await supabase
         .from('deals')
-        .delete()
-        .eq('id', dealToDelete.id)
-        .eq('user_id', user.id);
+        .update({ is_hidden: true })
+        .eq('id', dealToDelete.id);
 
-      if (dealDeleteError) throw dealDeleteError;
+      if (error) throw error;
 
       setDeals((prev) => prev.filter((d) => d.id !== dealToDelete.id));
-      toast.success('Deal supprimé');
+      toast.success('Deal archivé');
       setDealToDelete(null);
     } catch (error: any) {
-      console.error('Error deleting deal:', error);
-      toast.error(error.message || 'Erreur lors de la suppression');
+      console.error('Error hiding deal:', error);
+      toast.error(error.message || 'Erreur lors de l\'archivage');
     } finally {
       setDeletingDeal(false);
     }
@@ -424,7 +401,6 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">
                     Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
                   </p>
-                  {getSourceLabel(deal.source)}
                   {deal.status === 'error' && deal.error_message && (
                     <p className="text-xs text-red-500 line-clamp-2">
                       {deal.error_message}
@@ -476,9 +452,9 @@ export default function Dashboard() {
       <AlertDialog open={!!dealToDelete} onOpenChange={(open) => !open && setDealToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce deal ?</AlertDialogTitle>
+            <AlertDialogTitle>Archiver ce deal ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Le deal et son deck associé seront supprimés.
+              Le deal sera masqué de votre liste. Vous pourrez le retrouver ultérieurement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -487,10 +463,10 @@ export default function Dashboard() {
               disabled={deletingDeal}
               onClick={(e) => {
                 e.preventDefault();
-                handleDeleteDeal();
+                handleHideDeal();
               }}
             >
-              {deletingDeal ? 'Suppression…' : 'Supprimer'}
+              {deletingDeal ? 'Archivage…' : 'Archiver'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
