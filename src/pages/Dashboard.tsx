@@ -17,12 +17,12 @@ import { EditableBadge } from '@/components/EditableBadge';
 
 interface DeckFile {
   id: string;
-  filename: string;
+  file_name: string;
 }
 
 interface Deal {
   id: string;
-  startup_name: string | null;
+  user_id: string | null;
   company_name: string | null;
   sector: string | null;
   stage: string | null;
@@ -30,8 +30,11 @@ interface Deal {
   funding_type: string | null;
   status: string;
   source: string | null;
+  sender_email: string | null;
   memo_html: string | null;
+  additional_context: string | null;
   created_at: string;
+  updated_at: string | null;
   analyzed_at: string | null;
   error_message: string | null;
   deck_files: DeckFile[];
@@ -39,7 +42,7 @@ interface Deal {
 
 const STAGE_OPTIONS = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth'];
 const SECTOR_OPTIONS = ['FinTech', 'HealthTech', 'EdTech', 'CleanTech', 'SaaS', 'Marketplace', 'B2B', 'B2C', 'DeepTech', 'AI/ML', 'Other'];
-const FUNDING_TYPE_OPTIONS = ['BSA-AIR', 'Equity', 'Obligations convertibles', 'Royalties', 'SAFE', 'Prêt participatif', 'Subvention', 'Revenue-based financing', 'Other'];
+const FUNDING_TYPE_OPTIONS = ['BSA-AIR', 'Equity', 'Convertible', 'Obligations', 'SAFE', 'Autre'];
 
 export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -81,19 +84,19 @@ export default function Dashboard() {
   }, [user]);
 
   const loadDeals = async () => {
-    if (!user?.id) {
+    if (!user?.id || !user?.email) {
       setLoading(false);
       return;
     }
     
     try {
-      console.log('Loading deals for user:', user.id);
+      console.log('Loading deals for user:', user.id, 'and email:', user.email);
       
-      // First, try to load deals
+      // Load deals where user_id matches OR sender_email matches user's email
       const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
-        .select('id, startup_name, company_name, sector, stage, amount_sought, funding_type, status, source, memo_html, created_at, analyzed_at, error_message')
-        .eq('user_id', user.id)
+        .select('id, user_id, company_name, sector, stage, amount_sought, funding_type, status, source, sender_email, memo_html, additional_context, created_at, updated_at, analyzed_at, error_message')
+        .or(`user_id.eq.${user.id},sender_email.eq.${user.email}`)
         .order('created_at', { ascending: false });
 
       if (dealsError) {
@@ -108,7 +111,7 @@ export default function Dashboard() {
         (dealsData || []).map(async (deal) => {
           const { data: files } = await supabase
             .from('deck_files')
-            .select('id, filename')
+            .select('id, file_name')
             .eq('deal_id', deal.id);
           
           return {
@@ -128,7 +131,7 @@ export default function Dashboard() {
   };
 
   const filteredDeals = deals.filter(deal =>
-    (deal.company_name || deal.startup_name || '')
+    (deal.company_name || '')
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
@@ -183,23 +186,35 @@ export default function Dashboard() {
     if (deal.memo_html) {
       setSelectedMemo({
         html: deal.memo_html,
-        companyName: displayCompanyName(deal.company_name || deal.startup_name) || 'Sans nom',
+        companyName: displayCompanyName(deal.company_name) || 'Sans nom',
       });
     }
   };
 
-  const handleDownloadDeck = async (dealId: string, e: React.MouseEvent) => {
+  const handleDownloadDeck = async (deal: Deal, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDownloadingDeck(dealId);
+    setDownloadingDeck(deal.id);
 
     try {
-      const { data: deckFile, error } = await supabase
+      // First try by deal_id
+      let { data: deckFile } = await supabase
         .from('deck_files')
-        .select('filename, base64_content, mime_type')
-        .eq('deal_id', dealId)
+        .select('file_name, base64_content, mime_type')
+        .eq('deal_id', deal.id)
         .maybeSingle();
 
-      if (error) throw error;
+      // If not found, try by sender_email
+      if (!deckFile && deal.sender_email) {
+        const { data } = await supabase
+          .from('deck_files')
+          .select('file_name, base64_content, mime_type')
+          .eq('sender_email', deal.sender_email)
+          .order('uploaded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        deckFile = data;
+      }
+
       if (!deckFile) {
         toast.error('Aucun deck trouvé pour ce deal');
         return;
@@ -208,7 +223,7 @@ export default function Dashboard() {
       if (deckFile.base64_content) {
         const link = document.createElement('a');
         link.href = `data:${deckFile.mime_type || 'application/pdf'};base64,${deckFile.base64_content}`;
-        link.download = deckFile.filename || 'pitch-deck.pdf';
+        link.download = deckFile.file_name || 'pitch-deck.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -347,7 +362,7 @@ export default function Dashboard() {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-lg line-clamp-1">
-                    {displayCompanyName(deal.company_name || deal.startup_name) || 'Analyse en cours...'}
+                    {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(deal.status)}
@@ -432,8 +447,8 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    disabled={!deal.deck_files || deal.deck_files.length === 0 || downloadingDeck === deal.id}
-                    onClick={(e) => handleDownloadDeck(deal.id, e)}
+                    disabled={downloadingDeck === deal.id}
+                    onClick={(e) => handleDownloadDeck(deal, e)}
                   >
                     {downloadingDeck === deal.id ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
