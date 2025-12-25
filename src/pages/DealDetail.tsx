@@ -15,15 +15,19 @@ const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/619a0db8-a332-4d7d-bcb
 
 interface Deal {
   id: string;
-  startup_name: string | null;
+  user_id: string | null;
   company_name: string | null;
   sector: string | null;
   stage: string | null;
-  country: string | null;
   status: string;
-  memo_content: any;
+  source: string | null;
+  sender_email: string | null;
   memo_html: string | null;
+  additional_context: string | null;
+  amount_sought: string | null;
+  funding_type: string | null;
   created_at: string;
+  updated_at: string | null;
   analyzed_at: string | null;
   error_message: string | null;
 }
@@ -116,10 +120,10 @@ export default function DealDetail() {
         .from('deals')
         .update({
           company_name: result.company_name || deal.company_name,
-          startup_name: result.company_name || deal.startup_name,
-          memo_content: result.memo_content,
+          memo_html: result.memo_html,
           status: 'completed',
           analyzed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
 
@@ -190,7 +194,7 @@ export default function DealDetail() {
 
   // Show analysis loader for pending deals
   if (deal.status === 'pending') {
-    const displayName = displayCompanyName(deal.company_name || deal.startup_name) || 'Analyse en cours...';
+    const displayName = displayCompanyName(deal.company_name) || 'Analyse en cours...';
 
     return (
       <div className="space-y-6">
@@ -213,7 +217,7 @@ export default function DealDetail() {
 
   // Show error state
   if (deal.status === 'error') {
-    const displayName = displayCompanyName(deal.company_name || deal.startup_name) || 'Sans nom';
+    const displayName = displayCompanyName(deal.company_name) || 'Sans nom';
 
     return (
       <div className="space-y-6">
@@ -260,7 +264,7 @@ export default function DealDetail() {
   }
 
   // Show completed analysis with memo
-  const displayName = displayCompanyName(deal.company_name || deal.startup_name) || '';
+  const displayName = displayCompanyName(deal.company_name) || '';
 
   return (
     <div className="space-y-6">
@@ -294,14 +298,6 @@ export default function DealDetail() {
             <MemoHtmlFrame html={deal.memo_html} title={`Mémo - ${displayName}`} />
           </CardContent>
         </Card>
-      ) : deal.memo_content ? (
-        <InvestmentMemoDisplay
-          memoMarkdown={typeof deal.memo_content === 'string' ? deal.memo_content : JSON.stringify(deal.memo_content, null, 2)}
-          dealData={{
-            companyName: deal.company_name || deal.startup_name || undefined,
-            sector: deal.sector || undefined,
-          }}
-        />
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
