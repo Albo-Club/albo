@@ -146,16 +146,21 @@ export default function SubmitDeal() {
           .from('deck_files')
           .insert({
             deal_id: deal.id,
-            filename: file.name,
+            sender_email: user.email,
+            file_name: file.name,
             base64_content: base64Content,
             mime_type: 'application/pdf',
           });
 
-        if (deckInsertError) throw deckInsertError;
-
-        console.log('Deck file stored successfully');
+        if (deckInsertError) {
+          console.error('Error storing deck file:', deckInsertError);
+          // Continue anyway, the deal is created
+        } else {
+          console.log('Deck file stored successfully');
+        }
       } catch (storageError) {
         console.error('Error storing deck file:', storageError);
+        // Continue anyway
       }
 
       // Step 4: Send PDF to N8N webhook with analysis_id

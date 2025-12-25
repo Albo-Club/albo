@@ -15,11 +15,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { displayCompanyName } from '@/lib/utils';
 import { EditableBadge } from '@/components/EditableBadge';
 
-interface DeckFile {
-  id: string;
-  file_name: string;
-}
-
 interface Deal {
   id: string;
   user_id: string | null;
@@ -37,7 +32,7 @@ interface Deal {
   updated_at: string | null;
   analyzed_at: string | null;
   error_message: string | null;
-  deck_files: DeckFile[];
+  hasDeck?: boolean;
 }
 
 const STAGE_OPTIONS = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth'];
@@ -108,22 +103,36 @@ export default function Dashboard() {
 
       console.log('Deals loaded:', dealsData?.length || 0);
 
-      // Then load deck_files separately for each deal
-      const dealsWithFiles = await Promise.all(
+      // Check deck existence for each deal
+      const dealsWithDeckStatus = await Promise.all(
         (dealsData || []).map(async (deal) => {
-          const { data: files } = await supabase
+          // Check by deal_id first
+          let { data: deckFile } = await supabase
             .from('deck_files')
-            .select('id, file_name')
-            .eq('deal_id', deal.id);
+            .select('id')
+            .eq('deal_id', deal.id)
+            .limit(1)
+            .maybeSingle();
+          
+          // If not found and sender_email exists, check by sender_email
+          if (!deckFile && deal.sender_email) {
+            const { data } = await supabase
+              .from('deck_files')
+              .select('id')
+              .eq('sender_email', deal.sender_email)
+              .limit(1)
+              .maybeSingle();
+            deckFile = data;
+          }
           
           return {
             ...deal,
-            deck_files: files || [],
+            hasDeck: !!deckFile,
           };
         })
       );
 
-      setDeals(dealsWithFiles as Deal[]);
+      setDeals(dealsWithDeckStatus as Deal[]);
     } catch (error: any) {
       console.error('Error loading deals:', error);
       toast.error(`Échec du chargement des deals: ${error.message || 'Erreur inconnue'}`);
@@ -207,12 +216,23 @@ export default function Dashboard() {
       }
 
       if (deckFile.base64_content) {
+        // Decode base64 to binary and create blob for proper download
+        const byteCharacters = atob(deckFile.base64_content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: deckFile.mime_type || 'application/pdf' });
+        
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = `data:${deckFile.mime_type || 'application/pdf'};base64,${deckFile.base64_content}`;
+        link.href = url;
         link.download = deckFile.file_name || 'pitch-deck.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
         toast.success('Deck téléchargé !');
       } else {
         toast.error('Contenu du deck non disponible');
@@ -333,8 +353,7 @@ export default function Dashboard() {
           {filteredDeals.map((deal) => (
             <Card 
               key={deal.id} 
-              className="cursor-pointer hover:shadow-elegant transition-all duration-300 group"
-              onClick={() => navigate(`/deal/${deal.id}`)}
+              className="hover:shadow-elegant transition-all duration-300 group"
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
@@ -423,7 +442,7 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    disabled={downloadingDeck === deal.id}
+                    disabled={downloadingDeck === deal.id || !deal.hasDeck}
                     onClick={(e) => handleDownloadDeck(deal, e)}
                   >
                     {downloadingDeck === deal.id ? (
