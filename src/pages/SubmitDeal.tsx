@@ -12,23 +12,28 @@ import AnalysisLoader from '@/components/AnalysisLoader';
 
 const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/2551cfc4-1892-4926-9f17-746c9a51be71';
 
+type StorageUploadResult = {
+  storagePath: string;
+  storageData: unknown;
+};
+
 // Upload file to Supabase Storage and return storage path
-const uploadToStorage = async (file: File, userId: string, dealId: string): Promise<string> => {
+const uploadToStorage = async (file: File, userId: string, dealId: string): Promise<StorageUploadResult> => {
   const fileExt = file.name.split('.').pop();
   const fileName = `${dealId}_${Date.now()}.${fileExt}`;
   const storagePath = `${userId}/${fileName}`;
 
-  const { data, error } = await supabase.storage
+  const { data: storageData, error: storageError } = await supabase.storage
     .from('deck-files')
     .upload(storagePath, file, {
       cacheControl: '3600',
       upsert: false,
     });
 
-  console.log('Storage upload result:', data, error);
+  console.log('3. Storage upload:', storageData, storageError);
 
-  if (error) throw error;
-  return storagePath;
+  if (storageError) throw storageError;
+  return { storagePath, storageData };
 };
 
 export default function SubmitDeal() {
@@ -107,6 +112,8 @@ export default function SubmitDeal() {
     setIsAnalyzing(true);
 
     try {
+      console.log('1. User:', user?.id, user?.email);
+
       // Step 1: Create analysis_request with status='running'
       const { data: analysisRecord, error: analysisError } = await supabase
         .from('analysis_requests')
@@ -125,12 +132,12 @@ export default function SubmitDeal() {
         setIsAnalyzing(false);
         return;
       }
-      
+
       setAnalysisId(analysisRecord.id);
 
       // Step 2: Create deal in "pending" status with initial company name from filename
       const initialCompanyName = file.name.replace('.pdf', '').replace(/[-_]/g, ' ');
-      
+
       const { data: deal, error: dealError } = await supabase
         .from('deals')
         .insert({
@@ -143,11 +150,13 @@ export default function SubmitDeal() {
         .select()
         .single();
 
+      console.log('2. Deal created:', deal?.id, dealError);
+
       if (dealError) throw dealError;
 
       // Step 3: Upload PDF to Storage and store reference in deck_files
       try {
-        const storagePath = await uploadToStorage(file, user.id, deal.id);
+        const { storagePath, storageData } = await uploadToStorage(file, user.id, deal.id);
 
         const { data: deckFileData, error: deckFileError } = await supabase
           .from('deck_files')
@@ -161,9 +170,12 @@ export default function SubmitDeal() {
           .select('id, storage_path, file_name')
           .single();
 
-        console.log('deck_files insert result:', deckFileData, deckFileError);
+        console.log('4. deck_files insert:', deckFileData, deckFileError);
 
         if (deckFileError) throw deckFileError;
+
+        // keep for debugging parity with requested logs
+        void storageData;
       } catch (deckError) {
         console.error('Deck upload/insert failed:', deckError);
         toast.error('Échec de l’upload du deck (vérifier les permissions)');
