@@ -103,13 +103,13 @@ export default function Dashboard() {
 
       console.log('Deals loaded:', dealsData?.length || 0);
 
-      // Check deck existence for each deal
+      // Check deck existence for each deal - verify storage_path OR base64_content exists
       const dealsWithDeckStatus = await Promise.all(
         (dealsData || []).map(async (deal) => {
-          // Check by deal_id first
+          // Check by deal_id first - must have storage_path or base64_content
           let { data: deckFile } = await supabase
             .from('deck_files')
-            .select('id')
+            .select('id, storage_path, base64_content')
             .eq('deal_id', deal.id)
             .limit(1)
             .maybeSingle();
@@ -118,16 +118,20 @@ export default function Dashboard() {
           if (!deckFile && deal.sender_email) {
             const { data } = await supabase
               .from('deck_files')
-              .select('id')
+              .select('id, storage_path, base64_content')
               .eq('sender_email', deal.sender_email)
               .limit(1)
               .maybeSingle();
             deckFile = data;
           }
           
+          // hasDeck is true only if we have actual file content (storage_path or base64)
+          const hasDeck = !!(deckFile && (deckFile.storage_path || deckFile.base64_content));
+          console.log('Deal', deal.id, 'hasDeck:', hasDeck, 'deckFile:', deckFile);
+          
           return {
             ...deal,
-            hasDeck: !!deckFile,
+            hasDeck,
           };
         })
       );
