@@ -54,7 +54,8 @@ export default function Dashboard() {
     if (user) {
       loadDeals();
 
-      // Subscribe to real-time updates on deals table
+      // Subscribe to real-time updates on deals table - listen to all changes
+      // since we filter by user_id OR sender_email in loadDeals
       const channel = supabase
         .channel('deals-updates')
         .on(
@@ -63,7 +64,6 @@ export default function Dashboard() {
             event: '*',
             schema: 'public',
             table: 'deals',
-            filter: `user_id=eq.${user.id}`
           },
           () => {
             // Reload all deals to get the joined deck_files
@@ -87,13 +87,13 @@ export default function Dashboard() {
     try {
       console.log('Loading deals for user:', user.id, 'and email:', user.email);
       
-      // Load deals where user_id matches OR sender_email matches user's email
-      // Filter out hidden deals
+      // Load deals where user_id matches OR sender_email matches user's email (case-insensitive)
+      // Filter out hidden deals using proper syntax
       const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
         .select('id, user_id, company_name, sector, stage, amount_sought, funding_type, status, source, sender_email, memo_html, additional_context, created_at, updated_at, analyzed_at, error_message')
-        .or(`user_id.eq.${user.id},sender_email.eq.${user.email}`)
-        .or('is_hidden.is.null,is_hidden.eq.false')
+        .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`)
+        .neq('is_hidden', true)
         .order('created_at', { ascending: false });
 
       if (dealsError) {
@@ -459,7 +459,7 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    disabled={deal.status !== 'completed' || !deal.memo_html}
+                    disabled={!deal.memo_html}
                     onClick={(e) => handleViewMemo(deal, e)}
                   >
                     <Eye className="h-4 w-4 mr-1" />
