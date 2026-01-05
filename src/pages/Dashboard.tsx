@@ -91,10 +91,17 @@ export default function Dashboard() {
       // Filter out hidden deals using proper syntax
       const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
-        .select('id, user_id, company_name, sector, stage, amount_sought, funding_type, status, source, sender_email, memo_html, additional_context, created_at, updated_at, analyzed_at, error_message')
+        .select('*')
         .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`)
         .neq('is_hidden', true)
         .order('created_at', { ascending: false });
+      
+      console.log('Deals loaded:', dealsData?.map(d => ({
+        id: d.id,
+        company: d.company_name,
+        has_memo: !!d.memo_html,
+        memo_length: d.memo_html?.length || 0
+      })));
 
       if (dealsError) {
         console.error('Deals query error:', dealsError);
