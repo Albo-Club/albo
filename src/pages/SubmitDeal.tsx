@@ -18,12 +18,14 @@ const uploadToStorage = async (file: File, userId: string, dealId: string): Prom
   const fileName = `${dealId}_${Date.now()}.${fileExt}`;
   const storagePath = `${userId}/${fileName}`;
 
-  const { error } = await supabase.storage
+  const { data, error } = await supabase.storage
     .from('deck-files')
     .upload(storagePath, file, {
       cacheControl: '3600',
       upsert: false,
     });
+
+  console.log('Storage upload result:', data, error);
 
   if (error) throw error;
   return storagePath;
@@ -143,28 +145,29 @@ export default function SubmitDeal() {
 
       if (dealError) throw dealError;
 
-      // Step 3: Upload PDF to Supabase Storage and store reference in deck_files
+      // Step 3: Upload PDF to Storage and store reference in deck_files
       try {
         const storagePath = await uploadToStorage(file, user.id, deal.id);
 
-        const { error: deckInsertError } = await supabase
+        const { data: deckFileData, error: deckFileError } = await supabase
           .from('deck_files')
           .insert({
             deal_id: deal.id,
-            sender_email: user.email,
+            sender_email: user.email ?? null,
             file_name: file.name,
             storage_path: storagePath,
             mime_type: 'application/pdf',
-          });
+          })
+          .select('id, storage_path, file_name')
+          .single();
 
-        if (deckInsertError) {
-          console.error('Error storing deck file reference:', deckInsertError);
-        } else {
-          console.log('Deck file uploaded successfully:', storagePath);
-        }
-      } catch (storageError) {
-        console.error('Error uploading deck file:', storageError);
-        // Continue anyway
+        console.log('deck_files insert result:', deckFileData, deckFileError);
+
+        if (deckFileError) throw deckFileError;
+      } catch (deckError) {
+        console.error('Deck upload/insert failed:', deckError);
+        toast.error('Échec de l’upload du deck (vérifier les permissions)');
+        throw deckError;
       }
 
       // Step 4: Send PDF to N8N webhook with analysis_id
