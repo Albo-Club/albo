@@ -194,7 +194,7 @@ export default function Dashboard() {
       // First try by deal_id
       let { data: deckFile } = await supabase
         .from('deck_files')
-        .select('file_name, base64_content, mime_type')
+        .select('file_name, storage_path, base64_content, mime_type')
         .eq('deal_id', deal.id)
         .maybeSingle();
 
@@ -202,7 +202,7 @@ export default function Dashboard() {
       if (!deckFile && deal.sender_email) {
         const { data } = await supabase
           .from('deck_files')
-          .select('file_name, base64_content, mime_type')
+          .select('file_name, storage_path, base64_content, mime_type')
           .eq('sender_email', deal.sender_email)
           .order('uploaded_at', { ascending: false })
           .limit(1)
@@ -215,8 +215,22 @@ export default function Dashboard() {
         return;
       }
 
-      if (deckFile.base64_content) {
-        // Decode base64 to binary and create blob for proper download
+      // Prefer storage_path (Supabase Storage) over base64
+      if (deckFile.storage_path) {
+        // Generate signed URL valid for 1 hour
+        const { data: signedUrlData, error: signedUrlError } = await supabase
+          .storage
+          .from('deck-files')
+          .createSignedUrl(deckFile.storage_path, 60 * 60);
+
+        if (signedUrlError) throw signedUrlError;
+
+        if (signedUrlData?.signedUrl) {
+          window.open(signedUrlData.signedUrl, '_blank', 'noopener');
+          toast.success('Deck ouvert dans un nouvel onglet');
+        }
+      } else if (deckFile.base64_content) {
+        // Fallback to base64 for old files
         const byteCharacters = atob(deckFile.base64_content);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
