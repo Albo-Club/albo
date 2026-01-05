@@ -12,16 +12,21 @@ import AnalysisLoader from '@/components/AnalysisLoader';
 
 const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/2551cfc4-1892-4926-9f17-746c9a51be71';
 
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = error => reject(error);
-  });
+// Upload file to Supabase Storage and return storage path
+const uploadToStorage = async (file: File, userId: string, dealId: string): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${dealId}_${Date.now()}.${fileExt}`;
+  const storagePath = `${userId}/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from('deck-files')
+    .upload(storagePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) throw error;
+  return storagePath;
 };
 
 export default function SubmitDeal() {
@@ -138,9 +143,9 @@ export default function SubmitDeal() {
 
       if (dealError) throw dealError;
 
-      // Step 3: Store PDF in deck_files BEFORE sending to N8N
+      // Step 3: Upload PDF to Supabase Storage and store reference in deck_files
       try {
-        const base64Content = await fileToBase64(file);
+        const storagePath = await uploadToStorage(file, user.id, deal.id);
 
         const { error: deckInsertError } = await supabase
           .from('deck_files')
@@ -148,18 +153,17 @@ export default function SubmitDeal() {
             deal_id: deal.id,
             sender_email: user.email,
             file_name: file.name,
-            base64_content: base64Content,
+            storage_path: storagePath,
             mime_type: 'application/pdf',
           });
 
         if (deckInsertError) {
-          console.error('Error storing deck file:', deckInsertError);
-          // Continue anyway, the deal is created
+          console.error('Error storing deck file reference:', deckInsertError);
         } else {
-          console.log('Deck file stored successfully');
+          console.log('Deck file uploaded successfully:', storagePath);
         }
       } catch (storageError) {
-        console.error('Error storing deck file:', storageError);
+        console.error('Error uploading deck file:', storageError);
         // Continue anyway
       }
 
