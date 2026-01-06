@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, FileText, ExternalLink, Trash2, Search, Coins } from 'lucide-react';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,6 @@ interface Deal {
   id: string;
   user_id: string | null;
   company_name: string | null;
-  one_liner: string | null;
   sector: string | null;
   stage: string | null;
   amount_sought: string | null;
@@ -171,43 +170,28 @@ export default function Dashboard() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-      case 'analyzed':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Analysé
-          </span>
+          <Badge className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Terminé
+          </Badge>
         );
       case 'pending':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 hover:bg-yellow-500/20">
             <Clock className="h-3 w-3 mr-1 animate-pulse" />
-            Analyse
-          </span>
+            Analyse en cours...
+          </Badge>
         );
       case 'error':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20">
+            <AlertCircle className="h-3 w-3 mr-1" />
             Erreur
-          </span>
-        );
-      case 'new':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-            Nouveau
-          </span>
-        );
-      case 'invested':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">
-            Investi
-          </span>
+          </Badge>
         );
       default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-            {status || 'Mail'}
-          </span>
-        );
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -379,16 +363,16 @@ export default function Dashboard() {
       </div>
 
       {filteredDeals.length === 0 ? (
-        <Card className="text-center py-12 border-dashed">
+        <Card className="text-center py-12">
           <CardContent>
             <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">
-              {searchQuery ? 'Aucun deal trouvé' : 'Aucun deal'}
+              {searchQuery ? 'No deals found matching your search' : 'Aucun deal'}
             </h3>
             <p className="text-muted-foreground mb-4">
               {searchQuery 
                 ? 'Essayez un autre terme de recherche'
-                : 'Commencez par soumettre votre premier pitch deck'}
+                : 'Commencez par soumettre votre premier pitch deck pour analyse'}
             </p>
             {!searchQuery && (
               <Button onClick={() => navigate('/submit')}>
@@ -399,109 +383,111 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredDeals.map((deal) => (
             <Card 
               key={deal.id} 
-              className="bg-card border border-border rounded-xl hover:shadow-sm transition-shadow duration-200 overflow-hidden flex flex-col"
+              className="hover:shadow-elegant transition-all duration-300 group"
             >
-              {/* Header */}
-              <div className="p-4 pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2 min-w-0 flex-1">
-                    <h3 className="font-semibold text-lg text-foreground truncate">
-                      {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
-                    </h3>
-                    {deal.hasDeck && (
-                      <button
-                        onClick={(e) => handleDownloadDeck(deal, e)}
-                        disabled={downloadingDeck === deal.id}
-                        className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-1"
-                        title="Télécharger le deck"
-                      >
-                        {downloadingDeck === deal.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ExternalLink className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg line-clamp-1">
+                    {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
                     {getStatusBadge(deal.status)}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDealToDelete(deal);
                       }}
-                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      aria-label="Archiver le deal"
+                      aria-label="Supprimer le deal"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
-                
-                {/* One Liner */}
-                {deal.one_liner && (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                    {deal.one_liner}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Category badges */}
+                <div className="flex flex-wrap gap-2">
+                  <EditableBadge
+                    value={deal.stage}
+                    field="stage"
+                    dealId={deal.id}
+                    options={STAGE_OPTIONS}
+                    placeholder="Stage"
+                    variant="stage"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.sector}
+                    field="sector"
+                    dealId={deal.id}
+                    options={SECTOR_OPTIONS}
+                    placeholder="Secteur"
+                    variant="sector"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.amount_sought}
+                    field="amount_sought"
+                    dealId={deal.id}
+                    placeholder="Montant"
+                    variant="amount"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.funding_type}
+                    field="funding_type"
+                    dealId={deal.id}
+                    options={FUNDING_TYPE_OPTIONS}
+                    placeholder="Type"
+                    variant="funding"
+                    onSave={handleSaveBadge}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
                   </p>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div className="px-4 pb-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {deal.sector && (
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      {deal.sector}
-                    </Badge>
-                  )}
-                  {deal.stage && (
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      {deal.stage}
-                    </Badge>
+                  {deal.status === 'error' && deal.error_message && (
+                    <p className="text-xs text-red-500 line-clamp-2">
+                      {deal.error_message}
+                    </p>
                   )}
                 </div>
-              </div>
 
-              {/* Footer */}
-              <div className="mt-auto border-t border-border bg-muted/30 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm">
-                    {deal.amount_sought && (
-                      <div className="flex items-center gap-1 text-foreground">
-                        <Coins className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="font-medium">{deal.amount_sought}</span>
-                      </div>
-                    )}
-                    {deal.funding_type && (
-                      <span className="text-muted-foreground">{deal.funding_type}</span>
-                    )}
-                  </div>
+                <div className="flex gap-2 pt-2">
                   <Button
+                    variant="outline"
                     size="sm"
+                    className="flex-1"
                     disabled={!deal.memo_html}
                     onClick={(e) => handleViewMemo(deal, e)}
-                    className="h-8"
                   >
-                    <FileText className="h-3.5 w-3.5 mr-1.5" />
-                    Voir l'analyse
+                    <Eye className="h-4 w-4 mr-1" />
+                    Voir le Mémo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    disabled={downloadingDeck === deal.id || !deal.hasDeck}
+                    onClick={(e) => handleDownloadDeck(deal, e)}
+                  >
+                    {downloadingDeck === deal.id ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-1" />
+                    )}
+                    Deck
                   </Button>
                 </div>
-                
-                {/* Date */}
-                <p className="text-xs text-muted-foreground mt-2">
-                  Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
-                </p>
-                
-                {deal.status === 'error' && deal.error_message && (
-                  <p className="text-xs text-destructive mt-1 line-clamp-1">
-                    {deal.error_message}
-                  </p>
-                )}
-              </div>
+              </CardContent>
             </Card>
           ))}
         </div>
