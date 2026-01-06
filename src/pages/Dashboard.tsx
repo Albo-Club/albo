@@ -19,9 +19,11 @@ interface Deal {
   id: string;
   user_id: string | null;
   company_name: string | null;
+  one_liner: string | null;
   sector: string | null;
   stage: string | null;
   amount_sought: string | null;
+  investment_amount_eur: number | null;
   funding_type: string | null;
   status: string;
   source: string | null;
@@ -43,6 +45,8 @@ export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterSector, setFilterSector] = useState<string>('');
+  const [filterStage, setFilterStage] = useState<string>('');
   const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string } | null>(null);
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
@@ -161,11 +165,20 @@ export default function Dashboard() {
     }
   };
 
-  const filteredDeals = deals.filter(deal =>
-    (deal.company_name || '')
+  const filteredDeals = deals.filter(deal => {
+    // Search filter (null-safe)
+    const matchesSearch = (deal.company_name || '')
       .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+      .includes(searchQuery.toLowerCase());
+    
+    // Sector filter (null-safe)
+    const matchesSector = !filterSector || (deal.sector && deal.sector === filterSector);
+    
+    // Stage filter (null-safe)
+    const matchesStage = !filterStage || (deal.stage && deal.stage === filterStage);
+    
+    return matchesSearch && matchesSector && matchesStage;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -344,22 +357,53 @@ export default function Dashboard() {
               : 'Suivez et analysez vos opportunités d\'investissement'}
           </p>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search by company name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 pl-9"
-            />
-          </div>
-          <Button onClick={() => navigate('/submit')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Soumettre un Deal
-          </Button>
+        <Button onClick={() => navigate('/submit')}>
+          <Plus className="mr-2 h-4 w-4" />
+          Soumettre un Deal
+        </Button>
+      </div>
+
+      {/* Filters row */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-48 pl-9"
+          />
         </div>
+        <select
+          value={filterSector}
+          onChange={(e) => setFilterSector(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">Tous les secteurs</option>
+          {SECTOR_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={filterStage}
+          onChange={(e) => setFilterStage(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">Tous les stades</option>
+          {STAGE_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        {(filterSector || filterStage) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setFilterSector(''); setFilterStage(''); }}
+          >
+            Réinitialiser
+          </Button>
+        )}
       </div>
 
       {filteredDeals.length === 0 ? (
@@ -383,36 +427,42 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {filteredDeals.map((deal) => (
             <Card 
               key={deal.id} 
               className="hover:shadow-elegant transition-all duration-300 group"
             >
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-lg line-clamp-1">
+              <CardHeader className="p-3 pb-1">
+                <div className="flex items-start justify-between gap-1">
+                  <CardTitle className="text-base line-clamp-1">
                     {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
                   </CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 shrink-0">
                     {getStatusBadge(deal.status)}
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-7 w-7"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDealToDelete(deal);
                       }}
                       aria-label="Supprimer le deal"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 </div>
+                {deal.one_liner && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                    {deal.one_liner}
+                  </p>
+                )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-3 pt-2 space-y-2">
                 {/* Category badges */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   <EditableBadge
                     value={deal.stage}
                     field="stage"
@@ -450,9 +500,9 @@ export default function Dashboard() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
                   </p>
                   {deal.status === 'error' && deal.error_message && (
                     <p className="text-xs text-red-500 line-clamp-2">
@@ -461,28 +511,28 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-1.5 pt-1">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 h-8 text-xs"
                     disabled={!deal.memo_html}
                     onClick={(e) => handleViewMemo(deal, e)}
                   >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Voir le Mémo
+                    <Eye className="h-3.5 w-3.5 mr-1" />
+                    Mémo
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 h-8 text-xs"
                     disabled={downloadingDeck === deal.id || !deal.hasDeck}
                     onClick={(e) => handleDownloadDeck(deal, e)}
                   >
                     {downloadingDeck === deal.id ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                     ) : (
-                      <Download className="h-4 w-4 mr-1" />
+                      <Download className="h-3.5 w-3.5 mr-1" />
                     )}
                     Deck
                   </Button>
