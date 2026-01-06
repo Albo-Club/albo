@@ -1,12 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Trash2, Search, Filter, X } from 'lucide-react';
+import { Plus, BarChart3, Loader2, Clock, CheckCircle2, AlertCircle, Eye, Download, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -14,13 +14,11 @@ import { MemoModal } from '@/components/MemoModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { displayCompanyName } from '@/lib/utils';
 import { EditableBadge } from '@/components/EditableBadge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Deal {
   id: string;
   user_id: string | null;
   company_name: string | null;
-  one_liner: string | null;
   sector: string | null;
   stage: string | null;
   amount_sought: string | null;
@@ -40,7 +38,6 @@ interface Deal {
 const STAGE_OPTIONS = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth'];
 const SECTOR_OPTIONS = ['FinTech', 'HealthTech', 'EdTech', 'CleanTech', 'SaaS', 'Marketplace', 'B2B', 'B2C', 'DeepTech', 'AI/ML', 'Other'];
 const FUNDING_TYPE_OPTIONS = ['BSA-AIR', 'Equity', 'Convertible', 'Obligations', 'SAFE', 'Autre'];
-const STATUS_OPTIONS = ['pending', 'analyzed', 'completed', 'reviewing', 'passed', 'error'];
 
 export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -50,14 +47,6 @@ export default function Dashboard() {
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
-  
-  // Filters
-  const [filterSector, setFilterSector] = useState<string>('');
-  const [filterStage, setFilterStage] = useState<string>('');
-  const [filterFundingType, setFilterFundingType] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -172,44 +161,11 @@ export default function Dashboard() {
     }
   };
 
-  const filteredDeals = useMemo(() => {
-    let result = deals.filter(deal =>
-      (deal.company_name || '')
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    );
-    
-    if (filterSector) {
-      result = result.filter(d => d.sector?.toLowerCase() === filterSector.toLowerCase());
-    }
-    if (filterStage) {
-      result = result.filter(d => d.stage?.toLowerCase() === filterStage.toLowerCase());
-    }
-    if (filterFundingType) {
-      result = result.filter(d => d.funding_type?.toLowerCase() === filterFundingType.toLowerCase());
-    }
-    if (filterStatus) {
-      result = result.filter(d => d.status?.toLowerCase() === filterStatus.toLowerCase());
-    }
-    
-    // Sort by created_at
-    result = result.sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    });
-    
-    return result;
-  }, [deals, searchQuery, filterSector, filterStage, filterFundingType, filterStatus, sortOrder]);
-
-  const hasActiveFilters = filterSector || filterStage || filterFundingType || filterStatus;
-  
-  const clearFilters = () => {
-    setFilterSector('');
-    setFilterStage('');
-    setFilterFundingType('');
-    setFilterStatus('');
-  };
+  const filteredDeals = deals.filter(deal =>
+    (deal.company_name || '')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -378,211 +334,155 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-4 w-full">
-      {/* Header */}
+    <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Mes Deals</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold">Mes Deals</h1>
+          <p className="text-muted-foreground">
             {filteredDeals.length > 0 
               ? `${filteredDeals.length} deal${filteredDeals.length > 1 ? 's' : ''}`
               : 'Suivez et analysez vos opportunités d\'investissement'}
           </p>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-4 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Search by company name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 pl-9 h-9"
+              className="w-64 pl-9"
             />
           </div>
-          <Button size="sm" onClick={() => navigate('/submit')}>
-            <Plus className="mr-1 h-4 w-4" />
-            Soumettre
+          <Button onClick={() => navigate('/submit')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Soumettre un Deal
           </Button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-card border border-border rounded-lg">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        
-        <Select value={filterSector} onValueChange={setFilterSector}>
-          <SelectTrigger className="h-8 w-32 text-xs">
-            <SelectValue placeholder="Secteur" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Tous</SelectItem>
-            {SECTOR_OPTIONS.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="h-8 w-28 text-xs">
-            <SelectValue placeholder="Stade" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Tous</SelectItem>
-            {STAGE_OPTIONS.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <Select value={filterFundingType} onValueChange={setFilterFundingType}>
-          <SelectTrigger className="h-8 w-28 text-xs">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Tous</SelectItem>
-            {FUNDING_TYPE_OPTIONS.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="h-8 w-28 text-xs">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Tous</SelectItem>
-            {STATUS_OPTIONS.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
-          <SelectTrigger className="h-8 w-32 text-xs">
-            <SelectValue placeholder="Date" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Plus récent</SelectItem>
-            <SelectItem value="asc">Plus ancien</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs">
-            <X className="h-3 w-3 mr-1" />
-            Effacer
-          </Button>
-        )}
-      </div>
-
       {filteredDeals.length === 0 ? (
-        <Card className="text-center py-10">
+        <Card className="text-center py-12">
           <CardContent>
-            <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-base font-semibold mb-2">
-              {searchQuery || hasActiveFilters ? 'Aucun deal trouvé' : 'Aucun deal'}
+            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              {searchQuery ? 'No deals found matching your search' : 'Aucun deal'}
             </h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              {searchQuery || hasActiveFilters
-                ? 'Essayez d\'autres filtres'
-                : 'Commencez par soumettre votre premier pitch deck'}
+            <p className="text-muted-foreground mb-4">
+              {searchQuery 
+                ? 'Essayez un autre terme de recherche'
+                : 'Commencez par soumettre votre premier pitch deck pour analyse'}
             </p>
-            {!searchQuery && !hasActiveFilters && (
-              <Button size="sm" onClick={() => navigate('/submit')}>
-                <Plus className="mr-1 h-4 w-4" />
-                Soumettre
+            {!searchQuery && (
+              <Button onClick={() => navigate('/submit')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Soumettre un Deal
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredDeals.map((deal) => (
             <Card 
               key={deal.id} 
               className="hover:shadow-elegant transition-all duration-300 group"
             >
-              <CardContent className="p-3 space-y-2">
-                {/* Header with title and actions */}
-                <div className="flex items-start justify-between gap-1">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm line-clamp-1">
-                      {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
-                    </h3>
-                    {/* One liner */}
-                    {deal.one_liner && (
-                      <p className="text-xs text-muted-foreground line-clamp-3 mt-1">
-                        {deal.one_liner}
-                      </p>
-                    )}
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg line-clamp-1">
+                    {displayCompanyName(deal.company_name) || 'Analyse en cours...'}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(deal.status)}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDealToDelete(deal);
+                      }}
+                      aria-label="Supprimer le deal"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDealToDelete(deal);
-                    }}
-                    aria-label="Archiver le deal"
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
                 </div>
-                
-                {/* Minimal badges - only stage and sector */}
-                <div className="flex flex-wrap gap-1">
-                  {deal.stage && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                      {deal.stage}
-                    </Badge>
-                  )}
-                  {deal.sector && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                      {deal.sector}
-                    </Badge>
-                  )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Category badges */}
+                <div className="flex flex-wrap gap-2">
+                  <EditableBadge
+                    value={deal.stage}
+                    field="stage"
+                    dealId={deal.id}
+                    options={STAGE_OPTIONS}
+                    placeholder="Stage"
+                    variant="stage"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.sector}
+                    field="sector"
+                    dealId={deal.id}
+                    options={SECTOR_OPTIONS}
+                    placeholder="Secteur"
+                    variant="sector"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.amount_sought}
+                    field="amount_sought"
+                    dealId={deal.id}
+                    placeholder="Montant"
+                    variant="amount"
+                    onSave={handleSaveBadge}
+                  />
+                  <EditableBadge
+                    value={deal.funding_type}
+                    field="funding_type"
+                    dealId={deal.id}
+                    options={FUNDING_TYPE_OPTIONS}
+                    placeholder="Type"
+                    variant="funding"
+                    onSave={handleSaveBadge}
+                  />
                 </div>
 
-                {/* Date and status */}
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(deal.created_at), 'dd MMM yy', { locale: fr })}
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Soumis le {format(new Date(deal.created_at), 'dd MMM yyyy', { locale: fr })}
                   </p>
-                  {getStatusBadge(deal.status)}
+                  {deal.status === 'error' && deal.error_message && (
+                    <p className="text-xs text-red-500 line-clamp-2">
+                      {deal.error_message}
+                    </p>
+                  )}
                 </div>
 
-                {deal.status === 'error' && deal.error_message && (
-                  <p className="text-[10px] text-red-500 line-clamp-1">
-                    {deal.error_message}
-                  </p>
-                )}
-
-                {/* Action buttons */}
-                <div className="flex gap-1.5 pt-1">
+                <div className="flex gap-2 pt-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-7 text-xs px-2"
+                    className="flex-1"
                     disabled={!deal.memo_html}
                     onClick={(e) => handleViewMemo(deal, e)}
                   >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Mémo
+                    <Eye className="h-4 w-4 mr-1" />
+                    Voir le Mémo
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-7 text-xs px-2"
+                    className="flex-1"
                     disabled={downloadingDeck === deal.id || !deal.hasDeck}
                     onClick={(e) => handleDownloadDeck(deal, e)}
                   >
                     {downloadingDeck === deal.id ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     ) : (
-                      <Download className="h-3 w-3 mr-1" />
+                      <Download className="h-4 w-4 mr-1" />
                     )}
                     Deck
                   </Button>
