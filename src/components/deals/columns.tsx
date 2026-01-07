@@ -13,7 +13,6 @@ export interface Deal {
   sector: string | null;
   stage: string | null;
   amount_sought: string | null;
-  investment_amount_eur: number | null;
   funding_type: string | null;
   status: string;
   source: string | null;
@@ -24,13 +23,15 @@ export interface Deal {
   updated_at: string | null;
   analyzed_at: string | null;
   error_message: string | null;
+  user_notes: string | null;
   hasDeck?: boolean;
 }
 
 export const statuses = [
-  { value: "pending", label: "Not analyzed", icon: CircleDashed },
-  { value: "analyzing", label: "En cours d'analyse", icon: Clock },
-  { value: "completed", label: "Analyzed", icon: CheckCircle2 },
+  { value: "pending", label: "À traiter", icon: CircleDashed },
+  { value: "analyzing", label: "En cours", icon: Clock },
+  { value: "completed", label: "Analysé", icon: CheckCircle2 },
+  { value: "passed", label: "Passé", icon: CircleDashed },
 ];
 
 export const stages = [
@@ -166,32 +167,12 @@ export const columns: ColumnDef<Deal>[] = [
     },
   },
   {
-    accessorKey: "funding_type",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Type" />
-    ),
-    cell: ({ row }) => {
-      const type = row.getValue("funding_type") as string | null;
-      if (!type) return <span className="text-muted-foreground">-</span>;
-      return <span className="text-sm">{type}</span>;
-    },
-  },
-  {
-    accessorKey: "investment_amount_eur",
+    accessorKey: "amount_sought",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Montant" />
     ),
     cell: ({ row }) => {
-      const amount = row.original.investment_amount_eur;
       const amountSought = row.original.amount_sought;
-
-      if (amount) {
-        return (
-          <span className="font-medium">
-            {formatAmount(amount.toString())}
-          </span>
-        );
-      }
 
       if (amountSought) {
         return (
