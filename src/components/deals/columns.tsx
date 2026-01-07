@@ -57,6 +57,17 @@ export const sectors = [
   { value: "Other", label: "Other" },
 ];
 
+export const fundingTypes = [
+  { value: "Equity", label: "Equity" },
+  { value: "Royalties", label: "Royalties" },
+  { value: "Dette", label: "Dette" },
+  { value: "Obligations", label: "Obligations" },
+  { value: "BSA AIR", label: "BSA AIR" },
+  { value: "SAFE", label: "SAFE" },
+  { value: "Convertible", label: "Convertible" },
+  { value: "Mixed", label: "Mixed" },
+];
+
 export const columns: ColumnDef<Deal>[] = [
   {
     accessorKey: "company_name",
