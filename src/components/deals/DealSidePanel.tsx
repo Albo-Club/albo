@@ -136,13 +136,29 @@ export function DealSidePanel({
     setSaving(true);
     try {
       const updates = {
+        sector: formData.sector || null,
+        stage: formData.stage || null,
+        status: formData.status || null,
         amount_sought: rawAmount || null,
+        funding_type: formData.funding_type || null,
         user_notes: formData.user_notes || null,
       };
 
-      const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
+      console.log("Updating deal:", deal.id, updates); // DEBUG
+
+      const { data, error, count } = await supabase
+        .from("deals")
+        .update(updates)
+        .eq("id", deal.id)
+        .select(); // Ajoute .select() pour voir ce qui est retourné
+
+      console.log("Update result:", { data, error, count }); // DEBUG
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("Aucune ligne mise à jour - vérifiez les RLS policies");
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["deals"] });
 
