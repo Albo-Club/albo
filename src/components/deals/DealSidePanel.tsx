@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Loader2, FileText, Download, Save, StickyNote } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   Sheet,
@@ -44,6 +45,7 @@ export function DealSidePanel({
   onViewMemo,
   onDownloadDeck,
 }: DealSidePanelProps) {
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [rawAmount, setRawAmount] = useState("");
@@ -80,22 +82,25 @@ export function DealSidePanel({
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("deals")
-        .update({
-          sector: formData.sector || null,
-          stage: formData.stage || null,
-          status: formData.status || null,
-          amount_sought: rawAmount || null,
-          funding_type: formData.funding_type || null,
-          user_notes: formData.user_notes || null,
-        })
-        .eq("id", deal.id);
+      const updates = {
+        sector: formData.sector || null,
+        stage: formData.stage || null,
+        status: formData.status || null,
+        amount_sought: rawAmount || null,
+        funding_type: formData.funding_type || null,
+        user_notes: formData.user_notes || null,
+      };
+
+      const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
 
       if (error) throw error;
 
-      toast.success("Deal mis à jour");
+      // Force refresh of the DataTable after successful save
+      await queryClient.invalidateQueries({ queryKey: ["deals"] });
+
+      toast.success("Succès");
       onDealUpdated();
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving deal:", error);
       toast.error(error.message || "Erreur lors de la sauvegarde");
