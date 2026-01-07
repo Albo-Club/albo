@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { displayCompanyName } from '@/lib/utils';
 import { DataTable } from '@/components/deals/data-table';
 import { columns, Deal } from '@/components/deals/columns';
+import { DealSidePanel } from '@/components/deals/DealSidePanel';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -65,14 +67,20 @@ export default function Dashboard() {
       setDealToDelete(e.detail.deal);
     };
 
+    const handleOpenDealPanel = (e: CustomEvent) => {
+      setSelectedDeal(e.detail.deal);
+    };
+
     window.addEventListener('view-memo', handleViewMemo as EventListener);
     window.addEventListener('download-deck', handleDownloadDeck as EventListener);
     window.addEventListener('delete-deal', handleDeleteDeal as EventListener);
+    window.addEventListener('open-deal-panel', handleOpenDealPanel as EventListener);
 
     return () => {
       window.removeEventListener('view-memo', handleViewMemo as EventListener);
       window.removeEventListener('download-deck', handleDownloadDeck as EventListener);
       window.removeEventListener('delete-deal', handleDeleteDeal as EventListener);
+      window.removeEventListener('open-deal-panel', handleOpenDealPanel as EventListener);
     };
   }, []);
 
@@ -217,8 +225,15 @@ export default function Dashboard() {
     }
   };
 
-  const handleRowClick = (deal: Deal) => {
-    navigate(`/deals/${deal.id}`);
+  const handleViewMemo = (html: string, companyName: string) => {
+    setSelectedMemo({
+      html,
+      companyName: displayCompanyName(companyName) || 'Sans nom',
+    });
+  };
+
+  const handleDownloadDeckFromPanel = async (deal: Deal) => {
+    await downloadDeck(deal);
   };
 
   if (loading) {
@@ -261,8 +276,17 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable columns={columns} data={deals} onRowClick={handleRowClick} />
+        <DataTable columns={columns} data={deals} />
       )}
+
+      <DealSidePanel
+        deal={selectedDeal}
+        open={!!selectedDeal}
+        onOpenChange={(open) => !open && setSelectedDeal(null)}
+        onDealUpdated={loadDeals}
+        onViewMemo={handleViewMemo}
+        onDownloadDeck={handleDownloadDeckFromPanel}
+      />
 
       <MemoModal
         open={!!selectedMemo}

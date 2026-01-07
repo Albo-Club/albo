@@ -20,8 +20,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const handleViewDetail = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Navigate to deal detail - will be handled by parent
-    window.location.href = `/deals/${deal.id}`;
+    window.dispatchEvent(
+      new CustomEvent("open-deal-panel", { detail: { deal } })
+    );
   };
 
   const handleViewMemo = (e: React.MouseEvent) => {

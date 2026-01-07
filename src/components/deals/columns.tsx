@@ -1,10 +1,9 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import { displayCompanyName, formatAmount } from "@/lib/utils";
-import { Mail, CheckCircle2, Clock, AlertCircle, CircleDot } from "lucide-react";
+import { CheckCircle2, Clock, CircleDashed } from "lucide-react";
 
 export interface Deal {
   id: string;
@@ -29,9 +28,9 @@ export interface Deal {
 }
 
 export const statuses = [
-  { value: "pending", label: "En attente", icon: Clock },
-  { value: "completed", label: "Analysé", icon: CheckCircle2 },
-  { value: "error", label: "Erreur", icon: AlertCircle },
+  { value: "pending", label: "Not analyzed", icon: CircleDashed },
+  { value: "analyzing", label: "En cours d'analyse", icon: Clock },
+  { value: "completed", label: "Analyzed", icon: CheckCircle2 },
 ];
 
 export const stages = [
@@ -59,31 +58,6 @@ export const sectors = [
 
 export const columns: ColumnDef<Deal>[] = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() ? "indeterminate" : false)
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Tout sélectionner"
-        className="translate-y-[2px]"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Sélectionner la ligne"
-        className="translate-y-[2px]"
-        onClick={(e) => e.stopPropagation()}
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
     accessorKey: "company_name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Entreprise" />
@@ -93,9 +67,17 @@ export const columns: ColumnDef<Deal>[] = [
       const oneLiner = row.original.one_liner;
       return (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold truncate max-w-[200px]">
+          <button
+            className="font-semibold truncate max-w-[200px] text-left hover:underline text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(
+                new CustomEvent("open-deal-panel", { detail: { deal: row.original } })
+              );
+            }}
+          >
             {name || "Analyse en cours..."}
-          </span>
+          </button>
           {oneLiner && (
             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
               {oneLiner}
@@ -122,9 +104,9 @@ export const columns: ColumnDef<Deal>[] = [
       const colorClass =
         status === "completed"
           ? "bg-green-500/10 text-green-600 border-green-500/20"
-          : status === "pending"
+          : status === "analyzing"
           ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
-          : "bg-red-500/10 text-red-600 border-red-500/20";
+          : "bg-gray-500/10 text-gray-600 border-gray-500/20";
 
       return (
         <Badge className={colorClass}>
