@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Loader2, FileText, Download, Save } from "lucide-react";
+import { Loader2, FileText, Download, Save, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -44,52 +45,56 @@ export function DealSidePanel({
   onDownloadDeck,
 }: DealSidePanelProps) {
   const [saving, setSaving] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [rawAmount, setRawAmount] = useState("");
   const [formData, setFormData] = useState({
     sector: "",
     stage: "",
     status: "",
-    amount_sought: "",
     funding_type: "",
+    user_notes: "",
   });
 
   useEffect(() => {
     if (deal) {
+      const amount = deal.amount_sought || "";
+      setRawAmount(parseAmount(amount) || amount.replace(/[^\d]/g, ""));
       setFormData({
         sector: deal.sector || "",
         stage: deal.stage || "",
         status: deal.status || "",
-        amount_sought: deal.investment_amount_eur
-          ? formatAmount(deal.investment_amount_eur.toString())
-          : deal.amount_sought
-          ? formatAmount(deal.amount_sought)
-          : "",
         funding_type: deal.funding_type || "",
+        user_notes: deal.user_notes || "",
       });
+      setShowNotes(false);
     }
   }, [deal]);
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d]/g, "");
+    setRawAmount(value);
+  };
 
   const handleSave = async () => {
     if (!deal) return;
 
     setSaving(true);
     try {
-      const parsedAmount = parseAmount(formData.amount_sought);
-
       const { error } = await supabase
         .from("deals")
         .update({
           sector: formData.sector || null,
           stage: formData.stage || null,
-          status: formData.status,
-          amount_sought: formData.amount_sought || null,
-          investment_amount_eur: parsedAmount,
+          status: formData.status || null,
+          amount_sought: rawAmount || null,
           funding_type: formData.funding_type || null,
+          user_notes: formData.user_notes || null,
         })
         .eq("id", deal.id);
 
       if (error) throw error;
 
-      toast.success("Modifications enregistrées");
+      toast.success("Deal mis à jour");
       onDealUpdated();
     } catch (error: any) {
       console.error("Error saving deal:", error);
@@ -130,29 +135,55 @@ export function DealSidePanel({
 
         <div className="mt-6 space-y-6">
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="h-8"
               onClick={() =>
                 deal.memo_html &&
                 onViewMemo(deal.memo_html, deal.company_name || "")
               }
               disabled={!deal.memo_html}
             >
-              <FileText className="h-4 w-4 mr-2" />
-              Voir le mémo
+              <FileText className="h-4 w-4 mr-1.5" />
+              Mémo
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="h-8"
               onClick={() => onDownloadDeck(deal)}
               disabled={!deal.hasDeck}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Télécharger le deck
+              <Download className="h-4 w-4 mr-1.5" />
+              Deck
+            </Button>
+            <Button
+              variant={showNotes ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8"
+              onClick={() => setShowNotes(!showNotes)}
+            >
+              <StickyNote className="h-4 w-4 mr-1.5" />
+              Notes
             </Button>
           </div>
+
+          {showNotes && (
+            <div className="space-y-1.5">
+              <Label htmlFor="notes">Notes personnelles</Label>
+              <Textarea
+                id="notes"
+                placeholder="Ajoutez vos notes sur ce deal..."
+                className="min-h-[150px] resize-none"
+                value={formData.user_notes}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, user_notes: e.target.value }))
+                }
+              />
+            </div>
+          )}
 
           <Separator />
 
@@ -171,7 +202,7 @@ export function DealSidePanel({
                     setFormData((prev) => ({ ...prev, status: value }))
                   }
                 >
-                  <SelectTrigger id="status">
+                  <SelectTrigger id="status" className="h-9">
                     <SelectValue placeholder="Sélectionner un statut" />
                   </SelectTrigger>
                   <SelectContent>
@@ -195,7 +226,7 @@ export function DealSidePanel({
                     setFormData((prev) => ({ ...prev, sector: value }))
                   }
                 >
-                  <SelectTrigger id="sector">
+                  <SelectTrigger id="sector" className="h-9">
                     <SelectValue placeholder="Sélectionner un secteur" />
                   </SelectTrigger>
                   <SelectContent>
@@ -216,7 +247,7 @@ export function DealSidePanel({
                     setFormData((prev) => ({ ...prev, stage: value }))
                   }
                 >
-                  <SelectTrigger id="stage">
+                  <SelectTrigger id="stage" className="h-9">
                     <SelectValue placeholder="Sélectionner un stade" />
                   </SelectTrigger>
                   <SelectContent>
@@ -231,17 +262,22 @@ export function DealSidePanel({
 
               <div className="space-y-1.5">
                 <Label htmlFor="amount">Montant recherché</Label>
-                <Input
-                  id="amount"
-                  placeholder="Ex: 500k€, 1.5M€"
-                  value={formData.amount_sought}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      amount_sought: e.target.value,
-                    }))
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="amount"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ex: 500000"
+                    className="h-9"
+                    value={rawAmount}
+                    onChange={handleAmountChange}
+                  />
+                  {rawAmount && (
+                    <span className="text-sm font-medium text-primary whitespace-nowrap">
+                      {formatAmount(rawAmount)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -249,6 +285,7 @@ export function DealSidePanel({
                 <Input
                   id="funding_type"
                   placeholder="Ex: Equity, SAFE, Convertible"
+                  className="h-9"
                   value={formData.funding_type}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -260,7 +297,7 @@ export function DealSidePanel({
               </div>
             </div>
 
-            <Button onClick={handleSave} disabled={saving} className="w-full">
+            <Button onClick={handleSave} disabled={saving} size="sm" className="w-full h-9">
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
