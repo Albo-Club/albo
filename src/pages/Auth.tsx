@@ -20,7 +20,8 @@ export default function Auth() {
   const [resetLoading, setResetLoading] = useState(false);
 
   const [signInData, setSignInData] = useState({ email: '', password: '' });
-  const [signUpData, setSignUpData] = useState({ name: '', email: '', password: '' });
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpSent, setSignUpSent] = useState(false);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +53,22 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      await signUp(signUpData.email, signUpData.password, signUpData.name);
+      const { error } = await supabase.auth.signUp({
+        email: signUpEmail,
+        password: crypto.randomUUID(), // Mot de passe temporaire
+        options: {
+          emailRedirectTo: `${window.location.origin}/complete-profile`
+        }
+      });
+      
+      if (error) throw error;
+      
+      setSignUpSent(true);
+      toast.success('Email envoyé ! Vérifiez votre boîte de réception.');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
     }
@@ -241,53 +256,47 @@ export default function Auth() {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signup-name">Nom complet</Label>
-                    <Input
-                      id="signup-name"
-                      name="name"
-                      type="text"
-                      autoComplete="name"
-                      value={signUpData.name}
-                      onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                      placeholder="Jean Dupont"
-                      required
-                      className="mt-2"
-                    />
+                {signUpSent ? (
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-4">📧</div>
+                    <h3 className="font-semibold mb-2">Email envoyé !</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Cliquez sur le lien dans votre email pour finaliser votre inscription.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSignUpSent(false);
+                        setSignUpEmail('');
+                      }}
+                    >
+                      Réessayer avec un autre email
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      value={signUpData.email}
-                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                      placeholder="vous@exemple.com"
-                      required
-                      className="mt-2"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-password">Mot de passe</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                      placeholder="••••••••"
-                      required
-                      className="mt-2"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Création du compte...' : 'Créer un compte'}
-                  </Button>
-                </form>
+                ) : (
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    <div>
+                      <Label htmlFor="signup-email">Email professionnel</Label>
+                      <Input
+                        id="signup-email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        value={signUpEmail}
+                        onChange={(e) => setSignUpEmail(e.target.value)}
+                        placeholder="vous@entreprise.com"
+                        required
+                        className="mt-2"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? 'Envoi...' : "Recevoir le lien d'inscription"}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Vous recevrez un email pour finaliser votre inscription
+                    </p>
+                  </form>
+                )}
               </TabsContent>
             </Tabs>
 
