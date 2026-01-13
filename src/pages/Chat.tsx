@@ -14,6 +14,7 @@ interface Conversation {
   source: 'chat' | 'email';
   updated_at: string;
   expires_at: string | null;
+  is_saved_as_deal?: boolean;
 }
 
 interface Message {
@@ -109,7 +110,7 @@ const Chat = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-stream`,
+        'https://kpvbcqilzfeitxzwhmou.supabase.co/functions/v1/chat-stream',
         {
           method: 'POST',
           headers: {
@@ -221,6 +222,7 @@ const Chat = () => {
 
   const currentConversation = conversations.find(c => c.id === conversationId);
   const isPermanent = currentConversation && !currentConversation.expires_at;
+  const isSavedAsDeal = currentConversation?.is_saved_as_deal ?? false;
   const temporaryConversations = conversations.filter(c => c.expires_at);
   const permanentConversations = conversations.filter(c => !c.expires_at);
 
@@ -310,7 +312,7 @@ const Chat = () => {
           <h2 className="font-semibold truncate">
             {currentConversation?.title || 'Nouvelle conversation'}
           </h2>
-          {conversationId && !isPermanent && (
+          {conversationId && !isSavedAsDeal && (
             <Button variant="outline" size="sm" onClick={handleSaveAsDeal} className="gap-2">
               <Save className="h-4 w-4" />
               Sauvegarder comme Deal
