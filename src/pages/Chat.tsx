@@ -150,13 +150,23 @@ const Chat = () => {
       if (!response.ok) throw new Error('Erreur de connexion au serveur');
 
       const data = await response.json();
-      console.log('🔍 Format N8N response:', JSON.stringify(data, null, 2));
+      console.log('🔍 Raw N8N response:', data);
       
-      // Adapter selon le format exact renvoyé par N8N (peut être un objet ou un array)
-      const responseData = Array.isArray(data) ? data[0] : data;
-      const assistantContent = responseData?.output || responseData?.message || responseData?.response || 'Réponse vide';
+      // Parser correctement selon le format N8N (array ou objet)
+      let assistantContent: string;
       
-      if (!assistantContent || assistantContent === 'Réponse vide') {
+      if (Array.isArray(data) && data.length > 0) {
+        // Format: [{ message: "...", conversation_id: "..." }]
+        assistantContent = data[0].message || data[0].output || data[0].response;
+      } else if (data && typeof data === 'object') {
+        // Format: { message: "...", conversation_id: "..." }
+        assistantContent = data.message || data.output || data.response;
+      } else {
+        console.error('Format N8N inattendu:', data);
+        throw new Error('Format de réponse invalide');
+      }
+      
+      if (!assistantContent || assistantContent.trim() === '') {
         throw new Error('Réponse IA vide');
       }
       
