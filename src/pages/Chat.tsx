@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Send, Paperclip, Save, Plus, MessageSquare, Star, Trash2, Loader2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Conversation {
@@ -127,12 +128,17 @@ const Chat = () => {
       }
 
       const data = await response.json();
+      console.log('🔍 Format N8N response:', JSON.stringify(data, null, 2));
+      
+      // Adapter selon le format exact renvoyé par N8N (peut être un objet ou un array)
+      const responseData = Array.isArray(data) ? data[0] : data;
+      const assistantMessage = responseData?.message || responseData?.response || 'Réponse vide';
       
       // Ajouter le message assistant
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.response || 'Réponse vide',
+        content: assistantMessage,
         attachments: [],
         created_at: new Date().toISOString()
       }]);
@@ -322,8 +328,8 @@ const Chat = () => {
             {loading && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-muted">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <LoadingDots />
                     <span className="text-sm">L'agent analyse votre question...</span>
                   </div>
                 </div>
