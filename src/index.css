@@ -157,84 +157,80 @@
   }
 
   .prose h1 {
-    @apply text-5xl font-normal mt-12 mb-8 pb-6 border-b-4 border-primary/30 leading-tight tracking-tight;
-    font-family: 'Lora', serif;
+    @apply text-3xl font-semibold mt-8 mb-4 leading-tight tracking-tight text-foreground;
   }
 
   .prose h2 {
-    @apply text-3xl font-semibold mt-16 mb-8 pb-4 border-b-2 border-primary/20 leading-tight px-4 py-3 rounded-3xl -mx-4;
-    background: linear-gradient(to right, hsl(var(--primary) / 0.08), transparent);
-    font-family: 'Lora', serif;
+    @apply text-xl font-semibold mt-6 mb-3 leading-tight text-foreground;
   }
 
   .prose h3 {
-    @apply text-2xl font-medium italic mt-10 mb-5 text-primary leading-snug tracking-tight;
-    font-family: 'Lora', serif;
+    @apply text-lg font-medium mt-5 mb-2 leading-snug text-foreground;
   }
 
   .prose h4 {
-    @apply text-xl font-semibold mt-8 mb-4 leading-snug;
+    @apply text-base font-semibold mt-4 mb-2 leading-snug text-foreground;
   }
 
   .prose p {
-    @apply text-base leading-relaxed mb-6 text-foreground/90;
+    @apply text-sm leading-relaxed mb-3 text-foreground/90;
   }
 
   .prose p + p {
-    @apply mt-6;
+    @apply mt-3;
   }
 
   .prose ul,
   .prose ol {
-    @apply my-6 space-y-3 pl-6;
+    @apply my-3 space-y-1 pl-5;
   }
 
   .prose li {
-    @apply text-base leading-relaxed text-foreground/90;
+    @apply text-sm leading-relaxed text-foreground/90;
   }
 
   .prose li::marker {
-    @apply text-primary font-bold;
+    @apply text-foreground/60;
   }
 
   .prose strong {
-    @apply font-bold text-primary bg-primary/5 px-1 rounded;
+    @apply font-bold text-foreground;
   }
 
   .prose blockquote {
-    @apply border-l-4 border-primary bg-primary/5 pl-6 pr-6 py-4 my-8 italic rounded-r-md;
+    @apply border-l-2 border-border bg-muted/50 pl-4 pr-4 py-2 my-4 italic rounded-r-md text-sm;
   }
 
   .prose code {
-    @apply bg-muted text-primary px-2 py-1 rounded text-sm font-mono;
+    @apply bg-muted text-foreground px-1.5 py-0.5 rounded text-xs font-mono;
   }
 
   .prose pre {
-    @apply bg-muted border border-border p-4 rounded-lg my-6 overflow-x-auto;
+    @apply bg-muted border border-border p-3 rounded-lg my-4 overflow-x-auto text-sm;
   }
 
   .prose table {
-    @apply my-8 border-collapse w-full;
+    @apply my-4 border-collapse w-full text-sm;
   }
 
   .prose th {
-    @apply bg-primary/10 font-bold text-left py-3 px-4 border border-border;
+    @apply bg-muted font-semibold text-left py-2 px-3 border border-border text-foreground;
   }
 
   .prose td {
-    @apply border border-border py-3 px-4;
+    @apply border border-border py-2 px-3 text-foreground/90;
   }
 
   .prose hr {
-    @apply border-2 border-primary/20 my-12;
+    @apply border border-border my-6;
   }
 
   .prose a {
-    @apply text-primary font-medium underline decoration-primary/30;
+    @apply text-foreground font-medium underline decoration-foreground/30;
   }
 
   .prose a:hover {
-    @apply decoration-primary;
+    @apply decoration-foreground;
   }
 }
 

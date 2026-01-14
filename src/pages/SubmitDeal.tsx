@@ -248,12 +248,10 @@ export default function SubmitDeal() {
           const { error: updateDealError } = await supabase
             .from('deals')
             .update({
-              status: 'error',
+              status: 'pending',
               error_message: result?.error || "Échec de l'analyse",
             })
             .eq('id', deal.id);
-
-          if (updateDealError) throw updateDealError;
 
           const { error: updateAnalysisError } = await supabase
             .from('analysis_requests')
@@ -272,7 +270,7 @@ export default function SubmitDeal() {
         await supabase
           .from('deals')
           .update({
-            status: 'error',
+            status: 'pending',
             error_message: n8nError.message || 'Erreur lors de l\'analyse',
           })
           .eq('id', deal.id);
