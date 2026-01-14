@@ -34,8 +34,6 @@ const Chat = () => {
   const [input, setInput] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [streaming, setStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,7 +56,7 @@ const Chat = () => {
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages]);
 
   const loadConversations = async () => {
     const { data } = await supabase
@@ -88,10 +86,12 @@ const Chat = () => {
 
   const handleSend = async () => {
     if (!input.trim() && !file) return;
+    if (!user) {
+      toast.error('Vous devez être connecté');
+      return;
+    }
     
     setLoading(true);
-    setStreaming(true);
-    setStreamingContent('');
     
     // Ajouter le message user localement
     const userMessage: Message = {
@@ -106,21 +106,18 @@ const Chat = () => {
     setInput('');
     
     try {
-      // Appeler l'Edge Function avec streaming
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Appeler le webhook N8N
       const response = await fetch(
-        'https://kpvbcqilzfeitxzwhmou.supabase.co/functions/v1/chat-stream',
+        'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df',
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            conversation_id: conversationId || null,
             message: currentInput,
-            attachments: file ? [{ name: file.name, type: file.type, size: file.size }] : []
+            user_id: user.id,
+            conversation_id: conversationId || null
           })
         }
       );
@@ -129,64 +126,29 @@ const Chat = () => {
         throw new Error('Erreur de connexion au serveur');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                
-                if (data.type === 'token') {
-                  fullContent += data.text;
-                  setStreamingContent(fullContent);
-                }
-                
-                if (data.type === 'done') {
-                  // Naviguer vers la conversation si nouvelle
-                  if (!conversationId && data.conversation_id) {
-                    navigate(`/chat/${data.conversation_id}`, { replace: true });
-                  }
-                  
-                  // Ajouter le message assistant
-                  setMessages(prev => [...prev, {
-                    id: crypto.randomUUID(),
-                    role: 'assistant',
-                    content: fullContent,
-                    attachments: [],
-                    created_at: new Date().toISOString()
-                  }]);
-                  
-                  setStreamingContent('');
-                  loadConversations();
-                }
-                
-                if (data.type === 'error') {
-                  toast.error(data.error || 'Erreur lors de la génération');
-                }
-              } catch (e) {
-                // Ignore parsing errors for incomplete chunks
-              }
-            }
-          }
-        }
+      const data = await response.json();
+      
+      // Ajouter le message assistant
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.response || 'Réponse vide',
+        attachments: [],
+        created_at: new Date().toISOString()
+      }]);
+      
+      // Naviguer vers la conversation si nouvelle
+      if (!conversationId && data.conversation_id) {
+        navigate(`/chat/${data.conversation_id}`, { replace: true });
       }
+      
+      loadConversations();
     } catch (error: any) {
       toast.error(error.message || 'Erreur de connexion');
       // Remove the optimistic user message on error
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setLoading(false);
-      setStreaming(false);
       setFile(null);
     }
   };
@@ -323,7 +285,7 @@ const Chat = () => {
         {/* Messages */}
         <ScrollArea className="flex-1">
           <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
-            {messages.length === 0 && !streaming && (
+            {messages.length === 0 && !loading && (
               <div className="text-center py-20">
                 <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">Commencez une conversation</h3>
@@ -356,22 +318,14 @@ const Chat = () => {
               </div>
             ))}
             
-            {/* Streaming message */}
-            {streaming && streamingContent && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-muted text-foreground">
-                  <p className="whitespace-pre-wrap">
-                    {streamingContent}
-                    <span className="animate-pulse">▌</span>
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {streaming && !streamingContent && (
+            {/* Loading indicator */}
+            {loading && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-muted">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">L'agent analyse votre question...</span>
+                  </div>
                 </div>
               </div>
             )}
