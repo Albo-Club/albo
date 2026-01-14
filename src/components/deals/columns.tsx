@@ -80,17 +80,9 @@ export const columns: ColumnDef<Deal>[] = [
       const oneLiner = row.original.one_liner;
       return (
         <div className="flex flex-col gap-0.5">
-          <button
-            className="font-semibold truncate max-w-[200px] text-left hover:underline text-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("open-deal-panel", { detail: { deal: row.original } })
-              );
-            }}
-          >
+          <span className="font-semibold truncate max-w-[200px] text-left">
             {name || "Analyse en cours..."}
-          </button>
+          </span>
           {oneLiner && (
             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
               {oneLiner}
@@ -118,7 +110,7 @@ export const columns: ColumnDef<Deal>[] = [
           className="gap-1.5 h-7 px-2.5 text-xs font-medium bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 text-violet-700 hover:bg-violet-500/20 hover:border-violet-500/50 dark:text-violet-300"
         >
           <Sparkles className="h-3 w-3" />
-          Due Diligence
+          Ask AI
         </Button>
       );
     },
