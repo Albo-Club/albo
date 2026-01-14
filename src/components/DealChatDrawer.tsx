@@ -4,11 +4,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, displayCompanyName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { LoadingDots } from "@/components/ui/LoadingDots";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: string;
@@ -197,7 +199,7 @@ export function DealChatDrawer({ dealId, companyName, isOpen, onOpenChange }: De
         <SheetHeader className="p-4 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Due Diligence - {companyName}
+            {displayCompanyName(companyName)}
           </SheetTitle>
         </SheetHeader>
 
@@ -230,13 +232,19 @@ export function DealChatDrawer({ dealId, companyName, isOpen, onOpenChange }: De
                 )}
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-lg px-4 py-2 whitespace-pre-wrap",
+                    "max-w-[80%] rounded-lg px-4 py-2",
                     message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      ? "bg-primary text-primary-foreground whitespace-pre-wrap"
+                      : "bg-muted prose prose-sm dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-table:my-2 max-w-none"
                   )}
                 >
-                  {message.content}
+                  {message.role === "user" ? (
+                    message.content
+                  ) : (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
                 {message.role === "user" && (
                   <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">

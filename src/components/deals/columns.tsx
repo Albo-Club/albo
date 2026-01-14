@@ -5,6 +5,8 @@ import { DataTableRowActions } from "./data-table-row-actions";
 import { displayCompanyName, formatAmount } from "@/lib/utils";
 import { CheckCircle2, Clock, CircleDashed, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 export interface Deal {
   id: string;
@@ -191,6 +193,21 @@ export const columns: ColumnDef<Deal>[] = [
       const cellValue = row.getValue(id) as string | null;
       if (!cellValue) return false;
       return value.includes(cellValue);
+    },
+  },
+  {
+    accessorKey: "created_at",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Date de réception" />
+    ),
+    cell: ({ row }) => {
+      const createdAt = row.getValue("created_at") as string;
+      if (!createdAt) return <span className="text-muted-foreground">-</span>;
+      return (
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          {format(new Date(createdAt), "d MMM yyyy", { locale: fr })}
+        </span>
+      );
     },
   },
   {
