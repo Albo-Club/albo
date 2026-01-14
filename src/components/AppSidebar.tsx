@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Plus } from "lucide-react";
+import { Wallet, Table2, Plus } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -15,9 +15,14 @@ import {
 
 const navItems = [
   {
-    title: "Dashboard",
+    title: "Portfolio",
+    url: "/portfolio",
+    icon: Wallet,
+  },
+  {
+    title: "Mes Deals",
     url: "/dashboard",
-    icon: LayoutDashboard,
+    icon: Table2,
   },
   {
     title: "Submit Deal",
