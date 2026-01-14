@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import SetupPassword from "./pages/SetupPassword";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
+import Portfolio from "./pages/Portfolio";
 import SubmitDeal from "./pages/SubmitDeal";
 
 import DealDetail from "./pages/DealDetail";
@@ -37,6 +38,16 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/setup-password" element={<SetupPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route
+              path="/portfolio"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Portfolio />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
