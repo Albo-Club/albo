@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, MessageSquare, Plus } from "lucide-react";
+import { LayoutDashboard, Plus } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -18,11 +18,6 @@ const navItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
-  },
-  {
-    title: "Chat",
-    url: "/chat",
-    icon: MessageSquare,
   },
   {
     title: "Submit Deal",

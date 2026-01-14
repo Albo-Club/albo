@@ -14,7 +14,7 @@ import SetupPassword from "./pages/SetupPassword";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
 import SubmitDeal from "./pages/SubmitDeal";
-import Chat from "./pages/Chat";
+
 import DealDetail from "./pages/DealDetail";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
@@ -53,26 +53,6 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <SubmitDeal />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Chat />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat/:conversationId"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Chat />
                   </DashboardLayout>
                 </ProtectedRoute>
               }
