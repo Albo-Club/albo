@@ -93,66 +93,100 @@ const Chat = () => {
     }
     
     setLoading(true);
-    
-    // Ajouter le message user localement
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input,
-      attachments: file ? [{ name: file.name, type: file.type, size: file.size }] : [],
-      created_at: new Date().toISOString()
-    };
-    setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput('');
     
     try {
-      // Appeler le webhook N8N
+      // 1. Créer/Récupérer la conversation dans Supabase
+      let activeConversationId = conversationId;
+      
+      if (!activeConversationId) {
+        const { data: newConv, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            user_id: user.id,
+            title: currentInput.substring(0, 50),
+            source: 'chat'
+          })
+          .select()
+          .single();
+        
+        if (convError) throw convError;
+        activeConversationId = newConv.id;
+        navigate(`/chat/${activeConversationId}`, { replace: true });
+      }
+      
+      // 2. Sauvegarder le message user dans Supabase
+      const { data: savedUserMsg, error: userMsgError } = await supabase
+        .from('conversation_messages')
+        .insert({
+          conversation_id: activeConversationId,
+          role: 'user',
+          content: currentInput,
+          attachments: file ? [{ name: file.name, type: file.type, size: file.size }] : []
+        })
+        .select()
+        .single();
+      
+      if (userMsgError) throw userMsgError;
+      
+      // Afficher immédiatement le message user dans l'UI
+      setMessages(prev => [...prev, savedUserMsg as Message]);
+      
+      // 3. Appeler le webhook N8N pour obtenir la réponse IA
       const response = await fetch(
         'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: currentInput,
             user_id: user.id,
-            conversation_id: conversationId || null
+            conversation_id: activeConversationId
           })
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Erreur de connexion au serveur');
-      }
+      if (!response.ok) throw new Error('Erreur de connexion au serveur');
 
       const data = await response.json();
       console.log('🔍 Format N8N response:', JSON.stringify(data, null, 2));
       
       // Adapter selon le format exact renvoyé par N8N (peut être un objet ou un array)
       const responseData = Array.isArray(data) ? data[0] : data;
-      const assistantMessage = responseData?.message || responseData?.response || 'Réponse vide';
+      const assistantContent = responseData?.output || responseData?.message || responseData?.response || 'Réponse vide';
       
-      // Ajouter le message assistant
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: assistantMessage,
-        attachments: [],
-        created_at: new Date().toISOString()
-      }]);
-      
-      // Naviguer vers la conversation si nouvelle
-      if (!conversationId && data.conversation_id) {
-        navigate(`/chat/${data.conversation_id}`, { replace: true });
+      if (!assistantContent || assistantContent === 'Réponse vide') {
+        throw new Error('Réponse IA vide');
       }
+      
+      // 4. Sauvegarder le message assistant dans Supabase
+      const { data: savedAssistantMsg, error: aiMsgError } = await supabase
+        .from('conversation_messages')
+        .insert({
+          conversation_id: activeConversationId,
+          role: 'assistant',
+          content: assistantContent,
+          attachments: []
+        })
+        .select()
+        .single();
+      
+      if (aiMsgError) throw aiMsgError;
+      
+      // Afficher le message assistant dans l'UI
+      setMessages(prev => [...prev, savedAssistantMsg as Message]);
+      
+      // Mettre à jour updated_at de la conversation
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', activeConversationId);
       
       loadConversations();
     } catch (error: any) {
+      console.error('Erreur chat:', error);
       toast.error(error.message || 'Erreur de connexion');
-      // Remove the optimistic user message on error
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setLoading(false);
       setFile(null);
