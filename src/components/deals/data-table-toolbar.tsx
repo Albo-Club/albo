@@ -1,11 +1,7 @@
 import { Table } from "@tanstack/react-table";
-import { X } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
-import { DataTableFacetedFilter } from "./data-table-faceted-filter";
-import { statuses, sectors, stages } from "./columns";
+import { DataTableUnifiedFilter } from "./DataTableUnifiedFilter";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -14,52 +10,22 @@ interface DataTableToolbarProps<TData> {
 export function DataTableToolbar<TData>({
   table,
 }: DataTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
-
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
-        <Input
-          placeholder="Rechercher une entreprise..."
-          value={(table.getColumn("company_name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("company_name")?.setFilterValue(event.target.value)
-          }
-          className="h-8 w-[150px] lg:w-[250px]"
-        />
-        {table.getColumn("status") && (
-          <DataTableFacetedFilter
-            column={table.getColumn("status")}
-            title="Statut"
-            options={statuses}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-1 items-center gap-2">
+          <Input
+            placeholder="Rechercher une entreprise..."
+            value={(table.getColumn("company_name")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("company_name")?.setFilterValue(event.target.value)
+            }
+            className="h-8 w-[150px] lg:w-[250px]"
           />
-        )}
-        {table.getColumn("sector") && (
-          <DataTableFacetedFilter
-            column={table.getColumn("sector")}
-            title="Secteur"
-            options={sectors}
-          />
-        )}
-        {table.getColumn("stage") && (
-          <DataTableFacetedFilter
-            column={table.getColumn("stage")}
-            title="Stade"
-            options={stages}
-          />
-        )}
-        {isFiltered && (
-          <Button
-            variant="ghost"
-            onClick={() => table.resetColumnFilters()}
-            className="h-8 px-2 lg:px-3"
-          >
-            Réinitialiser
-            <X className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+          <DataTableUnifiedFilter table={table} />
+        </div>
+        <DataTableViewOptions table={table} />
       </div>
-      <DataTableViewOptions table={table} />
     </div>
   );
 }

@@ -21,7 +21,8 @@ const columnLabels: Record<string, string> = {
   sector: "Secteur",
   stage: "Stade",
   funding_type: "Type",
-  investment_amount_eur: "Montant",
+  amount_sought: "Montant",
+  created_at: "Date de réception",
 };
 
 export function DataTableViewOptions<TData>({

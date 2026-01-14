@@ -1,12 +1,20 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import { displayCompanyName, formatAmount } from "@/lib/utils";
-import { CheckCircle2, Clock, CircleDashed, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  InlineSelectEditor,
+  InlineAmountEditor,
+  inlineStatusOptions,
+  inlineSectorOptions,
+  inlineStageOptions,
+  statusColorMap,
+  stageColorMap,
+} from "./InlineCellEditor";
 
 export interface Deal {
   id: string;
@@ -31,10 +39,10 @@ export interface Deal {
 }
 
 export const statuses = [
-  { value: "pending", label: "À traiter", icon: CircleDashed },
-  { value: "analyzing", label: "En cours", icon: Clock },
-  { value: "completed", label: "Analysé", icon: CheckCircle2 },
-  { value: "passed", label: "Passé", icon: CircleDashed },
+  { value: "pending", label: "À traiter" },
+  { value: "analyzing", label: "En cours" },
+  { value: "completed", label: "Validé" },
+  { value: "passed", label: "Refusé" },
 ];
 
 export const stages = [
@@ -124,25 +132,16 @@ export const columns: ColumnDef<Deal>[] = [
     ),
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
-      const statusConfig = statuses.find((s) => s.value === status);
-
-      if (!statusConfig) {
-        return <Badge variant="outline">{status}</Badge>;
-      }
-
-      const Icon = statusConfig.icon;
-      const colorClass =
-        status === "completed"
-          ? "bg-green-500/10 text-green-600 border-green-500/20"
-          : status === "analyzing"
-          ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
-          : "bg-gray-500/10 text-gray-600 border-gray-500/20";
+      const deal = row.original;
 
       return (
-        <Badge className={colorClass}>
-          <Icon className="h-3 w-3 mr-1" />
-          {statusConfig.label}
-        </Badge>
+        <InlineSelectEditor
+          dealId={deal.id}
+          field="status"
+          value={status}
+          options={inlineStatusOptions}
+          colorMap={statusColorMap}
+        />
       );
     },
     filterFn: (row, id, value) => {
@@ -156,8 +155,16 @@ export const columns: ColumnDef<Deal>[] = [
     ),
     cell: ({ row }) => {
       const sector = row.getValue("sector") as string | null;
-      if (!sector) return <span className="text-muted-foreground">-</span>;
-      return <Badge variant="outline">{sector}</Badge>;
+      const deal = row.original;
+
+      return (
+        <InlineSelectEditor
+          dealId={deal.id}
+          field="sector"
+          value={sector}
+          options={inlineSectorOptions}
+        />
+      );
     },
     filterFn: (row, id, value) => {
       const cellValue = row.getValue(id) as string | null;
@@ -172,21 +179,16 @@ export const columns: ColumnDef<Deal>[] = [
     ),
     cell: ({ row }) => {
       const stage = row.getValue("stage") as string | null;
-      if (!stage) return <span className="text-muted-foreground">-</span>;
-
-      const colorMap: Record<string, string> = {
-        "Pre-seed": "bg-purple-500/10 text-purple-600 border-purple-500/20",
-        Seed: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-        "Series A": "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
-        "Series B": "bg-teal-500/10 text-teal-600 border-teal-500/20",
-        "Series C": "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-        Growth: "bg-green-500/10 text-green-600 border-green-500/20",
-      };
+      const deal = row.original;
 
       return (
-        <Badge className={colorMap[stage] || "bg-secondary text-secondary-foreground"}>
-          {stage}
-        </Badge>
+        <InlineSelectEditor
+          dealId={deal.id}
+          field="stage"
+          value={stage}
+          options={inlineStageOptions}
+          colorMap={stageColorMap}
+        />
       );
     },
     filterFn: (row, id, value) => {
@@ -216,15 +218,13 @@ export const columns: ColumnDef<Deal>[] = [
       <DataTableColumnHeader column={column} title="Montant" />
     ),
     cell: ({ row }) => {
-      const amountSought = row.original.amount_sought;
-
-      if (amountSought) {
-        return (
-          <span className="font-medium">{formatAmount(amountSought)}</span>
-        );
-      }
-
-      return <span className="text-muted-foreground">-</span>;
+      const deal = row.original;
+      return (
+        <InlineAmountEditor
+          dealId={deal.id}
+          value={deal.amount_sought}
+        />
+      );
     },
   },
   {
