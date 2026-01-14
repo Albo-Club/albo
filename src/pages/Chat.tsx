@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Send, Paperclip, Save, Plus, MessageSquare, Star, Trash2, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Save, Plus, MessageSquare, Star, Trash2 } from 'lucide-react';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -150,7 +150,6 @@ const Chat = () => {
       if (!response.ok) throw new Error('Erreur de connexion au serveur');
 
       const data = await response.json();
-      console.log('🔍 Raw N8N response:', data);
       
       // Parser correctement selon le format N8N (array ou objet)
       let assistantContent: string;
@@ -430,7 +429,7 @@ const Chat = () => {
               size="icon"
               className="shrink-0"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         </div>
