@@ -20,6 +20,7 @@ import { displayCompanyName } from "@/lib/utils";
 import { DataTable } from "@/components/deals/data-table";
 import { columns, Deal } from "@/components/deals/columns";
 import { DealSidePanel } from "@/components/deals/DealSidePanel";
+import { DealChatDrawer } from "@/components/DealChatDrawer";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [chatDeal, setChatDeal] = useState<Deal | null>(null);
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -130,16 +132,22 @@ export default function Dashboard() {
       setSelectedDeal(e.detail.deal);
     };
 
+    const handleOpenDealChat = (e: CustomEvent) => {
+      setChatDeal(e.detail.deal);
+    };
+
     window.addEventListener("view-memo", handleViewMemo as EventListener);
     window.addEventListener("download-deck", handleDownloadDeck as EventListener);
     window.addEventListener("delete-deal", handleDeleteDeal as EventListener);
     window.addEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
+    window.addEventListener("open-deal-chat", handleOpenDealChat as EventListener);
 
     return () => {
       window.removeEventListener("view-memo", handleViewMemo as EventListener);
       window.removeEventListener("download-deck", handleDownloadDeck as EventListener);
       window.removeEventListener("delete-deal", handleDeleteDeal as EventListener);
       window.removeEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
+      window.removeEventListener("open-deal-chat", handleOpenDealChat as EventListener);
     };
   }, []);
 
@@ -300,6 +308,13 @@ export default function Dashboard() {
         onOpenChange={() => setSelectedMemo(null)}
         memoHtml={selectedMemo?.html || ""}
         companyName={selectedMemo?.companyName || ""}
+      />
+
+      <DealChatDrawer
+        dealId={chatDeal?.id || ""}
+        companyName={displayCompanyName(chatDeal?.company_name) || ""}
+        isOpen={!!chatDeal}
+        onOpenChange={(open) => !open && setChatDeal(null)}
       />
 
       <AlertDialog open={!!dealToDelete} onOpenChange={() => setDealToDelete(null)}>
