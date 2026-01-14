@@ -29,11 +29,13 @@ import { DataTableToolbar } from "./data-table-toolbar";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  onAskAI?: () => void;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onAskAI,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -64,7 +66,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar table={table} onAskAI={onAskAI} />
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -93,9 +95,18 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => {
-                    window.dispatchEvent(
-                      new CustomEvent("open-deal-panel", { detail: { deal: row.original } })
-                    );
+                    const deal = row.original as any;
+                    if (deal.memo_html) {
+                      window.dispatchEvent(
+                        new CustomEvent("view-memo", {
+                          detail: { html: deal.memo_html, companyName: deal.company_name, deal }
+                        })
+                      );
+                    } else {
+                      window.dispatchEvent(
+                        new CustomEvent("open-deal-panel", { detail: { deal } })
+                      );
+                    }
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
