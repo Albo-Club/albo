@@ -1,9 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import { displayCompanyName, formatAmount } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { displayCompanyName } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -99,29 +97,6 @@ export const columns: ColumnDef<Deal>[] = [
             </span>
           )}
         </div>
-      );
-    },
-  },
-  {
-    id: "due_diligence",
-    header: "",
-    cell: ({ row }) => {
-      const deal = row.original;
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            window.dispatchEvent(
-              new CustomEvent("open-deal-chat", { detail: { deal } })
-            );
-          }}
-          className="gap-1.5 h-7 px-2.5 text-xs font-medium bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 text-violet-700 hover:bg-violet-500/20 hover:border-violet-500/50 dark:text-violet-300"
-        >
-          <Sparkles className="h-3 w-3" />
-          Ask AI
-        </Button>
       );
     },
   },

@@ -20,17 +20,17 @@ import { displayCompanyName } from "@/lib/utils";
 import { DataTable } from "@/components/deals/data-table";
 import { columns, Deal } from "@/components/deals/columns";
 import { DealSidePanel } from "@/components/deals/DealSidePanel";
-import { DealChatDrawer } from "@/components/DealChatDrawer";
+import { AskAIModal } from "@/components/AskAIModal";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function Dashboard() {
-  const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string } | null>(null);
+  const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string; deal: Deal } | null>(null);
   const [downloadingDeck, setDownloadingDeck] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [chatDeal, setChatDeal] = useState<Deal | null>(null);
+  const [isAskAIOpen, setIsAskAIOpen] = useState(false);
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -113,9 +113,11 @@ export default function Dashboard() {
   // Event listeners for row actions
   useEffect(() => {
     const handleViewMemo = (e: CustomEvent) => {
+      const deal = e.detail.deal as Deal;
       setSelectedMemo({
         html: e.detail.html,
         companyName: displayCompanyName(e.detail.companyName) || "Sans nom",
+        deal,
       });
     };
 
@@ -132,22 +134,16 @@ export default function Dashboard() {
       setSelectedDeal(e.detail.deal);
     };
 
-    const handleOpenDealChat = (e: CustomEvent) => {
-      setChatDeal(e.detail.deal);
-    };
-
     window.addEventListener("view-memo", handleViewMemo as EventListener);
     window.addEventListener("download-deck", handleDownloadDeck as EventListener);
     window.addEventListener("delete-deal", handleDeleteDeal as EventListener);
     window.addEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
-    window.addEventListener("open-deal-chat", handleOpenDealChat as EventListener);
 
     return () => {
       window.removeEventListener("view-memo", handleViewMemo as EventListener);
       window.removeEventListener("download-deck", handleDownloadDeck as EventListener);
       window.removeEventListener("delete-deal", handleDeleteDeal as EventListener);
       window.removeEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
-      window.removeEventListener("open-deal-chat", handleOpenDealChat as EventListener);
     };
   }, []);
 
@@ -243,10 +239,19 @@ export default function Dashboard() {
   };
 
   const handleViewMemo = (html: string, companyName: string) => {
+    // Find the deal from our list
+    const deal = deals.find(d => d.company_name === companyName) || null;
     setSelectedMemo({
       html,
       companyName: displayCompanyName(companyName) || "Sans nom",
+      deal: deal as Deal,
     });
+  };
+
+  const handleDownloadDeckFromMemo = async () => {
+    if (selectedMemo?.deal) {
+      await downloadDeck(selectedMemo.deal);
+    }
   };
 
   const handleDownloadDeckFromPanel = async (deal: Deal) => {
@@ -291,7 +296,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable columns={columns} data={deals} />
+        <DataTable columns={columns} data={deals} onAskAI={() => setIsAskAIOpen(true)} />
       )}
 
       <DealSidePanel
@@ -308,13 +313,13 @@ export default function Dashboard() {
         onOpenChange={() => setSelectedMemo(null)}
         memoHtml={selectedMemo?.html || ""}
         companyName={selectedMemo?.companyName || ""}
+        hasDeck={selectedMemo?.deal?.hasDeck}
+        onDownloadDeck={handleDownloadDeckFromMemo}
       />
 
-      <DealChatDrawer
-        dealId={chatDeal?.id || ""}
-        companyName={displayCompanyName(chatDeal?.company_name) || ""}
-        isOpen={!!chatDeal}
-        onOpenChange={(open) => !open && setChatDeal(null)}
+      <AskAIModal
+        isOpen={isAskAIOpen}
+        onOpenChange={setIsAskAIOpen}
       />
 
       <AlertDialog open={!!dealToDelete} onOpenChange={() => setDealToDelete(null)}>
