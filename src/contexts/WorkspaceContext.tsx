@@ -200,16 +200,48 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!workspace?.id || !user?.id) throw new Error('No workspace');
     if (!canManageMembers) throw new Error('Permission denied');
 
-    const { error } = await supabase
+    // Get inviter profile name
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single();
+
+    const { data: insertedData, error } = await supabase
       .from('workspace_invitations')
       .insert({
         workspace_id: workspace.id,
         email: email.toLowerCase(),
         role,
         invited_by: user.id
-      });
+      })
+      .select('token')
+      .single();
 
     if (error) throw error;
+
+    // Send invitation email via Edge Function
+    try {
+      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        body: {
+          email: email.toLowerCase(),
+          workspaceName: workspace.name,
+          inviterName: inviterProfile?.name || 'A team member',
+          role: role as 'admin' | 'member',
+          token: insertedData.token,
+          appUrl: window.location.origin
+        }
+      });
+
+      if (emailError) {
+        console.error('Failed to send invitation email:', emailError);
+        // Don't throw - invitation is still created, just email failed
+      }
+    } catch (emailErr) {
+      console.error('Error sending invitation email:', emailErr);
+      // Don't throw - invitation is still created, just email failed
+    }
+
     await loadWorkspaceData();
   };
 
