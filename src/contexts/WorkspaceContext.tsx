@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { APP_CONFIG } from '@/config/app';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'member';
 
@@ -229,7 +230,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         inviterName: inviterProfile?.name || user.email || 'A team member',
         role: role as 'admin' | 'member',
         token: invitation.token,
-        appUrl: window.location.origin
+        appUrl: APP_CONFIG.baseUrl
       }
     });
 
