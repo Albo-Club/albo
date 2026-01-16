@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Landing from "./pages/Landing";
@@ -15,6 +16,8 @@ import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
 import Portfolio from "./pages/Portfolio";
 import SubmitDeal from "./pages/SubmitDeal";
+import WorkspaceSettings from "./pages/WorkspaceSettings";
+import AcceptInvite from "./pages/AcceptInvite";
 
 import DealDetail from "./pages/DealDetail";
 import Profile from "./pages/Profile";
@@ -31,6 +34,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <WorkspaceProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
@@ -38,6 +42,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/setup-password" element={<SetupPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/invite/:token" element={<AcceptInvite />} />
             <Route
               path="/portfolio"
               element={
@@ -98,8 +103,19 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/workspace"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <WorkspaceSettings />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </WorkspaceProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
