@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Wallet, Table2, Plus } from "lucide-react";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { Wallet, Table2, Plus, Settings } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -20,7 +21,7 @@ const navItems = [
     icon: Wallet,
   },
   {
-    title: "Mes Deals",
+    title: "Deals",
     url: "/dashboard",
     icon: Table2,
   },
@@ -29,10 +30,16 @@ const navItems = [
     url: "/submit",
     icon: Plus,
   },
+  {
+    title: "Workspace",
+    url: "/workspace",
+    icon: Settings,
+  },
 ];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, signOut } = useAuth();
+  const { workspace } = useWorkspace();
 
   const userData = {
     name: user?.user_metadata?.name || "User",
@@ -47,6 +54,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild>
               <a href="/dashboard" className="flex items-center gap-2">
                 <img src={logo} alt="Albo" className="h-6 w-auto" />
+                {workspace && (
+                  <span className="text-xs font-medium text-muted-foreground truncate max-w-24">
+                    {workspace.name}
+                  </span>
+                )}
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
