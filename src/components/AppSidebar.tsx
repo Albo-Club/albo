@@ -1,16 +1,12 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Wallet, Table2, Plus, Settings } from "lucide-react";
-import logo from "@/assets/logo.svg";
+import { Wallet, Table2, Plus } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
-import { NavUser } from "@/components/nav-user";
+import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
@@ -30,46 +26,22 @@ const navItems = [
     url: "/submit",
     icon: Plus,
   },
-  {
-    title: "Workspace",
-    url: "/workspace",
-    icon: Settings,
-  },
 ];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, signOut } = useAuth();
-  const { workspace } = useWorkspace();
-
-  const userData = {
-    name: user?.user_metadata?.name || "User",
-    email: user?.email || "",
-  };
-
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/dashboard" className="flex items-center gap-2">
-                <img src={logo} alt="Albo" className="h-6 w-auto" />
-                {workspace && (
-                  <span className="text-xs font-medium text-muted-foreground truncate max-w-24">
-                    {workspace.name}
-                  </span>
-                )}
-              </a>
-            </SidebarMenuButton>
+            <WorkspaceDropdown />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={userData} onSignOut={signOut} />
-      </SidebarFooter>
+      <SidebarFooter />
     </Sidebar>
   );
 }
