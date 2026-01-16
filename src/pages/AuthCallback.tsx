@@ -17,6 +17,13 @@ export default function AuthCallback() {
       }
 
       if (session) {
+        // Check for pending invitation
+        const pendingToken = localStorage.getItem('pending_invitation');
+        if (pendingToken) {
+          localStorage.removeItem('pending_invitation');
+          navigate(`/invite/${pendingToken}`);
+          return;
+        }
         navigate('/dashboard');
       } else {
         navigate('/auth');

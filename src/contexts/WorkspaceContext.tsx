@@ -207,7 +207,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .eq('id', user.id)
       .single();
 
-    const { data: insertedData, error } = await supabase
+    // Create invitation in database
+    const { data: invitation, error } = await supabase
       .from('workspace_invitations')
       .insert({
         workspace_id: workspace.id,
@@ -215,31 +216,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         role,
         invited_by: user.id
       })
-      .select('token')
+      .select('id, token')
       .single();
 
     if (error) throw error;
 
     // Send invitation email via Edge Function
-    try {
-      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
-        body: {
-          email: email.toLowerCase(),
-          workspaceName: workspace.name,
-          inviterName: inviterProfile?.name || 'A team member',
-          role: role as 'admin' | 'member',
-          token: insertedData.token,
-          appUrl: window.location.origin
-        }
-      });
-
-      if (emailError) {
-        console.error('Failed to send invitation email:', emailError);
-        // Don't throw - invitation is still created, just email failed
+    const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+      body: {
+        email: email.toLowerCase(),
+        workspaceName: workspace.name,
+        inviterName: inviterProfile?.name || user.email || 'A team member',
+        role: role as 'admin' | 'member',
+        token: invitation.token,
+        appUrl: window.location.origin
       }
-    } catch (emailErr) {
-      console.error('Error sending invitation email:', emailErr);
-      // Don't throw - invitation is still created, just email failed
+    });
+
+    if (emailError) {
+      // Rollback: delete invitation if email failed
+      await supabase.from('workspace_invitations').delete().eq('id', invitation.id);
+      throw new Error('Failed to send invitation email');
     }
 
     await loadWorkspaceData();

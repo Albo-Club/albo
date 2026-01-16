@@ -83,7 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (error) throw error;
       toast.success('Bienvenue !');
-      navigate('/dashboard');
+      
+      // Check for pending invitation
+      const pendingToken = localStorage.getItem('pending_invitation');
+      if (pendingToken) {
+        localStorage.removeItem('pending_invitation');
+        navigate(`/invite/${pendingToken}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Échec de la connexion');
       throw error;
