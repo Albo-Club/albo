@@ -39,7 +39,7 @@ export default function AcceptInvite() {
 
   useEffect(() => {
     loadInvitation();
-  }, [token]);
+  }, [token, user]);
 
   const loadInvitation = async () => {
     if (!token) {
@@ -61,23 +61,18 @@ export default function AcceptInvite() {
           workspaces:workspace_id (name)
         `)
         .eq('token', token)
+        .is('accepted_at', null)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
 
       if (!data) {
-        setError('Invitation non trouvée');
+        setError('Cette invitation est invalide ou a expiré.');
         setLoading(false);
         return;
       }
 
-      if (data.accepted_at) {
-        setError('Cette invitation a déjà été acceptée');
-        setLoading(false);
-        return;
-      }
-
-      if (new Date(data.expires_at) < new Date()) {
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
         setError('Cette invitation a expiré');
         setLoading(false);
         return;
@@ -93,45 +88,63 @@ export default function AcceptInvite() {
         expires_at: data.expires_at,
       });
 
-      // Check if user needs to sign up
-      if (!user) {
-        // Check if email already has an account
-        // Note: We can't check this directly from client, so we'll show signup form
-        // and handle the case where user exists during signup
+      // If user is logged in
+      if (user) {
+        if (user.email?.toLowerCase() === data.email.toLowerCase()) {
+          // Auto-accept invitation
+          await acceptInvitation(token, user.id);
+        } else {
+          setError(`Cette invitation est pour ${data.email}. Connectez-vous avec ce compte.`);
+          setLoading(false);
+        }
+      } else {
+        // User needs to login or signup
         setNeedsSignup(true);
+        setLoading(false);
       }
     } catch (err: any) {
       console.error('Error loading invitation:', err);
       setError('Erreur lors du chargement de l\'invitation');
-    } finally {
       setLoading(false);
     }
   };
 
+  const acceptInvitation = async (inviteToken: string, userId: string) => {
+    try {
+      const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
+        _token: inviteToken,
+        _user_id: userId,
+      });
+
+      if (error) {
+        setError('Erreur lors de l\'acceptation de l\'invitation.');
+        setLoading(false);
+        return;
+      }
+
+      toast.success(`Bienvenue dans ${invitation?.workspace_name || 'le workspace'} !`);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error accepting invitation:', err);
+      setError('Erreur lors de l\'acceptation de l\'invitation.');
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    localStorage.setItem('pending_invitation', token!);
+    navigate('/auth');
+  };
+
   const handleAccept = async () => {
     if (!token || !user?.id) {
-      toast.error('Vous devez être connecté pour accepter l\'invitation');
-      navigate('/auth', { state: { redirectTo: `/invite/${token}` } });
+      handleLogin();
       return;
     }
 
     setAccepting(true);
-    try {
-      const { error } = await supabase.rpc('accept_workspace_invitation', {
-        _token: token,
-        _user_id: user.id,
-      });
-
-      if (error) throw error;
-
-      toast.success(`Bienvenue dans ${invitation?.workspace_name} !`);
-      navigate('/dashboard');
-    } catch (err: any) {
-      console.error('Error accepting invitation:', err);
-      toast.error(err.message || 'Erreur lors de l\'acceptation');
-    } finally {
-      setAccepting(false);
-    }
+    await acceptInvitation(token, user.id);
+    setAccepting(false);
   };
 
   const handleSignupAndAccept = async (e: React.FormEvent) => {
@@ -164,7 +177,7 @@ export default function AcceptInvite() {
       if (signupError) {
         if (signupError.message.includes('already registered')) {
           toast.error('Cet email a déjà un compte. Connectez-vous pour accepter l\'invitation.');
-          navigate('/auth', { state: { redirectTo: `/invite/${token}` } });
+          handleLogin();
           return;
         }
         throw signupError;
@@ -181,17 +194,10 @@ export default function AcceptInvite() {
         });
 
         // Accept the invitation
-        const { error: acceptError } = await supabase.rpc('accept_workspace_invitation', {
-          _token: token,
-          _user_id: signupResult.user.id,
-        });
-
-        if (acceptError) throw acceptError;
-
-        toast.success(`Bienvenue dans ${invitation.workspace_name} !`);
-        navigate('/dashboard');
+        await acceptInvitation(token!, signupResult.user.id);
       } else {
-        // Email confirmation required
+        // Email confirmation required - store token for after confirmation
+        localStorage.setItem('pending_invitation', token!);
         toast.success('Vérifiez votre email pour confirmer votre compte');
       }
     } catch (err: any) {
