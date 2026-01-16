@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, Users, CheckCircle, XCircle } from 'lucide-react';
 import logo from '@/assets/logo.svg';
+import { APP_CONFIG } from '@/config/app';
 
 interface InvitationDetails {
   id: string;
@@ -170,7 +171,7 @@ export default function AcceptInvite() {
           data: {
             name: signupData.name,
           },
-          emailRedirectTo: `${window.location.origin}/invite/${token}`,
+          emailRedirectTo: `${APP_CONFIG.baseUrl}/invite/${token}`,
         },
       });
 
