@@ -20,7 +20,7 @@ import { displayCompanyName } from "@/lib/utils";
 import { DataTable } from "@/components/deals/data-table";
 import { columns, Deal } from "@/components/deals/columns";
 import { DealSidePanel } from "@/components/deals/DealSidePanel";
-import { AskAIModal } from "@/components/AskAIModal";
+import { useAIPanel } from "@/contexts/AIPanelContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [isAskAIOpen, setIsAskAIOpen] = useState(false);
+  const { openPanel } = useAIPanel();
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -296,7 +296,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable columns={columns} data={deals} onAskAI={() => setIsAskAIOpen(true)} />
+        <DataTable columns={columns} data={deals} onAskAI={() => openPanel()} />
       )}
 
       <DealSidePanel
@@ -315,11 +315,6 @@ export default function Dashboard() {
         companyName={selectedMemo?.companyName || ""}
         hasDeck={selectedMemo?.deal?.hasDeck}
         onDownloadDeck={handleDownloadDeckFromMemo}
-      />
-
-      <AskAIModal
-        isOpen={isAskAIOpen}
-        onOpenChange={setIsAskAIOpen}
       />
 
       <AlertDialog open={!!dealToDelete} onOpenChange={() => setDealToDelete(null)}>
