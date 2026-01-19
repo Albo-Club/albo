@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -37,6 +38,7 @@ export function DataTable<TData, TValue>({
   data,
   onAskAI,
 }: DataTableProps<TData, TValue>) {
+  const navigate = useNavigate();
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -96,17 +98,7 @@ export function DataTable<TData, TValue>({
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => {
                     const deal = row.original as any;
-                    if (deal.memo_html) {
-                      window.dispatchEvent(
-                        new CustomEvent("view-memo", {
-                          detail: { html: deal.memo_html, companyName: deal.company_name, deal }
-                        })
-                      );
-                    } else {
-                      window.dispatchEvent(
-                        new CustomEvent("open-deal-panel", { detail: { deal } })
-                      );
-                    }
+                    navigate(`/deal/${deal.id}`);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
