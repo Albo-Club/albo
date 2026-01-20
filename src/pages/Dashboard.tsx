@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Plus, BarChart3, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,16 +42,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
 
   const fetchDeals = async (): Promise<Deal[]> => {
     if (!user?.id || !user?.email) return [];
-
-    // Récupérer le workspace_id de l'utilisateur connecté
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
 
     let query = supabase
       .from("deals")
@@ -61,11 +56,11 @@ export default function Dashboard() {
       .neq("is_hidden", true)
       .order("created_at", { ascending: false });
 
-    // Si l'utilisateur a un workspace, récupérer tous les deals du workspace
-    // Sinon, récupérer uniquement ses propres deals
-    if (membership?.workspace_id) {
-      query = query.eq("workspace_id", membership.workspace_id);
+    // Utiliser le workspace du contexte (déjà sélectionné par l'utilisateur)
+    if (workspace?.id) {
+      query = query.eq("workspace_id", workspace.id);
     } else {
+      // Pas de workspace = récupérer les deals personnels
       query = query.or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`);
     }
 
@@ -108,7 +103,7 @@ export default function Dashboard() {
     data: deals = [],
     isLoading: loading,
   } = useQuery({
-    queryKey: ["deals"],
+    queryKey: ["deals", workspace?.id],
     enabled: !!user?.id && !!user?.email,
     queryFn: fetchDeals,
     retry: 1,
