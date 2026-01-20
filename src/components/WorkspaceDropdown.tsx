@@ -39,6 +39,7 @@ import {
   LogOut,
   Loader2,
   X,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -71,6 +72,24 @@ export function WorkspaceDropdown() {
   const [inviteEmails, setInviteEmails] = useState('');
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
   const [inviting, setInviting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+
+  const handleMigrateMyDeals = async () => {
+    setMigrating(true);
+    try {
+      const count = await migrateDeals();
+      if (count > 0) {
+        toast.success(`${count} deal${count > 1 ? 's' : ''} migré${count > 1 ? 's' : ''} vers le workspace`);
+      } else {
+        toast.info('Aucun deal à migrer. Tous vos deals sont déjà dans le workspace.');
+      }
+    } catch (error: any) {
+      console.error('Error migrating deals:', error);
+      toast.error(error.message || 'Erreur lors de la migration');
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -276,6 +295,17 @@ export function WorkspaceDropdown() {
             <DropdownMenuItem onClick={() => setIsInviteDialogOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
               Invite team members
+            </DropdownMenuItem>
+          )}
+
+          {workspace && (
+            <DropdownMenuItem onClick={handleMigrateMyDeals} disabled={migrating}>
+              {migrating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+              )}
+              Migrer mes deals
             </DropdownMenuItem>
           )}
 

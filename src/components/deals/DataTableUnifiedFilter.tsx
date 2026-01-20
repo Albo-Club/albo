@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table } from "@tanstack/react-table";
-import { Filter, X, ChevronDown, ArrowUp, ArrowDown, Calendar, Hash } from "lucide-react";
+import { Filter, X, ChevronDown, ArrowUp, ArrowDown, Calendar, Hash, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -101,6 +101,18 @@ export function DataTableUnifiedFilter<TData>({
 
   const hasActiveFilters = activeFilters.length > 0;
 
+  // Extract unique owners from the table data
+  const ownerOptions = useMemo(() => {
+    const ownerSet = new Map<string, { value: string; label: string }>();
+    table.getCoreRowModel().rows.forEach((row) => {
+      const ownerName = row.getValue("ownerName") as string;
+      if (ownerName && !ownerSet.has(ownerName)) {
+        ownerSet.set(ownerName, { value: ownerName, label: ownerName });
+      }
+    });
+    return Array.from(ownerSet.values());
+  }, [table.getCoreRowModel().rows]);
+
   const filterSections = [
     {
       id: "status",
@@ -120,6 +132,12 @@ export function DataTableUnifiedFilter<TData>({
       type: "multi" as const,
       options: inlineStageOptions,
     },
+    ...(ownerOptions.length > 1 ? [{
+      id: "ownerName",
+      label: "Propriétaire",
+      type: "multi" as const,
+      options: ownerOptions,
+    }] : []),
     {
       id: "created_at",
       label: "Date de réception",
