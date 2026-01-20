@@ -157,6 +157,13 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
+
+  /* Remove focus ring for dropdown elements */
+  [data-radix-collection-item]:focus-visible,
+  [role="menuitem"]:focus-visible,
+  [role="menu"]:focus-visible {
+    @apply ring-0 ring-offset-0 outline-none;
+  }
 }
 
 /* Component utility classes */
