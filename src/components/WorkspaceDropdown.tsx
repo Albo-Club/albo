@@ -39,9 +39,10 @@ import {
   LogOut,
   Loader2,
   X,
-  ArrowRightLeft,
+  Share2,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
+import { ShareDealsDialog } from '@/components/ShareDealsDialog';
 
 export function WorkspaceDropdown() {
   const navigate = useNavigate();
@@ -65,31 +66,14 @@ export function WorkspaceDropdown() {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
 
   const [inviteEmails, setInviteEmails] = useState('');
-  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member')
   const [inviting, setInviting] = useState(false);
-  const [migrating, setMigrating] = useState(false);
-
-  const handleMigrateMyDeals = async () => {
-    setMigrating(true);
-    try {
-      const count = await migrateDeals();
-      if (count > 0) {
-        toast.success(`${count} deal${count > 1 ? 's' : ''} migré${count > 1 ? 's' : ''} vers le workspace`);
-      } else {
-        toast.info('Aucun deal à migrer. Tous vos deals sont déjà dans le workspace.');
-      }
-    } catch (error: any) {
-      console.error('Error migrating deals:', error);
-      toast.error(error.message || 'Erreur lors de la migration');
-    } finally {
-      setMigrating(false);
-    }
-  };
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -299,13 +283,9 @@ export function WorkspaceDropdown() {
           )}
 
           {workspace && (
-            <DropdownMenuItem onClick={handleMigrateMyDeals} disabled={migrating}>
-              {migrating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-              )}
-              Migrer mes deals
+            <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Partager mes deals
             </DropdownMenuItem>
           )}
 
@@ -429,6 +409,10 @@ export function WorkspaceDropdown() {
         </DialogContent>
       </Dialog>
 
+      <ShareDealsDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+      />
     </>
   );
 }

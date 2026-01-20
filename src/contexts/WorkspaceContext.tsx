@@ -63,6 +63,7 @@ interface WorkspaceContextType {
   cancelInvitation: (invitationId: string) => Promise<void>;
   migrateDeals: () => Promise<number>;
   leaveWorkspace: () => Promise<void>;
+  shareDealsToWorkspace: (dealIds: string[], targetWorkspaceId: string) => Promise<number>;
   refetch: () => Promise<void>;
 }
 
@@ -349,6 +350,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await loadWorkspaceData();
   };
 
+  const shareDealsToWorkspace = async (dealIds: string[], targetWorkspaceId: string): Promise<number> => {
+    if (!user?.id) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.rpc('share_deals_to_workspace', {
+      _deal_ids: dealIds,
+      _target_workspace_id: targetWorkspaceId,
+      _user_id: user.id
+    });
+
+    if (error) throw error;
+
+    // Compter les succès
+    const successCount = (data || []).filter((r: any) => r.success).length;
+    return successCount;
+  };
+
   return (
     <WorkspaceContext.Provider value={{
       workspace,
@@ -368,6 +385,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cancelInvitation,
       migrateDeals,
       leaveWorkspace,
+      shareDealsToWorkspace,
       refetch: loadWorkspaceData
     }}>
       {children}

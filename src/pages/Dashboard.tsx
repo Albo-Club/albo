@@ -47,29 +47,49 @@ export default function Dashboard() {
   const fetchDeals = async (): Promise<Deal[]> => {
     if (!user?.id || !user?.email) return [];
 
-    let query = supabase
-      .from("deals")
-      .select(`
-        *,
-        owner:profiles!deals_user_id_fkey(id, name, email)
-      `)
-      .neq("is_hidden", true)
-      .order("created_at", { ascending: false });
+    let dealsData: any[] = [];
 
-    // Utiliser le workspace du contexte (déjà sélectionné par l'utilisateur)
     if (workspace?.id) {
-      query = query.eq("workspace_id", workspace.id);
+      // Récupérer les deals via la table de liaison deal_workspaces
+      const { data, error } = await supabase
+        .from("deal_workspaces")
+        .select(`
+          deal_id,
+          shared_at,
+          shared_by,
+          deals!inner (
+            *,
+            owner:profiles!deals_user_id_fkey(id, name, email)
+          )
+        `)
+        .eq("workspace_id", workspace.id)
+        .order("shared_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Extraire les deals et filtrer les hidden
+      dealsData = (data || [])
+        .map((row: any) => row.deals)
+        .filter((deal: any) => !deal.is_hidden);
     } else {
       // Pas de workspace = récupérer les deals personnels
-      query = query.or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`);
+      const { data, error } = await supabase
+        .from("deals")
+        .select(`
+          *,
+          owner:profiles!deals_user_id_fkey(id, name, email)
+        `)
+        .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`)
+        .neq("is_hidden", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      dealsData = data || [];
     }
 
-    const { data: dealsData, error: dealsError } = await query;
-
-    if (dealsError) throw dealsError;
-
+    // Ajouter le statut du deck et le nom du propriétaire
     const dealsWithDeckStatus = await Promise.all(
-      (dealsData || []).map(async (deal) => {
+      dealsData.map(async (deal: any) => {
         let { data: deckFile } = await supabase
           .from("deck_files")
           .select("id, storage_path, base64_content")
@@ -88,8 +108,8 @@ export default function Dashboard() {
         }
 
         const hasDeck = !!(deckFile && (deckFile.storage_path || deckFile.base64_content));
-        return { 
-          ...deal, 
+        return {
+          ...deal,
           hasDeck,
           ownerName: deal.owner?.name || deal.owner?.email || "Inconnu"
         } as Deal;
