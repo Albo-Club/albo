@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Users, CheckCircle, XCircle, LogIn } from 'lucide-react';
+import { Loader2, Users, CheckCircle, XCircle, LogIn, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.svg';
 import { APP_CONFIG } from '@/config/app';
 
@@ -249,7 +249,85 @@ export default function AcceptInvite() {
     );
   }
 
-  // User is logged in - show accept button (any email allowed)
+  // User is logged in with DIFFERENT email - show two options
+  if (user && invitation && user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <img src={logo} alt="Albo" className="h-8 mx-auto mb-4" />
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Users className="h-5 w-5" />
+              Rejoindre {invitation.workspace_name}
+            </CardTitle>
+            <CardDescription>
+              Vous avez été invité à rejoindre ce workspace en tant que{' '}
+              <span className="font-medium capitalize">{invitation.role}</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Invitation info */}
+            <div className="bg-muted rounded-lg p-4 text-center text-sm">
+              <p className="text-muted-foreground">Invitation envoyée à</p>
+              <p className="font-medium">{invitation.email}</p>
+            </div>
+            
+            {/* Warning: different emails */}
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center text-sm">
+              <p className="text-amber-700 dark:text-amber-400 font-medium">Vous êtes connecté avec un autre compte</p>
+              <p className="text-amber-600 dark:text-amber-500">Compte actuel : {user.email}</p>
+            </div>
+
+            {/* Option 1: Join with current account */}
+            <div className="space-y-2">
+              <Button onClick={handleAccept} disabled={accepting} className="w-full">
+                {accepting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                )}
+                Rejoindre avec {user.email}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Vous rejoindrez le workspace avec votre compte actuel
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  ou
+                </span>
+              </div>
+            </div>
+
+            {/* Option 2: Log out and connect with invitation email */}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  // Page will reload and show login/signup form
+                }}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Se connecter avec {invitation.email}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Vous serez déconnecté et pourrez vous connecter ou créer un compte avec l'email de l'invitation
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // User is logged in with SAME email - simple accept button
   if (user && invitation) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
@@ -273,9 +351,9 @@ export default function AcceptInvite() {
             </div>
             
             {/* Connected account info */}
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center text-sm">
-              <p className="text-blue-600 dark:text-blue-400">Vous êtes connecté en tant que</p>
-              <p className="font-medium text-blue-800 dark:text-blue-200">{user.email}</p>
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center text-sm">
+              <p className="text-green-600 dark:text-green-400">Vous êtes connecté en tant que</p>
+              <p className="font-medium text-green-800 dark:text-green-200">{user.email}</p>
             </div>
 
             <Button onClick={handleAccept} disabled={accepting} className="w-full">
