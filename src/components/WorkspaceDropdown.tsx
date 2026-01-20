@@ -23,16 +23,19 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import {
   ChevronDown,
+  ChevronRight,
   Check,
   Plus,
   User,
+  Users,
   Settings,
   UserPlus,
-  Link,
   LogOut,
   Loader2,
   X,
@@ -47,6 +50,7 @@ export function WorkspaceDropdown() {
   const {
     workspace,
     allWorkspaces,
+    members,
     invitations,
     canManageMembers,
     isOwner,
@@ -60,7 +64,7 @@ export function WorkspaceDropdown() {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [isReferDialogOpen, setIsReferDialogOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -146,13 +150,6 @@ export function WorkspaceDropdown() {
     }
   };
 
-  const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}/auth?ref=${user?.id}`;
-    navigator.clipboard.writeText(referralLink);
-    toast.success('Lien copié !');
-    setIsReferDialogOpen(false);
-  };
-
   const workspaceInitial = workspace?.name?.charAt(0).toUpperCase() || 'A';
 
   return (
@@ -181,28 +178,73 @@ export function WorkspaceDropdown() {
           className="w-64 bg-popover border shadow-lg z-50"
           sideOffset={4}
         >
-          {/* List of all workspaces */}
-          {allWorkspaces.length > 0 && (
+          {/* Current workspace with members */}
+          {workspace && (
+            <>
+              <Collapsible open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+                <CollapsibleTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
+                        {workspaceInitial}
+                      </div>
+                      <span className="font-medium">{workspace.name}</span>
+                    </div>
+                    <ChevronRight className={cn("h-4 w-4 transition-transform", isMembersOpen && "rotate-90")} />
+                  </DropdownMenuItem>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="pl-4 py-2 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
+                      <Users className="h-3 w-3" />
+                      {members.length} membre{members.length > 1 ? 's' : ''}
+                    </div>
+                    {members.map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="flex items-center gap-2 px-2 py-1 text-sm"
+                      >
+                        <Avatar className="h-5 w-5">
+                          <AvatarFallback className="text-xs bg-muted">
+                            {member.profile?.name?.charAt(0).toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="flex-1 truncate text-muted-foreground">
+                          {member.profile?.name || member.profile?.email || 'Membre'}
+                        </span>
+                        {member.role === 'owner' && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                            Owner
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          {/* List of other workspaces */}
+          {allWorkspaces.filter(ws => ws.id !== workspace?.id).length > 0 && (
             <>
               <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Vos workspaces
+                Autres workspaces
               </DropdownMenuLabel>
-              {allWorkspaces.map((ws) => (
+              {allWorkspaces.filter(ws => ws.id !== workspace?.id).map((ws) => (
                 <DropdownMenuItem
                   key={ws.id}
                   onClick={() => switchWorkspace(ws.id)}
-                  className={cn(
-                    "flex items-center gap-2 cursor-pointer",
-                    ws.id === workspace?.id && "bg-accent"
-                  )}
+                  className="flex items-center gap-2 cursor-pointer"
                 >
                   <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
                     {ws.name.charAt(0).toUpperCase()}
                   </div>
                   <span className="flex-1 truncate">{ws.name}</span>
-                  {ws.id === workspace?.id && (
-                    <Check className="h-4 w-4 text-primary shrink-0" />
-                  )}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
@@ -236,11 +278,6 @@ export function WorkspaceDropdown() {
               Invite team members
             </DropdownMenuItem>
           )}
-
-          <DropdownMenuItem onClick={() => setIsReferDialogOpen(true)}>
-            <Link className="mr-2 h-4 w-4" />
-            Refer another team
-          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
@@ -362,29 +399,6 @@ export function WorkspaceDropdown() {
         </DialogContent>
       </Dialog>
 
-      {/* Refer Another Team Dialog */}
-      <Dialog open={isReferDialogOpen} onOpenChange={setIsReferDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Refer another team</DialogTitle>
-            <DialogDescription>
-              Share this link with other investment teams to invite them to create their own workspace on Albo.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="flex items-center gap-2">
-              <Input
-                readOnly
-                value={`${window.location.origin}/auth?ref=${user?.id}`}
-                className="flex-1 bg-muted"
-              />
-              <Button onClick={copyReferralLink} variant="secondary">
-                Copy
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

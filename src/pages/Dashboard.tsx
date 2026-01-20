@@ -39,12 +39,31 @@ export default function Dashboard() {
   const fetchDeals = async (): Promise<Deal[]> => {
     if (!user?.id || !user?.email) return [];
 
-    const { data: dealsData, error: dealsError } = await supabase
+    // Récupérer le workspace_id de l'utilisateur connecté
+    const { data: membership } = await supabase
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let query = supabase
       .from("deals")
-      .select("*")
-      .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`)
+      .select(`
+        *,
+        owner:profiles!deals_user_id_fkey(id, name, email)
+      `)
       .neq("is_hidden", true)
       .order("created_at", { ascending: false });
+
+    // Si l'utilisateur a un workspace, récupérer tous les deals du workspace
+    // Sinon, récupérer uniquement ses propres deals
+    if (membership?.workspace_id) {
+      query = query.eq("workspace_id", membership.workspace_id);
+    } else {
+      query = query.or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`);
+    }
+
+    const { data: dealsData, error: dealsError } = await query;
 
     if (dealsError) throw dealsError;
 
@@ -68,7 +87,11 @@ export default function Dashboard() {
         }
 
         const hasDeck = !!(deckFile && (deckFile.storage_path || deckFile.base64_content));
-        return { ...deal, hasDeck } as Deal;
+        return { 
+          ...deal, 
+          hasDeck,
+          ownerName: deal.owner?.name || deal.owner?.email || "Inconnu"
+        } as Deal;
       })
     );
 
@@ -270,7 +293,7 @@ export default function Dashboard() {
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Mes Deals</h1>
+          <h1 className="text-3xl font-bold">Deals</h1>
           <p className="text-muted-foreground">
             {deals.length > 0 ? `${deals.length} deal${deals.length > 1 ? "s" : ""}` : "Suivez et analysez vos opportunités d'investissement"}
           </p>

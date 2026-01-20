@@ -32,8 +32,8 @@ const resources = {
         orContinueWith: 'Ou continuer avec',
       },
       dashboard: {
-        title: 'Mes Deals',
-        subtitle: 'Suivez et analysez vos opportunités d\'investissement',
+        title: 'Deals',
+        subtitle: 'Deals du workspace',
         submitDeal: 'Soumettre un Deal',
         searchPlaceholder: 'Rechercher une entreprise...',
         noDeals: 'Aucun deal trouvé',
@@ -77,8 +77,8 @@ const resources = {
         orContinueWith: 'Or continue with',
       },
       dashboard: {
-        title: 'My Deals',
-        subtitle: 'Track and analyze your investment opportunities',
+        title: 'Deals',
+        subtitle: 'Workspace deals',
         submitDeal: 'Submit Deal',
         searchPlaceholder: 'Search company...',
         noDeals: 'No deals found',
