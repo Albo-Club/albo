@@ -367,32 +367,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const shareDealsToWorkspace = async (targetWorkspaceId: string): Promise<number> => {
     if (!user?.id) throw new Error('Not authenticated');
 
-    // First get all user's personal deals (deals without workspace assignment)
-    const { data: userDeals, error: dealsError } = await supabase
-      .from('deals')
-      .select('id')
-      .eq('user_id', user.id)
-      .neq('is_hidden', true);
-
-    if (dealsError) throw dealsError;
-
-    if (!userDeals || userDeals.length === 0) {
-      return 0;
-    }
-
-    const dealIds = userDeals.map(d => d.id);
-
-    const { data, error } = await supabase.rpc('share_deals_to_workspace', {
-      _deal_ids: dealIds,
-      _target_workspace_id: targetWorkspaceId,
-      _user_id: user.id
+    const { data, error } = await supabase.rpc('share_my_deals_to_workspace', {
+      _user_id: user.id,
+      _target_workspace_id: targetWorkspaceId
     });
 
     if (error) throw error;
 
-    // Compter les succès
-    const successCount = (data || []).filter((r: any) => r.success).length;
-    return successCount;
+    return (data as number) || 0;
   };
 
   return (

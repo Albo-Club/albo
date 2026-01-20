@@ -64,9 +64,9 @@ export default function Dashboard() {
       if (error) throw error;
       dealsData = data || [];
     } else if (workspace?.id) {
-      // Récupérer les deals via la table de liaison deal_workspaces
+      // Récupérer les deals via la table deal_workspace_shares
       const { data, error } = await supabase
-        .from("deal_workspaces")
+        .from("deal_workspace_shares")
         .select(`
           deal_id,
           shared_at,
