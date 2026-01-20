@@ -55,7 +55,9 @@ interface WorkspaceContextType {
   isOwner: boolean;
   isAdmin: boolean;
   canManageMembers: boolean;
+  isPersonalMode: boolean;
   switchWorkspace: (workspaceId: string) => void;
+  switchToPersonal: () => void;
   createWorkspace: (name: string) => Promise<string>;
   inviteMember: (email: string, role: WorkspaceRole) => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
@@ -63,7 +65,7 @@ interface WorkspaceContextType {
   cancelInvitation: (invitationId: string) => Promise<void>;
   migrateDeals: () => Promise<number>;
   leaveWorkspace: () => Promise<void>;
-  shareDealsToWorkspace: (dealIds: string[], targetWorkspaceId: string) => Promise<number>;
+  shareDealsToWorkspace: (targetWorkspaceId: string) => Promise<number>;
   refetch: () => Promise<void>;
 }
 
@@ -78,6 +80,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [userRole, setUserRole] = useState<WorkspaceRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPersonalMode, setIsPersonalMode] = useState(false);
 
   const isOwner = userRole === 'owner';
   const isAdmin = userRole === 'admin' || userRole === 'owner';
@@ -208,6 +211,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const switchWorkspace = useCallback((workspaceId: string) => {
     const newWorkspace = allWorkspaces.find(w => w.id === workspaceId);
     if (newWorkspace && newWorkspace.id !== currentWorkspaceId) {
+      setIsPersonalMode(false);
       setCurrentWorkspaceId(workspaceId);
       setWorkspace(newWorkspace);
       setUserRole(newWorkspace.userRole);
@@ -216,6 +220,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loadWorkspaceData(workspaceId);
     }
   }, [allWorkspaces, currentWorkspaceId, loadWorkspaceData]);
+
+  const switchToPersonal = useCallback(() => {
+    setIsPersonalMode(true);
+    setCurrentWorkspaceId(null);
+    setWorkspace(null);
+    setUserRole(null);
+    setMembers([]);
+    setInvitations([]);
+    localStorage.removeItem('currentWorkspaceId');
+  }, []);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -350,8 +364,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await loadWorkspaceData();
   };
 
-  const shareDealsToWorkspace = async (dealIds: string[], targetWorkspaceId: string): Promise<number> => {
+  const shareDealsToWorkspace = async (targetWorkspaceId: string): Promise<number> => {
     if (!user?.id) throw new Error('Not authenticated');
+
+    // First get all user's personal deals (deals without workspace assignment)
+    const { data: userDeals, error: dealsError } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('user_id', user.id)
+      .neq('is_hidden', true);
+
+    if (dealsError) throw dealsError;
+
+    if (!userDeals || userDeals.length === 0) {
+      return 0;
+    }
+
+    const dealIds = userDeals.map(d => d.id);
 
     const { data, error } = await supabase.rpc('share_deals_to_workspace', {
       _deal_ids: dealIds,
@@ -377,7 +406,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       isOwner,
       isAdmin,
       canManageMembers,
+      isPersonalMode,
       switchWorkspace,
+      switchToPersonal,
       createWorkspace,
       inviteMember,
       removeMember,
