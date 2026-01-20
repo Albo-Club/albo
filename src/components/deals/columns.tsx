@@ -201,11 +201,27 @@ export const columns: ColumnDef<Deal>[] = [
     ),
     cell: ({ row }) => {
       const ownerName = row.getValue("ownerName") as string;
+      const owner = row.original.owner;
       return (
-        <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('view-profile', { 
+              detail: { 
+                userId: owner?.id,
+                name: owner?.name,
+                email: owner?.email
+              } 
+            }));
+          }}
+          className="text-sm text-muted-foreground whitespace-nowrap hover:text-primary hover:underline transition-colors"
+        >
           {ownerName || "—"}
-        </span>
+        </button>
       );
+    },
+    filterFn: (row, id, value) => {
+      return value.includes(row.getValue(id));
     },
   },
   {

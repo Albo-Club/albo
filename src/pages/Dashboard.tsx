@@ -23,6 +23,7 @@ import { DealSidePanel } from "@/components/deals/DealSidePanel";
 import { useAIPanel } from "@/contexts/AIPanelContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { UserProfileModal } from "@/components/UserProfileModal";
 
 export default function Dashboard() {
   const [selectedMemo, setSelectedMemo] = useState<{ html: string; companyName: string; deal: Deal } | null>(null);
@@ -30,6 +31,11 @@ export default function Dashboard() {
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
   const [deletingDeal, setDeletingDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [profileToView, setProfileToView] = useState<{
+    userId: string | null;
+    name?: string | null;
+    email?: string | null;
+  } | null>(null);
   const { openPanel } = useAIPanel();
 
   const navigate = useNavigate();
@@ -157,16 +163,26 @@ export default function Dashboard() {
       setSelectedDeal(e.detail.deal);
     };
 
+    const handleViewProfile = (e: CustomEvent) => {
+      setProfileToView({
+        userId: e.detail.userId,
+        name: e.detail.name,
+        email: e.detail.email,
+      });
+    };
+
     window.addEventListener("view-memo", handleViewMemo as EventListener);
     window.addEventListener("download-deck", handleDownloadDeck as EventListener);
     window.addEventListener("delete-deal", handleDeleteDeal as EventListener);
     window.addEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
+    window.addEventListener("view-profile", handleViewProfile as EventListener);
 
     return () => {
       window.removeEventListener("view-memo", handleViewMemo as EventListener);
       window.removeEventListener("download-deck", handleDownloadDeck as EventListener);
       window.removeEventListener("delete-deal", handleDeleteDeal as EventListener);
       window.removeEventListener("open-deal-panel", handleOpenDealPanel as EventListener);
+      window.removeEventListener("view-profile", handleViewProfile as EventListener);
     };
   }, []);
 
@@ -361,6 +377,14 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UserProfileModal
+        isOpen={!!profileToView}
+        onClose={() => setProfileToView(null)}
+        userId={profileToView?.userId || null}
+        initialName={profileToView?.name}
+        initialEmail={profileToView?.email}
+      />
     </div>
   );
 }
