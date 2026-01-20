@@ -28,6 +28,7 @@ export default function AcceptInvite() {
   const [accepting, setAccepting] = useState(false);
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [alreadyAccepted, setAlreadyAccepted] = useState(false);
 
   // Signup form state
   const [signupData, setSignupData] = useState({
@@ -72,7 +73,7 @@ export default function AcceptInvite() {
       }
 
       if (data.accepted_at) {
-        setError('Cette invitation a déjà été acceptée. Connectez-vous pour accéder à votre workspace.');
+        setAlreadyAccepted(true);
         setLoading(false);
         return;
       }
@@ -227,6 +228,31 @@ export default function AcceptInvite() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Already accepted state
+  if (alreadyAccepted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="pt-8 pb-8">
+            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Invitation déjà acceptée</h2>
+            <p className="text-muted-foreground mb-6">
+              Vous avez déjà rejoint ce workspace. Connectez-vous pour y accéder.
+            </p>
+            <div className="space-y-2">
+              <Button onClick={() => navigate('/dashboard')} className="w-full">
+                Accéder au dashboard
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/auth')} className="w-full">
+                Se connecter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
