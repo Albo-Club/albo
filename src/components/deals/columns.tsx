@@ -34,6 +34,13 @@ export interface Deal {
   error_message: string | null;
   user_notes: string | null;
   hasDeck?: boolean;
+  // Propriétaire du deal
+  owner?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  ownerName?: string;
 }
 
 export const statuses = [
@@ -183,6 +190,20 @@ export const columns: ColumnDef<Deal>[] = [
       return (
         <span className="text-sm text-muted-foreground whitespace-nowrap">
           {format(new Date(createdAt), "d MMM yyyy", { locale: fr })}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "ownerName",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Propriétaire" />
+    ),
+    cell: ({ row }) => {
+      const ownerName = row.getValue("ownerName") as string;
+      return (
+        <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+          {ownerName || "—"}
         </span>
       );
     },
