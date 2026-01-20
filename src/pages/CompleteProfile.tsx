@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Mail, ArrowRight, User, Phone, MapPin } from 'lucide-react';
+import { Loader2, Mail, ArrowRight, User, Phone, MapPin, Linkedin } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 const COUNTRIES = [
   { code: 'FR', name: 'France' },
@@ -22,6 +23,7 @@ const COUNTRIES = [
 
 interface ProfileFormData {
   name: string;
+  linkedin_url: string;
   phone: string;
   country: string;
 }
@@ -34,10 +36,11 @@ export default function CompleteProfile() {
   const [profileSource, setProfileSource] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [dealsCount, setDealsCount] = useState(0);
-  const [errors, setErrors] = useState<{ name?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; linkedin_url?: string }>({});
 
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
+    linkedin_url: '',
     phone: '',
     country: ''
   });
@@ -91,12 +94,20 @@ export default function CompleteProfile() {
   }, [navigate, location.state]);
 
   const validate = (): boolean => {
-    const newErrors: { name?: string } = {};
+    const newErrors: { name?: string; linkedin_url?: string } = {};
     
     if (!formData.name.trim()) {
       newErrors.name = 'Le nom est requis';
     } else if (formData.name.trim().length < 2) {
       newErrors.name = 'Le nom doit contenir au moins 2 caractères';
+    }
+
+    // Validate LinkedIn URL if provided
+    if (formData.linkedin_url.trim()) {
+      const linkedinUrl = formData.linkedin_url.trim().toLowerCase();
+      if (!linkedinUrl.includes('linkedin.com')) {
+        newErrors.linkedin_url = 'Veuillez entrer une URL LinkedIn valide';
+      }
     }
 
     setErrors(newErrors);
@@ -118,6 +129,7 @@ export default function CompleteProfile() {
         .from('profiles')
         .update({
           name: formData.name.trim(),
+          linkedin_url: formData.linkedin_url.trim() || null,
           phone: formData.phone || null,
           country: formData.country || null,
           is_complete: true,
@@ -156,13 +168,11 @@ export default function CompleteProfile() {
         <Card className="shadow-elegant overflow-hidden">
           {/* Header with gradient */}
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 border-b border-border">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
+            <div className="flex flex-col items-center gap-3 mb-2">
+              <Logo width={100} height={36} className="text-foreground" />
               <span className="text-lg font-medium text-foreground">Bienvenue sur Albo</span>
             </div>
-            <h1 className="text-2xl font-bold text-foreground mt-4">
+            <h1 className="text-2xl font-bold text-foreground mt-4 text-center">
               Complétez votre profil
             </h1>
           </div>
@@ -221,6 +231,26 @@ export default function CompleteProfile() {
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">{errors.name}</p>
+                )}
+              </div>
+
+              {/* LinkedIn */}
+              <div className="space-y-2">
+                <Label htmlFor="linkedin_url" className="flex items-center gap-2">
+                  <Linkedin className="h-4 w-4" />
+                  Profil LinkedIn
+                  <span className="text-muted-foreground text-xs">(optionnel)</span>
+                </Label>
+                <Input
+                  id="linkedin_url"
+                  type="url"
+                  placeholder="https://linkedin.com/in/votre-profil"
+                  value={formData.linkedin_url}
+                  onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                  className={errors.linkedin_url ? 'border-destructive' : ''}
+                />
+                {errors.linkedin_url && (
+                  <p className="text-sm text-destructive">{errors.linkedin_url}</p>
                 )}
               </div>
 
