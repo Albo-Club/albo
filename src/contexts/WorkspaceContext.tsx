@@ -40,8 +40,14 @@ export interface WorkspaceInvitation {
   };
 }
 
+interface WorkspaceWithRole extends Workspace {
+  userRole: WorkspaceRole;
+  joinedAt: string;
+}
+
 interface WorkspaceContextType {
   workspace: Workspace | null;
+  allWorkspaces: WorkspaceWithRole[];
   members: WorkspaceMember[];
   invitations: WorkspaceInvitation[];
   userRole: WorkspaceRole | null;
@@ -49,6 +55,7 @@ interface WorkspaceContextType {
   isOwner: boolean;
   isAdmin: boolean;
   canManageMembers: boolean;
+  switchWorkspace: (workspaceId: string) => void;
   createWorkspace: (name: string) => Promise<string>;
   inviteMember: (email: string, role: WorkspaceRole) => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
@@ -64,6 +71,8 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>([]);
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [userRole, setUserRole] = useState<WorkspaceRole | null>(null);
@@ -73,9 +82,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const isAdmin = userRole === 'admin' || userRole === 'owner';
   const canManageMembers = isAdmin;
 
-  const loadWorkspaceData = useCallback(async () => {
+  const loadWorkspaceData = useCallback(async (targetWorkspaceId?: string) => {
     if (!user?.id) {
       setWorkspace(null);
+      setAllWorkspaces([]);
       setMembers([]);
       setInvitations([]);
       setUserRole(null);
@@ -84,21 +94,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Get user's workspace membership
-      const { data: membershipData, error: membershipError } = await supabase
+      // Load ALL workspaces the user belongs to
+      const { data: workspacesData, error: workspacesError } = await supabase
         .from('workspace_members')
-        .select('workspace_id, role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .select(`
+          workspace_id,
+          role,
+          joined_at,
+          workspaces:workspace_id (
+            id,
+            name,
+            owner_id,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id);
 
-      if (membershipError) {
-        console.error('Error loading workspace membership:', membershipError);
+      if (workspacesError) {
+        console.error('Error loading workspaces:', workspacesError);
         setLoading(false);
         return;
       }
 
-      if (!membershipData) {
+      if (!workspacesData || workspacesData.length === 0) {
         setWorkspace(null);
+        setAllWorkspaces([]);
         setMembers([]);
         setInvitations([]);
         setUserRole(null);
@@ -106,24 +126,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setUserRole(membershipData.role as WorkspaceRole);
+      // Transform the data
+      const workspaces: WorkspaceWithRole[] = workspacesData.map(wm => {
+        const ws = wm.workspaces as unknown as Workspace;
+        return {
+          ...ws,
+          userRole: wm.role as WorkspaceRole,
+          joinedAt: wm.joined_at,
+        };
+      });
+      setAllWorkspaces(workspaces);
 
-      // Load workspace details
-      const { data: workspaceData, error: workspaceError } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('id', membershipData.workspace_id)
-        .single();
+      // Determine which workspace to use
+      const savedWorkspaceId = targetWorkspaceId || localStorage.getItem('currentWorkspaceId');
+      const selectedWorkspace = workspaces.find(w => w.id === savedWorkspaceId) || workspaces[0];
+      
+      setCurrentWorkspaceId(selectedWorkspace.id);
+      setWorkspace(selectedWorkspace);
+      setUserRole(selectedWorkspace.userRole);
+      localStorage.setItem('currentWorkspaceId', selectedWorkspace.id);
 
-      if (workspaceError) {
-        console.error('Error loading workspace:', workspaceError);
-        setLoading(false);
-        return;
-      }
-
-      setWorkspace(workspaceData);
-
-      // Load all members with their profiles
+      // Load members for the selected workspace
       const { data: membersData, error: membersError } = await supabase
         .from('workspace_members')
         .select(`
@@ -133,7 +156,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           role,
           joined_at
         `)
-        .eq('workspace_id', membershipData.workspace_id)
+        .eq('workspace_id', selectedWorkspace.id)
         .order('joined_at', { ascending: true });
 
       if (membersError) {
@@ -158,11 +181,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       // Load pending invitations (only for admin/owner)
-      if (membershipData.role === 'owner' || membershipData.role === 'admin') {
+      if (selectedWorkspace.userRole === 'owner' || selectedWorkspace.userRole === 'admin') {
         const { data: invitationsData, error: invitationsError } = await supabase
           .from('workspace_invitations')
           .select('*')
-          .eq('workspace_id', membershipData.workspace_id)
+          .eq('workspace_id', selectedWorkspace.id)
           .is('accepted_at', null)
           .order('created_at', { ascending: false });
 
@@ -171,6 +194,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } else {
           setInvitations(invitationsData || []);
         }
+      } else {
+        setInvitations([]);
       }
     } catch (error) {
       console.error('Error in loadWorkspaceData:', error);
@@ -178,6 +203,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, [user?.id]);
+
+  const switchWorkspace = useCallback((workspaceId: string) => {
+    const newWorkspace = allWorkspaces.find(w => w.id === workspaceId);
+    if (newWorkspace && newWorkspace.id !== currentWorkspaceId) {
+      setCurrentWorkspaceId(workspaceId);
+      setWorkspace(newWorkspace);
+      setUserRole(newWorkspace.userRole);
+      localStorage.setItem('currentWorkspaceId', workspaceId);
+      // Reload members and invitations for the new workspace
+      loadWorkspaceData(workspaceId);
+    }
+  }, [allWorkspaces, currentWorkspaceId, loadWorkspaceData]);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -315,6 +352,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <WorkspaceContext.Provider value={{
       workspace,
+      allWorkspaces,
       members,
       invitations,
       userRole,
@@ -322,6 +360,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       isOwner,
       isAdmin,
       canManageMembers,
+      switchWorkspace,
       createWorkspace,
       inviteMember,
       removeMember,
