@@ -29,6 +29,11 @@ export default function AcceptInvite() {
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [alreadyAccepted, setAlreadyAccepted] = useState(false);
+  
+  // Nouveaux états pour gestion profil et membership
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [userAlreadyMember, setUserAlreadyMember] = useState(false);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   // Signup form state
   const [signupData, setSignupData] = useState({
@@ -41,7 +46,7 @@ export default function AcceptInvite() {
 
   useEffect(() => {
     loadInvitation();
-  }, [token]);
+  }, [token, user]);
 
   const loadInvitation = async () => {
     if (!token) {
@@ -59,6 +64,7 @@ export default function AcceptInvite() {
           role,
           expires_at,
           accepted_at,
+          workspace_id,
           workspaces:workspace_id (name)
         `)
         .eq('token', token)
@@ -72,10 +78,39 @@ export default function AcceptInvite() {
         return;
       }
 
+      // Stocker le workspace_id
+      setWorkspaceId(data.workspace_id);
+
+      // Si l'utilisateur est connecté, vérifier le profil ET l'appartenance au workspace
+      if (user?.id) {
+        // Vérifier si le profil est complet
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('is_complete, name')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        // Le profil est complet si is_complete === true ET name existe
+        const isComplete = profileData?.is_complete === true && !!profileData?.name;
+        setProfileComplete(isComplete);
+
+        // Vérifier si l'utilisateur est déjà membre du workspace
+        if (data.workspace_id) {
+          const { data: memberData } = await supabase
+            .from('workspace_members')
+            .select('id')
+            .eq('workspace_id', data.workspace_id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (memberData) {
+            setUserAlreadyMember(true);
+          }
+        }
+      }
+
       if (data.accepted_at) {
         setAlreadyAccepted(true);
-        setLoading(false);
-        return;
       }
 
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
@@ -94,7 +129,6 @@ export default function AcceptInvite() {
         expires_at: data.expires_at,
       });
 
-      // Pre-fill email in signup form
       setSignupData(prev => ({ ...prev, email: data.email }));
       setLoading(false);
     } catch (err: any) {
@@ -104,30 +138,69 @@ export default function AcceptInvite() {
     }
   };
 
+  // Aller au workspace (avec vérification profil)
+  const goToWorkspace = () => {
+    if (workspaceId) {
+      localStorage.setItem('currentWorkspaceId', workspaceId);
+    }
+    
+    // Si profil incomplet, rediriger vers complete-profile
+    if (profileComplete === false) {
+      localStorage.setItem('pending_invitation', token!);
+      navigate('/complete-profile', { 
+        state: { from: `/invite/${token}` }
+      });
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  // Rediriger vers complete-profile avec contexte
+  const goToCompleteProfile = () => {
+    if (workspaceId) {
+      localStorage.setItem('currentWorkspaceId', workspaceId);
+    }
+    localStorage.setItem('pending_invitation', token!);
+    navigate('/complete-profile', { 
+      state: { from: `/invite/${token}` }
+    });
+  };
+
   const handleAccept = async () => {
     if (!token || !user?.id || !invitation) return;
 
+    // Vérifier si le profil est complet avant d'accepter
+    if (profileComplete === false) {
+      toast.error('Veuillez d\'abord compléter votre profil');
+      goToCompleteProfile();
+      return;
+    }
+
     setAccepting(true);
     try {
-      const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
+      const { data: workspaceIdResult, error } = await supabase.rpc('accept_workspace_invitation', {
         _token: token,
         _user_id: user.id,
       });
 
       if (error) {
+        // Vérifier si l'erreur est "déjà membre"
+        if (error.message.includes('already a member')) {
+          toast.info('Vous êtes déjà membre de ce workspace');
+          goToWorkspace();
+          return;
+        }
         toast.error('Erreur lors de l\'acceptation de l\'invitation.');
         setAccepting(false);
         return;
       }
 
-      // Save workspace ID to switch automatically after redirect
-      if (workspaceId) {
-        localStorage.setItem('currentWorkspaceId', workspaceId);
+      if (workspaceIdResult) {
+        localStorage.setItem('currentWorkspaceId', workspaceIdResult);
       }
 
       toast.success(`Félicitations ! Vous avez rejoint "${invitation.workspace_name}" avec succès.`);
       
-      // Delay navigation to let user see the success message
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
@@ -179,17 +252,18 @@ export default function AcceptInvite() {
       }
 
       if (signupResult.user) {
-        // Update profile with additional info
+        // Update profile with additional info - marquer comme complet car nom fourni
         await supabase.from('profiles').upsert({
           id: signupResult.user.id,
           email: signupData.email,
           name: signupData.name,
           linkedin_url: signupData.linkedinUrl || null,
           whatsapp_number: signupData.whatsappNumber || null,
+          is_complete: true,
         });
 
         // Accept the invitation
-        const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
+        const { data: workspaceIdResult, error } = await supabase.rpc('accept_workspace_invitation', {
           _token: token!,
           _user_id: signupResult.user.id,
         });
@@ -200,9 +274,8 @@ export default function AcceptInvite() {
           return;
         }
 
-        // Save workspace ID to switch automatically after redirect
-        if (workspaceId) {
-          localStorage.setItem('currentWorkspaceId', workspaceId);
+        if (workspaceIdResult) {
+          localStorage.setItem('currentWorkspaceId', workspaceIdResult);
         }
 
         toast.success(`Félicitations ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
@@ -226,29 +299,119 @@ export default function AcceptInvite() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Already accepted state
+  // État "Déjà accepté" avec vérification profil
   if (alreadyAccepted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-8 pb-8">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Invitation déjà acceptée</h2>
-            <p className="text-muted-foreground mb-6">
-              Vous avez déjà rejoint ce workspace. Connectez-vous pour y accéder.
-            </p>
-            <div className="space-y-2">
-              <Button onClick={() => navigate('/dashboard')} className="w-full">
-                Accéder au dashboard
+    // Cas 1: Utilisateur connecté ET déjà membre
+    if (userAlreadyMember && user) {
+      // Sous-cas: Profil incomplet
+      if (profileComplete === false) {
+        return (
+          <div className="flex min-h-screen items-center justify-center bg-background p-4">
+            <Card className="w-full max-w-md">
+              <CardContent className="pt-6 text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Vous êtes déjà membre !</h2>
+                <p className="text-muted-foreground mb-4">
+                  Vous faites déjà partie du workspace "{invitation?.workspace_name}".
+                </p>
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-amber-800 dark:text-amber-400">
+                    ⚠️ Veuillez d'abord compléter votre profil pour accéder au workspace.
+                  </p>
+                </div>
+                <Button onClick={goToCompleteProfile} className="w-full">
+                  Compléter mon profil
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      }
+
+      // Sous-cas: Profil complet → accès direct
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6 text-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Vous êtes déjà membre !</h2>
+              <p className="text-muted-foreground mb-4">
+                Vous faites déjà partie du workspace "{invitation?.workspace_name}" avec le compte {user.email}.
+              </p>
+              <Button onClick={goToWorkspace} className="w-full">
+                Accéder au workspace
               </Button>
-              <Button variant="outline" onClick={() => navigate('/auth')} className="w-full">
-                Se connecter
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Cas 2: Utilisateur non connecté
+    if (!user) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6 text-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Invitation déjà acceptée</h2>
+              <p className="text-muted-foreground mb-4">
+                Cette invitation a déjà été utilisée. Connectez-vous pour accéder au workspace.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  onClick={() => {
+                    if (workspaceId) {
+                      localStorage.setItem('currentWorkspaceId', workspaceId);
+                    }
+                    localStorage.setItem('pending_invitation', token!);
+                    navigate('/auth', { state: { redirectTo: `/invite/${token}` } });
+                  }} 
+                  className="w-full"
+                >
+                  Se connecter
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Cas 3: Utilisateur connecté mais pas membre (autre compte a accepté)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
+            <XCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Invitation déjà utilisée</h2>
+            <p className="text-muted-foreground mb-2">
+              Cette invitation a été acceptée par un autre compte.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Vous êtes connecté en tant que {user.email}.
+              <br />
+              Demandez une nouvelle invitation si nécessaire.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => navigate('/dashboard')} className="w-full">
+                Aller au dashboard
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.reload();
+                }} 
+                className="w-full"
+              >
+                Se connecter avec un autre compte
               </Button>
             </div>
           </CardContent>
@@ -260,12 +423,12 @@ export default function AcceptInvite() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-8 pb-8">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Invitation invalide</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
+            <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => navigate('/')}>
               Retour à l'accueil
             </Button>
@@ -275,46 +438,55 @@ export default function AcceptInvite() {
     );
   }
 
-  // User is logged in with DIFFERENT email - show two options
+  // User logged in with DIFFERENT email - vérifier aussi le profil
   if (user && invitation && user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <img src={logo} alt="Albo" className="h-8 mx-auto mb-4" />
+            <img src={logo} alt="Logo" className="h-10 mx-auto mb-4" />
             <CardTitle className="flex items-center justify-center gap-2">
               <Users className="h-5 w-5" />
               Rejoindre {invitation.workspace_name}
             </CardTitle>
             <CardDescription>
               Vous avez été invité à rejoindre ce workspace en tant que{' '}
-              <span className="font-medium capitalize">{invitation.role}</span>
+              <span className="font-medium">{invitation.role}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Invitation info */}
-            <div className="bg-muted rounded-lg p-4 text-center text-sm">
-              <p className="text-muted-foreground">Invitation envoyée à</p>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">Invitation envoyée à</p>
               <p className="font-medium">{invitation.email}</p>
             </div>
             
             {/* Warning: different emails */}
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center text-sm">
-              <p className="text-amber-700 dark:text-amber-400 font-medium">Vous êtes connecté avec un autre compte</p>
-              <p className="text-amber-600 dark:text-amber-500">Compte actuel : {user.email}</p>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-400">Vous êtes connecté avec un autre compte</p>
+              <p className="text-sm text-amber-700 dark:text-amber-500">Compte actuel : {user.email}</p>
             </div>
+
+            {/* Avertissement profil incomplet */}
+            {profileComplete === false && (
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <p className="text-sm text-blue-800 dark:text-blue-400">
+                  ℹ️ Vous devrez compléter votre profil après avoir rejoint le workspace.
+                </p>
+              </div>
+            )}
 
             {/* Option 1: Join with current account */}
             <div className="space-y-2">
               <Button onClick={handleAccept} disabled={accepting} className="w-full">
                 {accepting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <CheckCircle className="mr-2 h-4 w-4" />
+                  <LogIn className="h-4 w-4 mr-2" />
                 )}
                 Rejoindre avec {user.email}
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-xs text-center text-muted-foreground">
                 Vous rejoindrez le workspace avec votre compte actuel
               </p>
             </div>
@@ -332,19 +504,18 @@ export default function AcceptInvite() {
 
             {/* Option 2: Log out and connect with invitation email */}
             <div className="space-y-2">
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 className="w-full"
                 onClick={async () => {
                   await supabase.auth.signOut();
-                  // Page will reload and show login/signup form
                 }}
               >
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="h-4 w-4 mr-2" />
                 Se connecter avec {invitation.email}
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Vous serez déconnecté et pourrez vous connecter ou créer un compte avec l'email de l'invitation
+              <p className="text-xs text-center text-muted-foreground">
+                Vous serez déconnecté et pourrez vous connecter avec l'email de l'invitation
               </p>
             </div>
           </CardContent>
@@ -353,45 +524,54 @@ export default function AcceptInvite() {
     );
   }
 
-  // User is logged in with SAME email - simple accept button
+  // User logged in with SAME email - vérifier le profil
   if (user && invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <img src={logo} alt="Albo" className="h-8 mx-auto mb-4" />
+            <img src={logo} alt="Logo" className="h-10 mx-auto mb-4" />
             <CardTitle className="flex items-center justify-center gap-2">
               <Users className="h-5 w-5" />
               Rejoindre {invitation.workspace_name}
             </CardTitle>
             <CardDescription>
               Vous avez été invité à rejoindre ce workspace en tant que{' '}
-              <span className="font-medium capitalize">{invitation.role}</span>
+              <span className="font-medium">{invitation.role}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Invitation info */}
-            <div className="bg-muted rounded-lg p-4 text-center text-sm">
-              <p className="text-muted-foreground">Invitation envoyée à</p>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">Invitation envoyée à</p>
               <p className="font-medium">{invitation.email}</p>
             </div>
             
             {/* Connected account info */}
-            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center text-sm">
-              <p className="text-green-600 dark:text-green-400">Vous êtes connecté en tant que</p>
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">Vous êtes connecté en tant que</p>
               <p className="font-medium text-green-800 dark:text-green-200">{user.email}</p>
             </div>
 
+            {/* Avertissement profil incomplet */}
+            {profileComplete === false && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-sm text-amber-800 dark:text-amber-400">
+                  ⚠️ Vous devrez compléter votre profil après avoir rejoint le workspace.
+                </p>
+              </div>
+            )}
+
             <Button onClick={handleAccept} disabled={accepting} className="w-full">
               {accepting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <CheckCircle className="mr-2 h-4 w-4" />
+                <Users className="h-4 w-4 mr-2" />
               )}
               Rejoindre le workspace
             </Button>
             
-            <p className="text-center text-xs text-muted-foreground">
+            <p className="text-xs text-center text-muted-foreground">
               En rejoignant, vous acceptez de partager vos informations avec les membres du workspace.
             </p>
           </CardContent>
@@ -402,29 +582,25 @@ export default function AcceptInvite() {
 
   // User not logged in - show signup form with login option
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <img src={logo} alt="Albo" className="h-8 mx-auto mb-4" />
+          <img src={logo} alt="Logo" className="h-10 mx-auto mb-4" />
           <CardTitle>Rejoindre {invitation?.workspace_name}</CardTitle>
           <CardDescription>
             Créez votre compte pour rejoindre le workspace
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {/* Login button prominently displayed */}
-          <div className="mb-6">
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleLogin}
-            >
-              <LogIn className="mr-2 h-4 w-4" />
+          <div className="space-y-2">
+            <Button variant="default" onClick={handleLogin} className="w-full">
+              <LogIn className="h-4 w-4 mr-2" />
               J'ai déjà un compte - Se connecter
             </Button>
           </div>
 
-          <div className="relative mb-6">
+          <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -436,73 +612,70 @@ export default function AcceptInvite() {
           </div>
 
           <form onSubmit={handleSignupAndAccept} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={signupData.email}
-                onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                className="mt-1"
-                required
+                readOnly
+                className="bg-muted"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Vous pouvez utiliser une adresse email différente
+              <p className="text-xs text-muted-foreground">
+                L'email de l'invitation ne peut pas être modifié
               </p>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="name">Nom complet *</Label>
               <Input
                 id="name"
                 value={signupData.name}
                 onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                placeholder="Jean Dupont"
-                className="mt-1"
+                placeholder="Votre nom"
                 required
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="password">Mot de passe *</Label>
               <Input
                 id="password"
                 type="password"
                 value={signupData.password}
                 onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                placeholder="••••••••"
-                className="mt-1"
+                placeholder="Minimum 6 caractères"
                 required
                 minLength={6}
               />
             </div>
 
-            <div>
-              <Label htmlFor="linkedin">LinkedIn URL</Label>
+            <div className="space-y-2">
+              <Label htmlFor="linkedin">LinkedIn (optionnel)</Label>
               <Input
                 id="linkedin"
-                type="url"
                 value={signupData.linkedinUrl}
                 onChange={(e) => setSignupData({ ...signupData, linkedinUrl: e.target.value })}
                 placeholder="https://linkedin.com/in/..."
-                className="mt-1"
               />
             </div>
 
-            <div>
-              <Label htmlFor="whatsapp">WhatsApp</Label>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp">WhatsApp (optionnel)</Label>
               <Input
                 id="whatsapp"
-                type="tel"
                 value={signupData.whatsappNumber}
                 onChange={(e) => setSignupData({ ...signupData, whatsappNumber: e.target.value })}
                 placeholder="+33 6 12 34 56 78"
-                className="mt-1"
               />
             </div>
 
             <Button type="submit" disabled={accepting} className="w-full">
-              {accepting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {accepting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Users className="h-4 w-4 mr-2" />
+              )}
               Créer mon compte et rejoindre
             </Button>
           </form>
