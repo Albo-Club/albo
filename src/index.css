@@ -153,16 +153,22 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  /* Focus visible for accessibility */
+  /* Désactive complètement le focus ring sur toute l'app */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-0 ring-offset-0;
   }
 
-  /* Remove focus ring for dropdown elements */
-  [data-radix-collection-item]:focus-visible,
-  [role="menuitem"]:focus-visible,
-  [role="menu"]:focus-visible {
-    @apply ring-0 ring-offset-0 outline-none;
+  * {
+    outline: none !important;
+  }
+
+  *:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  *:focus-visible {
+    outline: none !important;
   }
 }
 
