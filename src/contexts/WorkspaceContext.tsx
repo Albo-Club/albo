@@ -66,6 +66,7 @@ interface WorkspaceContextType {
   migrateDeals: () => Promise<number>;
   leaveWorkspace: () => Promise<void>;
   shareDealsToWorkspace: (targetWorkspaceId: string) => Promise<number>;
+  deleteWorkspace: (workspaceId: string) => Promise<boolean>;
   refetch: () => Promise<void>;
 }
 
@@ -377,6 +378,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return (data as number) || 0;
   };
 
+  const deleteWorkspace = async (workspaceId: string): Promise<boolean> => {
+    if (!user?.id) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.rpc('delete_workspace', {
+      _workspace_id: workspaceId,
+      _user_id: user.id
+    });
+
+    if (error) throw error;
+
+    // Switch to personal mode or another workspace after deletion
+    switchToPersonal();
+    await loadWorkspaceData();
+
+    return data as boolean;
+  };
+
   return (
     <WorkspaceContext.Provider value={{
       workspace,
@@ -399,6 +417,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       migrateDeals,
       leaveWorkspace,
       shareDealsToWorkspace,
+      deleteWorkspace,
       refetch: loadWorkspaceData
     }}>
       {children}

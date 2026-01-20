@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkspace, WorkspaceRole } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +26,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2 } from 'lucide-react';
+import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +54,7 @@ const roleLabels: Record<WorkspaceRole, string> = {
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     workspace,
     members,
@@ -66,6 +69,7 @@ export default function WorkspaceSettings() {
     updateMemberRole,
     cancelInvitation,
     migrateDeals,
+    deleteWorkspace,
   } = useWorkspace();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -80,6 +84,7 @@ export default function WorkspaceSettings() {
   const [removing, setRemoving] = useState(false);
 
   const [migrating, setMigrating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -168,6 +173,22 @@ export default function WorkspaceSettings() {
       toast.error(error.message || 'Erreur lors de la migration');
     } finally {
       setMigrating(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!workspace?.id) return;
+
+    setDeleting(true);
+    try {
+      await deleteWorkspace(workspace.id);
+      toast.success('Workspace supprimé');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Error deleting workspace:', error);
+      toast.error(error.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -450,6 +471,66 @@ export default function WorkspaceSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Danger Zone - Only for owner */}
+      {isOwner && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Actions irréversibles sur votre workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div>
+                <p className="font-medium">Supprimer ce workspace</p>
+                <p className="text-sm text-muted-foreground">
+                  Cette action est irréversible. Tous les membres seront retirés et les partages de deals supprimés.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Supprimer
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action est irréversible. Le workspace "{workspace?.name}" sera définitivement supprimé, 
+                      tous les membres seront retirés et tous les partages de deals seront supprimés.
+                      Les deals eux-mêmes ne seront pas supprimés, ils resteront dans les espaces personnels de leurs propriétaires.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteWorkspace}
+                      disabled={deleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Suppression...
+                        </>
+                      ) : (
+                        'Supprimer définitivement'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
