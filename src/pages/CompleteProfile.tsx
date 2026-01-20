@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Mail, ArrowRight } from 'lucide-react';
+import { Loader2, Sparkles, Mail, ArrowRight, User, Phone, MapPin } from 'lucide-react';
 
 const COUNTRIES = [
   { code: 'FR', name: 'France' },
@@ -28,12 +27,13 @@ interface ProfileFormData {
 }
 
 export default function CompleteProfile() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checking, setChecking] = useState(true);
   const [profileSource, setProfileSource] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [dealsCount, setDealsCount] = useState(0);
   const [errors, setErrors] = useState<{ name?: string }>({});
 
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -44,10 +44,14 @@ export default function CompleteProfile() {
 
   useEffect(() => {
     const checkSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
         navigate('/auth');
         return;
       }
+
+      setUserEmail(user.email || '');
 
       // Check if profile is already complete
       const { data: profile } = await supabase
@@ -70,11 +74,21 @@ export default function CompleteProfile() {
         setFormData(prev => ({ ...prev, name: profile.name }));
       }
 
+      // Compter les deals associés à cet email
+      if (user.email) {
+        const { count } = await supabase
+          .from('deals')
+          .select('*', { count: 'exact', head: true })
+          .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`);
+        
+        setDealsCount(count || 0);
+      }
+
       setChecking(false);
     };
 
     checkSession();
-  }, [user, navigate, location.state]);
+  }, [navigate, location.state]);
 
   const validate = (): boolean => {
     const newErrors: { name?: string } = {};
@@ -93,6 +107,8 @@ export default function CompleteProfile() {
     e.preventDefault();
 
     if (!validate()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     setIsSubmitting(true);
@@ -111,7 +127,7 @@ export default function CompleteProfile() {
 
       if (error) throw error;
 
-      toast.success('Bienvenue sur Albo !');
+      toast.success('Bienvenue sur Albo ! 🎉');
 
       // Redirect to original destination or dashboard
       const from = (location.state as any)?.from || '/dashboard';
@@ -151,25 +167,48 @@ export default function CompleteProfile() {
             </h1>
           </div>
 
-          <CardContent className="p-6">
-            {/* Info message for email invites */}
-            {profileSource === 'email_invite' && (
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          {/* Info Card - Si des deals existent */}
+          {dealsCount > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Mail className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">
+                    {dealsCount} deal{dealsCount > 1 ? 's' : ''} vous attend{dealsCount > 1 ? 'ent' : ''}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    Vos deals envoyés par email sont déjà associés à votre compte. 
-                    Complétez votre profil pour y accéder.
+                    Envoyé{dealsCount > 1 ? 's' : ''} à {userEmail}
                   </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
+          <CardContent className="p-0">
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email (readonly) */}
+              {userEmail && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </Label>
+                  <Input
+                    type="email"
+                    value={userEmail}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              )}
+
               {/* Name */}
               <div className="space-y-2">
-                <Label htmlFor="name">
+                <Label htmlFor="name" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
                   Nom complet <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -187,8 +226,10 @@ export default function CompleteProfile() {
 
               {/* Phone */}
               <div className="space-y-2">
-                <Label htmlFor="phone">
-                  Téléphone <span className="text-muted-foreground text-xs">(optionnel)</span>
+                <Label htmlFor="phone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Téléphone
+                  <span className="text-muted-foreground text-xs">(optionnel)</span>
                 </Label>
                 <Input
                   id="phone"
@@ -201,8 +242,10 @@ export default function CompleteProfile() {
 
               {/* Country */}
               <div className="space-y-2">
-                <Label htmlFor="country">
-                  Pays <span className="text-muted-foreground text-xs">(optionnel)</span>
+                <Label htmlFor="country" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Pays
+                  <span className="text-muted-foreground text-xs">(optionnel)</span>
                 </Label>
                 <Select
                   value={formData.country}
