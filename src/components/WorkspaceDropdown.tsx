@@ -161,7 +161,7 @@ export function WorkspaceDropdown() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className={`w-full justify-start gap-2 px-2 h-auto py-2 hover:bg-sidebar-accent ${isCollapsed ? 'justify-center' : ''}`}
+            className={`w-full justify-start gap-2 px-2 h-auto py-2 hover:bg-sidebar-accent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isCollapsed ? 'justify-center' : ''}`}
           >
             <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
               {workspaceInitial}
@@ -188,7 +188,7 @@ export function WorkspaceDropdown() {
                 <CollapsibleTrigger asChild>
                   <DropdownMenuItem
                     onSelect={(e) => e.preventDefault()}
-                    className="flex items-center justify-between cursor-pointer"
+                    className="flex items-center justify-between cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
                   >
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
