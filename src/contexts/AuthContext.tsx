@@ -9,7 +9,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, redirectTo?: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, redirectTo?: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -84,11 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       toast.success('Bienvenue !');
       
-      // Check for pending invitation
+      // Check for pending invitation first
       const pendingToken = localStorage.getItem('pending_invitation');
       if (pendingToken) {
         localStorage.removeItem('pending_invitation');
         navigate(`/invite/${pendingToken}`);
+      } else if (redirectTo) {
+        navigate(redirectTo);
       } else {
         navigate('/dashboard');
       }
