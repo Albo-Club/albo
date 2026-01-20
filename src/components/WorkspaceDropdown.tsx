@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace, WorkspaceRole } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -44,9 +46,11 @@ export function WorkspaceDropdown() {
   const isCollapsed = state === 'collapsed';
   const {
     workspace,
+    allWorkspaces,
     invitations,
     canManageMembers,
     isOwner,
+    switchWorkspace,
     createWorkspace,
     inviteMember,
     cancelInvitation,
@@ -177,13 +181,30 @@ export function WorkspaceDropdown() {
           className="w-64 bg-popover border shadow-lg z-50"
           sideOffset={4}
         >
-          {/* Current workspace */}
-          {workspace && (
+          {/* List of all workspaces */}
+          {allWorkspaces.length > 0 && (
             <>
-              <DropdownMenuItem disabled className="opacity-100 cursor-default">
-                <Check className="mr-2 h-4 w-4 text-primary" />
-                <span className="font-medium">{workspace.name}</span>
-              </DropdownMenuItem>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Vos workspaces
+              </DropdownMenuLabel>
+              {allWorkspaces.map((ws) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  onClick={() => switchWorkspace(ws.id)}
+                  className={cn(
+                    "flex items-center gap-2 cursor-pointer",
+                    ws.id === workspace?.id && "bg-accent"
+                  )}
+                >
+                  <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
+                    {ws.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="flex-1 truncate">{ws.name}</span>
+                  {ws.id === workspace?.id && (
+                    <Check className="h-4 w-4 text-primary shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuSeparator />
             </>
           )}

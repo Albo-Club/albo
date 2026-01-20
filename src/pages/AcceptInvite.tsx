@@ -108,7 +108,7 @@ export default function AcceptInvite() {
 
     setAccepting(true);
     try {
-      const { error } = await supabase.rpc('accept_workspace_invitation', {
+      const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
         _token: token,
         _user_id: user.id,
       });
@@ -117,6 +117,11 @@ export default function AcceptInvite() {
         toast.error('Erreur lors de l\'acceptation de l\'invitation.');
         setAccepting(false);
         return;
+      }
+
+      // Save workspace ID to switch automatically after redirect
+      if (workspaceId) {
+        localStorage.setItem('currentWorkspaceId', workspaceId);
       }
 
       toast.success(`Félicitations ! Vous avez rejoint "${invitation.workspace_name}" avec succès.`);
@@ -183,7 +188,7 @@ export default function AcceptInvite() {
         });
 
         // Accept the invitation
-        const { error } = await supabase.rpc('accept_workspace_invitation', {
+        const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
           _token: token!,
           _user_id: signupResult.user.id,
         });
@@ -192,6 +197,11 @@ export default function AcceptInvite() {
           toast.error('Erreur lors de l\'acceptation de l\'invitation.');
           setAccepting(false);
           return;
+        }
+
+        // Save workspace ID to switch automatically after redirect
+        if (workspaceId) {
+          localStorage.setItem('currentWorkspaceId', workspaceId);
         }
 
         toast.success(`Félicitations ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
