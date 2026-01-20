@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Users, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Users, CheckCircle, XCircle, LogIn } from 'lucide-react';
 import logo from '@/assets/logo.svg';
 import { APP_CONFIG } from '@/config/app';
 
@@ -26,10 +26,8 @@ export default function AcceptInvite() {
 
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
-  const [accepted, setAccepted] = useState(false);
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [needsSignup, setNeedsSignup] = useState(false);
 
   // Signup form state
   const [signupData, setSignupData] = useState({
@@ -44,15 +42,6 @@ export default function AcceptInvite() {
     loadInvitation();
   }, [token]);
 
-  // Auto-accept if user is logged in with matching email
-  useEffect(() => {
-    if (user && invitation && !error && !accepting && !accepted) {
-      if (user.email?.toLowerCase() === invitation.email.toLowerCase()) {
-        handleAccept();
-      }
-    }
-  }, [user, invitation, error, accepting, accepted]);
-
   const loadInvitation = async () => {
     if (!token) {
       setError('Lien d\'invitation invalide');
@@ -61,7 +50,6 @@ export default function AcceptInvite() {
     }
 
     try {
-      // Fetch invitation details
       const { data, error: fetchError } = await supabase
         .from('workspace_invitations')
         .select(`
@@ -105,17 +93,9 @@ export default function AcceptInvite() {
         expires_at: data.expires_at,
       });
 
-      // Set email in signup form
+      // Pre-fill email in signup form
       setSignupData(prev => ({ ...prev, email: data.email }));
-
-      // If user is not logged in, they need to login or signup
-      if (!user) {
-        setNeedsSignup(true);
-        setLoading(false);
-      } else {
-        // User is logged in - let useEffect handle auto-accept
-        setLoading(false);
-      }
+      setLoading(false);
     } catch (err: any) {
       console.error('Error loading invitation:', err);
       setError('Erreur lors du chargement de l\'invitation');
@@ -123,43 +103,38 @@ export default function AcceptInvite() {
     }
   };
 
-  const acceptInvitation = async (inviteToken: string, userId: string) => {
+  const handleAccept = async () => {
+    if (!token || !user?.id || !invitation) return;
+
+    setAccepting(true);
     try {
-      const { data: workspaceId, error } = await supabase.rpc('accept_workspace_invitation', {
-        _token: inviteToken,
-        _user_id: userId,
+      const { error } = await supabase.rpc('accept_workspace_invitation', {
+        _token: token,
+        _user_id: user.id,
       });
 
       if (error) {
-        setError('Erreur lors de l\'acceptation de l\'invitation.');
-        setLoading(false);
+        toast.error('Erreur lors de l\'acceptation de l\'invitation.');
+        setAccepting(false);
         return;
       }
 
-      setAccepted(true);
-      toast.success(`Bienvenue dans ${invitation?.workspace_name} ! Vous avez rejoint l'espace avec succès.`);
-      navigate('/dashboard');
+      toast.success(`Félicitations ! Vous avez rejoint "${invitation.workspace_name}" avec succès.`);
+      
+      // Delay navigation to let user see the success message
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     } catch (err) {
       console.error('Error accepting invitation:', err);
-      setError('Erreur lors de l\'acceptation de l\'invitation.');
-      setLoading(false);
+      toast.error('Erreur lors de l\'acceptation de l\'invitation.');
+      setAccepting(false);
     }
   };
 
   const handleLogin = () => {
     localStorage.setItem('pending_invitation', token!);
     navigate('/auth', { state: { redirectTo: `/invite/${token}` } });
-  };
-
-  const handleAccept = async () => {
-    if (!token || !user?.id) {
-      handleLogin();
-      return;
-    }
-
-    setAccepting(true);
-    await acceptInvitation(token, user.id);
-    setAccepting(false);
   };
 
   const handleSignupAndAccept = async (e: React.FormEvent) => {
@@ -177,7 +152,6 @@ export default function AcceptInvite() {
 
     setAccepting(true);
     try {
-      // Sign up with potentially different email
       const { data: signupResult, error: signupError } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
@@ -209,9 +183,24 @@ export default function AcceptInvite() {
         });
 
         // Accept the invitation
-        await acceptInvitation(token!, signupResult.user.id);
+        const { error } = await supabase.rpc('accept_workspace_invitation', {
+          _token: token!,
+          _user_id: signupResult.user.id,
+        });
+
+        if (error) {
+          toast.error('Erreur lors de l\'acceptation de l\'invitation.');
+          setAccepting(false);
+          return;
+        }
+
+        toast.success(`Félicitations ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
+        
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1000);
       } else {
-        // Email confirmation required - store token for after confirmation
+        // Email confirmation required
         localStorage.setItem('pending_invitation', token!);
         toast.success('Vérifiez votre email pour confirmer votre compte');
       }
@@ -223,6 +212,7 @@ export default function AcceptInvite() {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -231,6 +221,7 @@ export default function AcceptInvite() {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
@@ -248,8 +239,8 @@ export default function AcceptInvite() {
     );
   }
 
-  // User is logged in - show accept button
-  if (user && !needsSignup) {
+  // User is logged in - show accept button (any email allowed)
+  if (user && invitation) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="max-w-md w-full">
@@ -257,25 +248,26 @@ export default function AcceptInvite() {
             <img src={logo} alt="Albo" className="h-8 mx-auto mb-4" />
             <CardTitle className="flex items-center justify-center gap-2">
               <Users className="h-5 w-5" />
-              Rejoindre {invitation?.workspace_name}
+              Rejoindre {invitation.workspace_name}
             </CardTitle>
             <CardDescription>
               Vous avez été invité à rejoindre ce workspace en tant que{' '}
-              <span className="font-medium capitalize">{invitation?.role}</span>
+              <span className="font-medium capitalize">{invitation.role}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {user.email?.toLowerCase() !== invitation?.email.toLowerCase() && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 mb-4">
-                <p className="font-medium">Note</p>
-                <p>Vous êtes connecté avec <strong>{user.email}</strong> mais l'invitation a été envoyée à <strong>{invitation?.email}</strong>.</p>
-                <p className="mt-1">Vous pouvez quand même rejoindre le workspace avec votre compte actuel.</p>
-              </div>
-            )}
-            <div className="bg-muted rounded-lg p-4 text-center">
-              <p className="text-sm text-muted-foreground">Connecté en tant que</p>
-              <p className="font-medium">{user.email}</p>
+            {/* Invitation info */}
+            <div className="bg-muted rounded-lg p-4 text-center text-sm">
+              <p className="text-muted-foreground">Invitation envoyée à</p>
+              <p className="font-medium">{invitation.email}</p>
             </div>
+            
+            {/* Connected account info */}
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center text-sm">
+              <p className="text-blue-600 dark:text-blue-400">Vous êtes connecté en tant que</p>
+              <p className="font-medium text-blue-800 dark:text-blue-200">{user.email}</p>
+            </div>
+
             <Button onClick={handleAccept} disabled={accepting} className="w-full">
               {accepting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -284,13 +276,17 @@ export default function AcceptInvite() {
               )}
               Rejoindre le workspace
             </Button>
+            
+            <p className="text-center text-xs text-muted-foreground">
+              En rejoignant, vous acceptez de partager vos informations avec les membres du workspace.
+            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // User needs to sign up
+  // User not logged in - show signup form with login option
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="max-w-md w-full">
@@ -302,6 +298,29 @@ export default function AcceptInvite() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Login button prominently displayed */}
+          <div className="mb-6">
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleLogin}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              J'ai déjà un compte - Se connecter
+            </Button>
+          </div>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Ou créer un compte
+              </span>
+            </div>
+          </div>
+
           <form onSubmit={handleSignupAndAccept} className="space-y-4">
             <div>
               <Label htmlFor="email">Email</Label>
@@ -372,17 +391,6 @@ export default function AcceptInvite() {
               {accepting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Créer mon compte et rejoindre
             </Button>
-
-            <p className="text-center text-sm text-muted-foreground">
-              Déjà un compte ?{' '}
-              <Button
-                variant="link"
-                className="p-0 h-auto"
-                onClick={() => navigate('/auth', { state: { redirectTo: `/invite/${token}` } })}
-              >
-                Se connecter
-              </Button>
-            </p>
           </form>
         </CardContent>
       </Card>
