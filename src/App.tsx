@@ -2,10 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProfileGuard } from "@/components/ProfileGuard";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -35,86 +36,105 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <WorkspaceProvider>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/setup-password" element={<SetupPassword />} />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
-            <Route path="/invite/:token" element={<AcceptInvite />} />
-            <Route
-              path="/portfolio"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Portfolio />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Dashboard />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/submit"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <SubmitDeal />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/deal/:id"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <DealDetail />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Profile />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Admin />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/workspace"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <WorkspaceSettings />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/setup-password" element={<SetupPassword />} />
+              <Route path="/invite/:token" element={<AcceptInvite />} />
+              
+              {/* Complete profile - accessible even with incomplete profile */}
+              <Route path="/complete-profile" element={<CompleteProfile />} />
+              
+              {/* Protected routes - require complete profile */}
+              <Route
+                path="/portfolio"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Portfolio />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Dashboard />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/submit"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <SubmitDeal />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/deal/:id"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <DealDetail />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Profile />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Admin />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/workspace"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <WorkspaceSettings />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </WorkspaceProvider>
         </AuthProvider>
       </BrowserRouter>
