@@ -42,14 +42,28 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { workspace } = useWorkspace();
+  const { workspace, isPersonalMode } = useWorkspace();
 
   const fetchDeals = async (): Promise<Deal[]> => {
     if (!user?.id || !user?.email) return [];
 
     let dealsData: any[] = [];
 
-    if (workspace?.id) {
+    if (isPersonalMode) {
+      // Personal mode: only deals created by the current user
+      const { data, error } = await supabase
+        .from("deals")
+        .select(`
+          *,
+          owner:profiles!deals_user_id_fkey(id, name, email)
+        `)
+        .eq("user_id", user.id)
+        .neq("is_hidden", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      dealsData = data || [];
+    } else if (workspace?.id) {
       // Récupérer les deals via la table de liaison deal_workspaces
       const { data, error } = await supabase
         .from("deal_workspaces")
@@ -72,7 +86,7 @@ export default function Dashboard() {
         .map((row: any) => row.deals)
         .filter((deal: any) => !deal.is_hidden);
     } else {
-      // Pas de workspace = récupérer les deals personnels
+      // Fallback: deals de l'utilisateur sans workspace
       const { data, error } = await supabase
         .from("deals")
         .select(`
@@ -123,7 +137,7 @@ export default function Dashboard() {
     data: deals = [],
     isLoading: loading,
   } = useQuery({
-    queryKey: ["deals", workspace?.id],
+    queryKey: ["deals", workspace?.id, isPersonalMode],
     enabled: !!user?.id && !!user?.email,
     queryFn: fetchDeals,
     retry: 1,

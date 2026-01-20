@@ -42,7 +42,6 @@ import {
   Share2,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
-import { ShareDealsDialog } from '@/components/ShareDealsDialog';
 
 export function WorkspaceDropdown() {
   const navigate = useNavigate();
@@ -56,11 +55,13 @@ export function WorkspaceDropdown() {
     invitations,
     canManageMembers,
     isOwner,
+    isPersonalMode,
     switchWorkspace,
+    switchToPersonal,
     createWorkspace,
     inviteMember,
     cancelInvitation,
-    migrateDeals,
+    shareDealsToWorkspace,
     refetch,
   } = useWorkspace();
 
@@ -72,36 +73,52 @@ export function WorkspaceDropdown() {
   const [creating, setCreating] = useState(false);
 
   const [inviteEmails, setInviteEmails] = useState('');
-  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member')
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
   const [inviting, setInviting] = useState(false);
+  
+  const [selectedTargetWorkspace, setSelectedTargetWorkspace] = useState<string>('');
+  const [sharing, setSharing] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
-      toast.error('Veuillez entrer un nom');
+      toast.error('Please enter a name');
       return;
     }
 
     setCreating(true);
     try {
       await createWorkspace(workspaceName.trim());
-      // Auto-migrate deals
-      try {
-        const count = await migrateDeals();
-        if (count > 0) {
-          toast.success(`Workspace créé ! ${count} deal${count > 1 ? 's' : ''} migré${count > 1 ? 's' : ''}.`);
-        } else {
-          toast.success('Workspace créé !');
-        }
-      } catch {
-        toast.success('Workspace créé !');
-      }
+      toast.success('Workspace created!');
       setIsCreateDialogOpen(false);
       setWorkspaceName('');
     } catch (error: any) {
       console.error('Error creating workspace:', error);
-      toast.error(error.message || 'Erreur lors de la création');
+      toast.error(error.message || 'Error creating workspace');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleShareDeals = async () => {
+    if (!selectedTargetWorkspace) {
+      toast.error('Please select a workspace');
+      return;
+    }
+    setSharing(true);
+    try {
+      const count = await shareDealsToWorkspace(selectedTargetWorkspace);
+      if (count > 0) {
+        toast.success(`${count} deal${count > 1 ? 's' : ''} shared to workspace`);
+      } else {
+        toast.info('No deals to share or all your deals are already shared');
+      }
+      setIsShareDialogOpen(false);
+      setSelectedTargetWorkspace('');
+    } catch (error: any) {
+      console.error('Error sharing deals:', error);
+      toast.error(error.message || 'Error sharing deals');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -153,7 +170,8 @@ export function WorkspaceDropdown() {
     }
   };
 
-  const workspaceInitial = workspace?.name?.charAt(0).toUpperCase() || 'A';
+  const workspaceInitial = isPersonalMode ? 'M' : (workspace?.name?.charAt(0).toUpperCase() || 'A');
+  const displayName = isPersonalMode ? 'My Workspace' : (workspace?.name || 'Mon espace');
 
   return (
     <>
@@ -169,7 +187,7 @@ export function WorkspaceDropdown() {
             {!isCollapsed && (
               <>
                 <span className="font-medium truncate flex-1 text-left">
-                  {workspace?.name || 'Mon espace'}
+                  {displayName}
                 </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
               </>
@@ -181,6 +199,19 @@ export function WorkspaceDropdown() {
           className="w-64 bg-popover border shadow-lg z-50"
           sideOffset={4}
         >
+          {/* My Workspace - Personal space */}
+          <DropdownMenuItem
+            onClick={() => switchToPersonal()}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <div className="h-6 w-6 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-500 font-semibold text-xs shrink-0">
+              <User className="h-4 w-4" />
+            </div>
+            <span className="flex-1 truncate">My Workspace</span>
+            {isPersonalMode && <Check className="h-4 w-4 text-primary" />}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+
           {/* Current workspace with members */}
           {workspace && (
             <>
@@ -192,18 +223,21 @@ export function WorkspaceDropdown() {
                   >
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
-                        {workspaceInitial}
+                        {workspace.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="font-medium">{workspace.name}</span>
                     </div>
-                    <ChevronRight className={cn("h-4 w-4 transition-transform", isMembersOpen && "rotate-90")} />
+                    <div className="flex items-center gap-1">
+                      <Check className="h-4 w-4 text-primary" />
+                      <ChevronRight className={cn("h-4 w-4 transition-transform", isMembersOpen && "rotate-90")} />
+                    </div>
                   </DropdownMenuItem>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="pl-4 py-2 space-y-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
                       <Users className="h-3 w-3" />
-                      {members.length} membre{members.length > 1 ? 's' : ''}
+                      {members.length} member{members.length > 1 ? 's' : ''}
                     </div>
                     {members.map((member) => (
                       <div
@@ -216,7 +250,7 @@ export function WorkspaceDropdown() {
                           </AvatarFallback>
                         </Avatar>
                         <span className="flex-1 truncate text-muted-foreground">
-                          {member.profile?.name || member.profile?.email || 'Membre'}
+                          {member.profile?.name || member.profile?.email || 'Member'}
                         </span>
                         {member.role === 'owner' && (
                           <Badge variant="secondary" className="text-[10px] px-1 py-0">
@@ -236,7 +270,7 @@ export function WorkspaceDropdown() {
           {allWorkspaces.filter(ws => ws.id !== workspace?.id).length > 0 && (
             <>
               <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Autres workspaces
+                Other workspaces
               </DropdownMenuLabel>
               {allWorkspaces.filter(ws => ws.id !== workspace?.id).map((ws) => (
                 <DropdownMenuItem
@@ -268,26 +302,24 @@ export function WorkspaceDropdown() {
             Account settings
           </DropdownMenuItem>
 
-          {isOwner && (
+          {isOwner && workspace && (
             <DropdownMenuItem onClick={() => navigate('/workspace')}>
               <Settings className="mr-2 h-4 w-4" />
               Workspace settings
             </DropdownMenuItem>
           )}
 
-          {canManageMembers && (
+          {canManageMembers && workspace && (
             <DropdownMenuItem onClick={() => setIsInviteDialogOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
               Invite team members
             </DropdownMenuItem>
           )}
 
-          {workspace && (
-            <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Partager mes deals
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
+            <Share2 className="mr-2 h-4 w-4" />
+            Share deals
+          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
@@ -409,10 +441,43 @@ export function WorkspaceDropdown() {
         </DialogContent>
       </Dialog>
 
-      <ShareDealsDialog
-        isOpen={isShareDialogOpen}
-        onClose={() => setIsShareDialogOpen(false)}
-      />
+      {/* Share Deals Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share deals to workspace</DialogTitle>
+            <DialogDescription>
+              Share your personal deals to a team workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label>Target workspace</Label>
+              <Select value={selectedTargetWorkspace} onValueChange={setSelectedTargetWorkspace}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select a workspace" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allWorkspaces.map((ws) => (
+                    <SelectItem key={ws.id} value={ws.id}>
+                      {ws.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsShareDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleShareDeals} disabled={sharing || !selectedTargetWorkspace}>
+              {sharing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Share
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
