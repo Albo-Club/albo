@@ -31,21 +31,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+const FLAGGED_USERS = [
+  'test@albo.app',
+  'mael@alboteam.com',
+  'benjamin@alboteam.com',
+  'raphaelle@alboteam.com'
+];
+
 const navItems = [
   {
-    title: "Portfolio",
+    title: "Dashboard",
     url: "/portfolio",
     icon: Wallet,
+    flagged: true,
   },
   {
     title: "Deals",
     url: "/dashboard",
     icon: Table2,
+    flagged: false,
   },
   {
     title: "Soumettre un deal",
     url: "/submit",
     icon: Plus,
+    flagged: false,
   },
 ];
 
@@ -63,6 +73,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  // Filter nav items based on feature flags
+  const canSeeDashboard = FLAGGED_USERS.includes(userEmail.toLowerCase());
+  const filteredNavItems = navItems.filter(item => {
+    if (item.flagged) {
+      return canSeeDashboard;
+    }
+    return true;
+  });
 
   const handleSignOut = async () => {
     await signOut();
@@ -88,7 +107,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink
