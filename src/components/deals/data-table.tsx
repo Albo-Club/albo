@@ -30,13 +30,11 @@ import { DataTableToolbar } from "./data-table-toolbar";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  onAskAI?: () => void;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
-  onAskAI,
 }: DataTableProps<TData, TValue>) {
   const navigate = useNavigate();
   const [rowSelection, setRowSelection] = React.useState({});
@@ -68,9 +66,9 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} onAskAI={onAskAI} />
-      <div className="rounded-md border">
-        <Table>
+      <DataTableToolbar table={table} />
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[900px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

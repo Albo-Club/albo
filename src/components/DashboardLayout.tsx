@@ -49,20 +49,22 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             isOpen ? "md:mr-[400px]" : "mr-0"
           )}
         >
-          <header className="h-14 flex items-center justify-between border-b px-4">
+          <header className="h-14 flex items-center justify-between border-b px-4 sticky top-0 bg-background z-10">
             <SidebarTrigger />
             <Button
-              variant={isOpen ? "default" : "outline"}
+              variant="outline"
               size="sm"
               onClick={togglePanel}
-              className="gap-2"
+              className="gap-2 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 text-violet-700 hover:bg-violet-500/20 hover:border-violet-500/50 dark:text-violet-300 dark:border-violet-400/30"
             >
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">Ask AI</span>
             </Button>
           </header>
-          <main className="flex-1 p-6 overflow-auto">
-            {children}
+          <main className="flex-1 overflow-auto">
+            <div className="max-w-7xl mx-auto p-6 w-full">
+              {children}
+            </div>
           </main>
         </div>
         <AskAISidePanel />
