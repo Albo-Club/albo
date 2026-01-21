@@ -62,7 +62,7 @@ const navItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed";
 
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "Utilisateur";
@@ -87,8 +87,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     await signOut();
   };
 
+  // Handler pour ouvrir la sidebar quand elle est collapsed
+  const handleCollapsedClick = (e: React.MouseEvent) => {
+    if (isCollapsed) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(true);
+    }
+  };
+
   return (
     <Sidebar collapsible="icon" {...props}>
+      {/* Overlay cliquable quand collapsed */}
+      {isCollapsed && (
+        <div
+          className="absolute inset-0 z-50 cursor-pointer"
+          onClick={handleCollapsedClick}
+          aria-label="Ouvrir la sidebar"
+        />
+      )}
+
       <SidebarHeader className="border-b">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -133,18 +151,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter className="border-t">
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="w-full data-[state=open]:bg-sidebar-accent"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isCollapsed && (
+            {isCollapsed ? (
+              <div className="flex items-center justify-center p-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="w-full data-[state=open]:bg-sidebar-accent"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex flex-col items-start text-left flex-1 min-w-0">
                       <span className="text-sm font-medium truncate w-full">
                         {userName}
@@ -153,25 +179,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         {userEmail}
                       </span>
                     </div>
-                  )}
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side={isCollapsed ? "right" : "top"}
-                align="start"
-                className="w-56"
-              >
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
-                  <UserIcon className="mr-2 h-4 w-4" />
-                  Mon profil
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Se déconnecter
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="top"
+                  align="start"
+                  className="w-56"
+                >
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    Mon profil
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Se déconnecter
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
