@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { Deal, statuses, stages, sectors, fundingTypes } from "./columns";
 import { formatAmount, parseAmount, displayCompanyName } from "@/lib/utils";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { AddNewOptionDialog } from "./AddNewOptionDialog";
 
 interface DealSidePanelProps {
@@ -247,7 +248,12 @@ export function DealSidePanel({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="space-y-1 pr-8">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <CompanyLogo 
+                domain={deal.domain} 
+                companyName={deal.company_name} 
+                size="md" 
+              />
               <div className="flex-1 min-w-0">
                 <SheetTitle className="text-xl font-bold truncate">
                   {displayCompanyName(deal.company_name) || "Analyse en cours..."}

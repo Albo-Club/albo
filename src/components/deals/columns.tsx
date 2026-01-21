@@ -4,6 +4,7 @@ import { DataTableRowActions } from "./data-table-row-actions";
 import { displayCompanyName } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import {
   InlineSelectEditor,
   InlineAmountEditor,
@@ -34,6 +35,7 @@ export interface Deal {
   error_message: string | null;
   user_notes: string | null;
   hasDeck?: boolean;
+  domain?: string | null;
   // Propriétaire du deal
   owner?: {
     id: string;
@@ -93,16 +95,24 @@ export const columns: ColumnDef<Deal>[] = [
     cell: ({ row }) => {
       const name = displayCompanyName(row.getValue("company_name"));
       const oneLiner = row.original.one_liner;
+      const domain = row.original.domain;
       return (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-semibold truncate max-w-[200px] text-left">
-            {name || "Analyse en cours..."}
-          </span>
-          {oneLiner && (
-            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-              {oneLiner}
+        <div className="flex items-center gap-3">
+          <CompanyLogo 
+            domain={domain} 
+            companyName={name} 
+            size="sm" 
+          />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-semibold truncate max-w-[180px] text-left">
+              {name || "Analyse en cours..."}
             </span>
-          )}
+            {oneLiner && (
+              <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                {oneLiner}
+              </span>
+            )}
+          </div>
         </div>
       );
     },

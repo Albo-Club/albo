@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Building2, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 interface DealHeaderProps {
   dealId: string;
@@ -17,6 +18,7 @@ interface DealHeaderProps {
   oneLiner?: string;
   createdAt: string;
   updatedBy?: string;
+  domain?: string | null;
   onStatusChange?: (status: string) => void;
 }
 
@@ -38,6 +40,7 @@ export function DealHeader({
   oneLiner,
   createdAt,
   updatedBy,
+  domain,
   onStatusChange,
 }: DealHeaderProps) {
   const navigate = useNavigate();
@@ -58,10 +61,13 @@ export function DealHeader({
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
-        {/* Logo Placeholder */}
-        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
-          <Building2 className="h-8 w-8 text-muted-foreground" />
-        </div>
+        {/* Company Logo */}
+        <CompanyLogo 
+          domain={domain} 
+          companyName={companyName} 
+          size="lg" 
+          className="w-16 h-16 rounded-lg"
+        />
 
         {/* Company Info */}
         <div className="flex-1 min-w-0">
