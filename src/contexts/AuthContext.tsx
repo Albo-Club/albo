@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // With auto-confirm enabled, user is automatically signed in
       if (data.session) {
         toast.success('Compte créé avec succès !');
-        navigate('/complete-profile');
+        navigate('/setup-password');
       } else {
         toast.success('Compte créé ! Vérifiez votre email pour confirmer.');
         navigate('/auth');
