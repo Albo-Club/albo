@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/complete-profile`;
+      // Rediriger vers setup-password après confirmation email
+      const redirectUrl = `${window.location.origin}/setup-password`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // With auto-confirm enabled, user is automatically signed in
       if (data.session) {
         toast.success('Compte créé avec succès !');
-        navigate('/dashboard');
+        navigate('/complete-profile');
       } else {
         toast.success('Compte créé ! Vérifiez votre email pour confirmer.');
         navigate('/auth');
