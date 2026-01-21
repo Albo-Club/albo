@@ -21,7 +21,7 @@ import { displayCompanyName } from "@/lib/utils";
 import { DataTable } from "@/components/deals/data-table";
 import { columns, Deal } from "@/components/deals/columns";
 import { DealSidePanel } from "@/components/deals/DealSidePanel";
-import { useAIPanel } from "@/contexts/AIPanelContext";
+
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserProfileModal } from "@/components/UserProfileModal";
@@ -37,7 +37,6 @@ export default function Dashboard() {
     name?: string | null;
     email?: string | null;
   } | null>(null);
-  const { openPanel } = useAIPanel();
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -364,7 +363,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable columns={columns} data={deals} onAskAI={() => openPanel()} />
+        <DataTable columns={columns} data={deals} />
       )}
 
       <DealSidePanel
