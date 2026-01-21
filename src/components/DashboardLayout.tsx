@@ -61,8 +61,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <SidebarAutoClose />
       <div className="min-h-screen flex w-full">
+        <SidebarAutoClose />
         <AppSidebar />
         <div
           className={cn(
