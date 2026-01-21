@@ -23,14 +23,14 @@ interface DealHeaderProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "analyzing", label: "En cours d'analyse", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
-  { value: "pending", label: "À traiter", color: "bg-gray-500/10 text-gray-600 border-gray-500/20" },
-  { value: "completed", label: "Analysé", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "passed", label: "Refusé", color: "bg-red-500/10 text-red-600 border-red-500/20" },
-  { value: "new", label: "Nouveau", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "reviewing", label: "En revue", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  { value: "watching", label: "Watchlist", color: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20" },
-  { value: "invested", label: "Investi", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  { value: "en cours d'analyse", label: "En cours d'analyse", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  { value: "à traiter", label: "À traiter", color: "bg-gray-500/10 text-gray-600 border-gray-500/20" },
+  { value: "analysé", label: "Analysé", color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  { value: "refusé", label: "Refusé", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+  { value: "nouveau", label: "Nouveau", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { value: "en revue", label: "En revue", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
+  { value: "watchlist", label: "Watchlist", color: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20" },
+  { value: "investi", label: "Investi", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
 ];
 
 export function DealHeader({
@@ -83,7 +83,7 @@ export function DealHeader({
                     currentStatus.color
                   )}
                 >
-                  {status === "analyzing" && (
+                  {status === "en cours d'analyse" && (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                   )}
                   {currentStatus.label}

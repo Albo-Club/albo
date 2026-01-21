@@ -228,17 +228,17 @@ export function InlineAmountEditor({
 
 // Status options with icons for inline editing
 export const inlineStatusOptions = [
-  { value: "analyzing", label: "En cours d'analyse", icon: Loader2 },
-  { value: "pending", label: "À traiter", icon: CircleDashed },
-  { value: "completed", label: "Analysé", icon: CheckCircle2 },
-  { value: "passed", label: "Refusé", icon: XCircle },
+  { value: "en cours d'analyse", label: "En cours d'analyse", icon: Loader2 },
+  { value: "à traiter", label: "À traiter", icon: CircleDashed },
+  { value: "analysé", label: "Analysé", icon: CheckCircle2 },
+  { value: "refusé", label: "Refusé", icon: XCircle },
 ];
 
 export const statusColorMap: Record<string, string> = {
-  pending: "bg-gray-500/10 text-gray-600 border-gray-500/20",
-  analyzing: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-  completed: "bg-green-500/10 text-green-600 border-green-500/20",
-  passed: "bg-red-500/10 text-red-600 border-red-500/20",
+  "à traiter": "bg-gray-500/10 text-gray-600 border-gray-500/20",
+  "en cours d'analyse": "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  "analysé": "bg-green-500/10 text-green-600 border-green-500/20",
+  "refusé": "bg-red-500/10 text-red-600 border-red-500/20",
 };
 
 // Sector options for inline editing
