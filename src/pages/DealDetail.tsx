@@ -28,6 +28,7 @@ interface Deal {
   amount_sought: string | null;
   investment_amount_eur: number | null;
   funding_type: string | null;
+  domain: string | null;
   created_at: string;
   updated_at: string | null;
   analyzed_at: string | null;
@@ -201,6 +202,7 @@ export default function DealDetail() {
           companyName={displayCompanyName(deal.company_name) || 'Analyse en cours...'}
           status={deal.status}
           createdAt={deal.created_at}
+          domain={deal.domain}
         />
         <AnalysisLoader />
       </div>
@@ -246,6 +248,7 @@ export default function DealDetail() {
         status={deal.status}
         oneLiner={deal.one_liner || undefined}
         createdAt={deal.created_at}
+        domain={deal.domain}
         onStatusChange={handleStatusChange}
       />
 
