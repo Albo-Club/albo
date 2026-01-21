@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,6 +46,10 @@ const promptSuggestions = [
   },
 ];
 
+// Largeur min/max pour le panel
+const MIN_WIDTH = 320;
+const MAX_WIDTH = 600;
+
 export function AskAISidePanel() {
   const { user } = useAuth();
   const { isOpen, closePanel, currentDealId, currentDealContext } = useAIPanel();
@@ -54,6 +58,53 @@ export function AskAISidePanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // État pour la largeur du panel et resize
+  const [panelWidth, setPanelWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartX = useRef<number>(0);
+  const dragStartWidth = useRef<number>(400);
+
+  // Gestion du resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = panelWidth;
+    setIsResizing(true);
+  }, [panelWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      // Calculer la nouvelle largeur basée sur le mouvement
+      const deltaX = dragStartX.current - e.clientX;
+      const newWidth = dragStartWidth.current + deltaX;
+      
+      // Appliquer les limites min/max
+      const clampedWidth = Math.min(Math.max(newWidth, MIN_WIDTH), MAX_WIDTH);
+      setPanelWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing]);
 
   // Reset state when panel closes
   useEffect(() => {
@@ -200,11 +251,40 @@ export function AskAISidePanel() {
   return (
     <aside
       className={cn(
-        "fixed right-0 top-0 h-screen w-full md:w-[400px] border-l bg-background z-40",
+        "fixed right-0 top-0 h-screen bg-background z-40",
         "flex flex-col",
-        "animate-in slide-in-from-right duration-300"
+        "animate-in slide-in-from-right duration-300",
+        isResizing && "transition-none select-none"
       )}
+      style={{ width: window.innerWidth < 768 ? '100%' : `${panelWidth}px` }}
     >
+      {/* Bordure de resize cliquable */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={cn(
+          "absolute left-0 top-0 bottom-0 w-4 -translate-x-1/2 z-50",
+          "hidden md:flex items-center justify-center",
+          "cursor-ew-resize group",
+          // Zone de hover plus visible
+          "hover:bg-primary/5",
+          // Indicateur visuel
+          "before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2",
+          "before:w-1 before:bg-border before:rounded-full",
+          "before:transition-all before:duration-200",
+          "hover:before:bg-primary/40 hover:before:w-1.5",
+          isResizing && "before:bg-primary before:w-2"
+        )}
+        title="Glisser pour redimensionner"
+      >
+        {/* Indicateur de grip */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="w-0.5 h-8 bg-muted-foreground/30 rounded-full" />
+        </div>
+      </div>
+
+      {/* Bordure visuelle */}
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-border" />
+
       {/* Header */}
       <div className="h-14 flex items-center justify-between px-4 border-b flex-shrink-0">
         <div className="flex items-center gap-2">
