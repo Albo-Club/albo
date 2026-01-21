@@ -32,6 +32,20 @@ const SetupPassword = () => {
       }
       
       setUserEmail(session.user.email || null);
+      
+      // Vérifier si l'utilisateur a déjà complété son profil (donc déjà un mot de passe)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_complete, name')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      
+      // Si le profil est déjà complet, l'utilisateur n'a pas besoin de setup-password
+      if (profile?.is_complete === true && profile?.name) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      
       setSessionChecked(true);
     };
     
