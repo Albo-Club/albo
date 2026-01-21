@@ -16,16 +16,37 @@ function SidebarAutoClose() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const sidebar = document.querySelector('[data-sidebar="sidebar"]');
-      const trigger = document.querySelector('[data-sidebar="trigger"]');
+      const target = event.target as HTMLElement;
       
-      if (open && 
-          sidebar && 
-          !sidebar.contains(event.target as Node) &&
-          trigger &&
-          !trigger.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      // Ne rien faire si la sidebar est déjà fermée
+      if (!open) return;
+
+      // Liste des sélecteurs à exclure (éléments qui appartiennent à la sidebar ou ses interactions)
+      const excludedSelectors = [
+        '[data-sidebar]',                      // Tous les éléments sidebar
+        '[data-radix-popper-content-wrapper]', // Tous les popovers Radix (dropdowns, selects, tooltips)
+        '[data-radix-menu-content]',           // Menus Radix
+        '[role="dialog"]',                     // Dialogs et modals
+        '[role="alertdialog"]',                // Alert dialogs
+        '[role="menu"]',                       // Menus contextuels
+        '[role="menubar"]',                    // Barres de menu
+        '[role="listbox"]',                    // Listes déroulantes
+        '[role="tooltip"]',                    // Tooltips
+        '[data-state="open"]',                 // Tout élément Radix actuellement ouvert
+      ];
+
+      // Vérifier si le clic est sur un élément exclu ou à l'intérieur d'un élément exclu
+      const isExcludedElement = excludedSelectors.some(selector => {
+        if (target.matches?.(selector)) return true;
+        if (target.closest?.(selector)) return true;
+        return false;
+      });
+
+      // Si le clic est sur un élément exclu, ne pas fermer
+      if (isExcludedElement) return;
+
+      // Sinon, fermer la sidebar
+      setOpen(false);
     };
 
     document.addEventListener('mousedown', handleClickOutside);
