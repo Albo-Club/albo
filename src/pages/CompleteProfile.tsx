@@ -133,17 +133,17 @@ export default function CompleteProfile() {
           phone: formData.phone || null,
           country: formData.country || null,
           is_complete: true,
+          onboarding_status: 'workspace_pending',
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      toast.success('Bienvenue sur Albo ! 🎉');
+      toast.success('Profil complété ! 🎉');
 
-      // Redirect to original destination or dashboard
-      const from = (location.state as any)?.from || '/dashboard';
-      navigate(from, { replace: true });
+      // Continue to workspace creation step
+      navigate('/onboarding/workspace', { replace: true });
 
     } catch (error: any) {
       console.error('Error:', error);
