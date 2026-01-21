@@ -192,8 +192,8 @@ export default function DealDetail() {
     );
   }
 
-  // Show analysis loader for pending deals
-  if (deal.status === 'pending') {
+  // Show analysis loader for analyzing deals
+  if (deal.status === 'analyzing') {
     return (
       <div className="space-y-6">
         <DealHeader

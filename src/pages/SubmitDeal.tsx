@@ -143,7 +143,7 @@ export default function SubmitDeal() {
         .insert({
           user_id: user.id,
           company_name: initialCompanyName,
-          status: 'pending',
+          status: 'analyzing',
           source: 'form',
           additional_context: additionalContext || null,
         })
