@@ -17,8 +17,18 @@ export function useProfileCompletion() {
       return;
     }
 
-    // Pages autorisées même avec profil incomplet
-    const allowedPaths = ['/complete-profile', '/auth', '/logout', '/login', '/reset-password', '/setup-password', '/invite'];
+    // Pages autorisées même avec profil incomplet (inclut tout le flux d'onboarding)
+    const allowedPaths = [
+      '/complete-profile', 
+      '/auth', 
+      '/auth/callback',
+      '/logout', 
+      '/login', 
+      '/reset-password', 
+      '/setup-password', 
+      '/invite',
+      '/onboarding'
+    ];
     const isAllowedPath = allowedPaths.some(path => location.pathname.startsWith(path));
     
     if (isAllowedPath) {

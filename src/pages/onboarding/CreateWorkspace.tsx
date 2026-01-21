@@ -67,6 +67,9 @@ export default function CreateWorkspace() {
 
       toast.success('Workspace créé avec succès ! 🎉');
 
+      // Nettoyer l'invitation en attente si elle existe
+      localStorage.removeItem('pending_invitation');
+
       // Passer à l'étape suivante (invitation d'équipe)
       await goToNextStep();
     } catch (error: any) {
@@ -119,6 +122,9 @@ export default function CreateWorkspace() {
       }
 
       toast.success('Vous avez rejoint le workspace ! 🎉');
+
+      // Nettoyer l'invitation en attente
+      localStorage.removeItem('pending_invitation');
 
       // Marquer l'onboarding comme terminé (pas besoin d'inviter si on rejoint)
       await setOnboardingStatus(OnboardingStatus.COMPLETED);

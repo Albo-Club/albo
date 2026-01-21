@@ -109,8 +109,22 @@ export default function AcceptInvite() {
         }
       }
 
+      // L'invitation a été "acceptée" mais l'utilisateur peut ne pas avoir terminé l'onboarding
       if (data.accepted_at) {
-        setAlreadyAccepted(true);
+        // Si l'utilisateur est connecté, vérifier s'il est vraiment membre
+        if (user?.id) {
+          // On a déjà vérifié memberData plus haut
+          if (userAlreadyMember) {
+            setAlreadyAccepted(true);
+          } else {
+            // L'invitation a été acceptée mais l'utilisateur n'est pas encore membre
+            // Permettre de continuer le processus
+            setAlreadyAccepted(false);
+          }
+        } else {
+          // Pas connecté, permettre de continuer (créer un compte ou se connecter)
+          setAlreadyAccepted(false);
+        }
       }
 
       if (data.expires_at && new Date(data.expires_at) < new Date()) {

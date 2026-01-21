@@ -54,6 +54,12 @@ export default function CompleteProfile() {
         return;
       }
 
+      // Log pending invitation for debugging
+      const pendingInvitation = localStorage.getItem('pending_invitation');
+      if (pendingInvitation) {
+        console.log('Pending invitation found:', pendingInvitation);
+      }
+
       setUserEmail(user.email || '');
 
       // Check if profile is already complete
@@ -142,8 +148,16 @@ export default function CompleteProfile() {
 
       toast.success('Profil complété ! 🎉');
 
-      // Continue to workspace creation step
-      navigate('/onboarding/workspace', { replace: true });
+      // Vérifier s'il y a une invitation en attente
+      const pendingInvitation = localStorage.getItem('pending_invitation');
+
+      if (pendingInvitation) {
+        // Rediriger vers l'invitation pour l'accepter
+        navigate(`/invite/${pendingInvitation}`, { replace: true });
+      } else {
+        // Aller à l'étape workspace de l'onboarding
+        navigate('/onboarding/workspace', { replace: true });
+      }
 
     } catch (error: any) {
       console.error('Error:', error);
