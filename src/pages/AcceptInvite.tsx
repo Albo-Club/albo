@@ -81,6 +81,9 @@ export default function AcceptInvite() {
       // Stocker le workspace_id
       setWorkspaceId(data.workspace_id);
 
+      // Track membership in a local var to avoid relying on async state updates
+      let isMember = false;
+
       // Si l'utilisateur est connecté, vérifier le profil ET l'appartenance au workspace
       if (user?.id) {
         // Vérifier si le profil est complet
@@ -103,22 +106,19 @@ export default function AcceptInvite() {
             .eq('user_id', user.id)
             .maybeSingle();
           
-          if (memberData) {
-            setUserAlreadyMember(true);
-          }
+          isMember = !!memberData;
+          setUserAlreadyMember(isMember);
         }
       }
 
       // L'invitation a été "acceptée" mais l'utilisateur peut ne pas avoir terminé l'onboarding
       if (data.accepted_at) {
-        // Si l'utilisateur est connecté, vérifier s'il est vraiment membre
         if (user?.id) {
-          // On a déjà vérifié memberData plus haut
-          if (userAlreadyMember) {
+          // Si l'utilisateur est déjà membre, on peut afficher l'état "déjà accepté"
+          if (isMember) {
             setAlreadyAccepted(true);
           } else {
-            // L'invitation a été acceptée mais l'utilisateur n'est pas encore membre
-            // Permettre de continuer le processus
+            // Sinon, permettre de continuer le processus (ex: onboarding non terminé)
             setAlreadyAccepted(false);
           }
         } else {
@@ -245,6 +245,9 @@ export default function AcceptInvite() {
 
     setAccepting(true);
     try {
+      // Garder le token en mémoire pour reprendre après confirmation email (setup-password -> complete-profile -> retour ici)
+      localStorage.setItem('pending_invitation', token!);
+
       const { data: signupResult, error: signupError } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
@@ -252,7 +255,8 @@ export default function AcceptInvite() {
           data: {
             name: signupData.name,
           },
-          emailRedirectTo: `${APP_CONFIG.baseUrl}/invite/${token}`,
+          // Continuer le nouveau flux d'onboarding (setup-password -> complete-profile -> workspace)
+          emailRedirectTo: `${APP_CONFIG.baseUrl}/setup-password`,
         },
       });
 
@@ -265,7 +269,9 @@ export default function AcceptInvite() {
         throw signupError;
       }
 
-      if (signupResult.user) {
+      // Si l'email est auto-confirmé, on a une session et on peut finaliser l'acceptation.
+      // Sinon, on attend la confirmation email (le lien redirige vers /setup-password).
+      if (signupResult.session && signupResult.user) {
         // Update profile with additional info - marquer comme complet car nom fourni
         await supabase.from('profiles').upsert({
           id: signupResult.user.id,
@@ -292,14 +298,15 @@ export default function AcceptInvite() {
           localStorage.setItem('currentWorkspaceId', workspaceIdResult);
         }
 
+        // On a terminé l'acceptation, on peut nettoyer le token pending
+        localStorage.removeItem('pending_invitation');
+
         toast.success(`Félicitations ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
-        
+
         setTimeout(() => {
           navigate('/dashboard');
         }, 1000);
       } else {
-        // Email confirmation required
-        localStorage.setItem('pending_invitation', token!);
         toast.success('Vérifiez votre email pour confirmer votre compte');
       }
     } catch (err: any) {
