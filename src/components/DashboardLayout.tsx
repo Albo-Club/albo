@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AIPanelProvider, useAIPanel } from "@/contexts/AIPanelContext";
 import { AskAISidePanel } from "@/components/AskAISidePanel";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,36 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+function SidebarAutoClose() {
+  const { open, setOpen } = useSidebar();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const sidebar = document.querySelector('[data-sidebar="sidebar"]');
+      const trigger = document.querySelector('[data-sidebar="trigger"]');
+      
+      if (open && 
+          sidebar && 
+          !sidebar.contains(event.target as Node) &&
+          trigger &&
+          !trigger.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open, setOpen]);
+
+  return null;
+}
+
 function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const { isOpen, togglePanel } = useAIPanel();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
+      <SidebarAutoClose />
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div
