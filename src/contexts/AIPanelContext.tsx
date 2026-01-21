@@ -16,7 +16,7 @@ interface AIPanelContextType {
 const AIPanelContext = createContext<AIPanelContextType | undefined>(undefined);
 
 export function AIPanelProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [currentDealId, setCurrentDealId] = useState<string | null>(null);
   const [currentDealContext, setCurrentDealContext] = useState<DealContext | null>(null);
 
