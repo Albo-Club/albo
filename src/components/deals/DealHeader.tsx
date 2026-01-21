@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Building2, Eye, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useAIPanel } from "@/contexts/AIPanelContext";
 
 interface DealHeaderProps {
   dealId: string;
@@ -22,10 +21,13 @@ interface DealHeaderProps {
 }
 
 const STATUS_OPTIONS = [
+  { value: "analyzing", label: "En cours d'analyse", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
+  { value: "pending", label: "À traiter", color: "bg-gray-500/10 text-gray-600 border-gray-500/20" },
+  { value: "completed", label: "Analysé", color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  { value: "passed", label: "Refusé", color: "bg-red-500/10 text-red-600 border-red-500/20" },
   { value: "new", label: "Nouveau", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "reviewing", label: "En revue", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
-  { value: "watching", label: "Watchlist", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "passed", label: "Passé", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+  { value: "reviewing", label: "En revue", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  { value: "watching", label: "Watchlist", color: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20" },
   { value: "invested", label: "Investi", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
 ];
 
@@ -39,13 +41,8 @@ export function DealHeader({
   onStatusChange,
 }: DealHeaderProps) {
   const navigate = useNavigate();
-  const { openPanel } = useAIPanel();
 
   const currentStatus = STATUS_OPTIONS.find((s) => s.value === status) || STATUS_OPTIONS[0];
-
-  const handleDueDiligence = () => {
-    openPanel(dealId, { companyName });
-  };
 
   return (
     <div className="space-y-4">
@@ -80,6 +77,9 @@ export function DealHeader({
                     currentStatus.color
                   )}
                 >
+                  {status === "analyzing" && (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  )}
                   {currentStatus.label}
                 </Badge>
               </DropdownMenuTrigger>
@@ -122,16 +122,6 @@ export function DealHeader({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={handleDueDiligence}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Due Diligence
-          </Button>
-          <Button variant="outline" size="icon">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </div>
   );

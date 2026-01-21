@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn, formatAmount, parseAmount } from "@/lib/utils";
-import { Check, CheckCircle2, CircleDashed, Clock, XCircle } from "lucide-react";
+import { Check, CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface InlineSelectEditorProps {
@@ -228,9 +228,9 @@ export function InlineAmountEditor({
 
 // Status options with icons for inline editing
 export const inlineStatusOptions = [
+  { value: "analyzing", label: "En cours d'analyse", icon: Loader2 },
   { value: "pending", label: "À traiter", icon: CircleDashed },
-  { value: "analyzing", label: "En cours", icon: Clock },
-  { value: "completed", label: "Validé", icon: CheckCircle2 },
+  { value: "completed", label: "Analysé", icon: CheckCircle2 },
   { value: "passed", label: "Refusé", icon: XCircle },
 ];
 
