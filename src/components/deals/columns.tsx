@@ -46,10 +46,10 @@ export interface Deal {
 }
 
 export const statuses = [
-  { value: "analyzing", label: "En cours d'analyse" },
-  { value: "pending", label: "À traiter" },
-  { value: "completed", label: "Analysé" },
-  { value: "passed", label: "Refusé" },
+  { value: "en cours d'analyse", label: "En cours d'analyse" },
+  { value: "à traiter", label: "À traiter" },
+  { value: "analysé", label: "Analysé" },
+  { value: "refusé", label: "Refusé" },
 ];
 
 export const stages = [

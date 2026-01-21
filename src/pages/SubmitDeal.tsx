@@ -143,7 +143,7 @@ export default function SubmitDeal() {
         .insert({
           user_id: user.id,
           company_name: initialCompanyName,
-          status: 'analyzing',
+          status: "en cours d'analyse",
           source: 'form',
           additional_context: additionalContext || null,
         })
@@ -214,7 +214,7 @@ export default function SubmitDeal() {
         // Step 5: Update deal with N8N response
         if (result?.status === 'completed') {
           const updateData: any = {
-            status: 'completed',
+            status: 'analysé',
             analyzed_at: new Date().toISOString(),
           };
 
@@ -248,7 +248,7 @@ export default function SubmitDeal() {
           const { error: updateDealError } = await supabase
             .from('deals')
             .update({
-              status: 'pending',
+              status: 'à traiter',
               error_message: result?.error || "Échec de l'analyse",
             })
             .eq('id', deal.id);
@@ -270,7 +270,7 @@ export default function SubmitDeal() {
         await supabase
           .from('deals')
           .update({
-            status: 'pending',
+            status: 'à traiter',
             error_message: n8nError.message || 'Erreur lors de l\'analyse',
           })
           .eq('id', deal.id);

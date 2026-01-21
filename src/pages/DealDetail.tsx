@@ -194,7 +194,7 @@ export default function DealDetail() {
   }
 
   // Show analysis loader for analyzing deals
-  if (deal.status === 'analyzing') {
+  if (deal.status === 'en cours d\'analyse') {
     return (
       <div className="space-y-6">
         <DealHeader
