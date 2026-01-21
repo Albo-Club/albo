@@ -59,7 +59,7 @@ export default function AuthCallback() {
     const checkProfileAndRedirect = async (userId: string, userEmail?: string) => {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('is_complete, name')
+        .select('is_complete, name, onboarding_status')
         .eq('id', userId)
         .maybeSingle();
 
@@ -67,13 +67,27 @@ export default function AuthCallback() {
         console.error('Profile error:', profileError);
       }
 
-      // Si pas de profil ou profil incomplet, rediriger vers complete-profile
-      console.log('Profile check:', { is_complete: profile?.is_complete, name: profile?.name });
-      
-      if (!profile || profile.is_complete === false || !profile.name) {
+      console.log('Profile check:', profile);
+
+      // Logique de redirection basée sur l'état du profil
+      if (!profile) {
+        // Pas de profil = nouveau user, aller à setup-password
+        console.log('Redirecting to setup-password (no profile)');
+        navigate('/setup-password', { replace: true });
+      } else if (profile.is_complete === false || !profile.name) {
+        // Profil incomplet = aller à complete-profile
         console.log('Redirecting to complete-profile');
         navigate('/complete-profile', { replace: true });
+      } else if (profile.onboarding_status === 'workspace_pending') {
+        // Profil complet mais pas de workspace
+        console.log('Redirecting to onboarding/workspace');
+        navigate('/onboarding/workspace', { replace: true });
+      } else if (profile.onboarding_status === 'invite_team') {
+        // Workspace créé, étape invitation
+        console.log('Redirecting to onboarding/invite-team');
+        navigate('/onboarding/invite-team', { replace: true });
       } else {
+        // Tout est bon, aller au dashboard
         console.log('Redirecting to dashboard');
         navigate('/dashboard', { replace: true });
       }

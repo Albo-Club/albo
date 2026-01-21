@@ -60,9 +60,10 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.signUp({
         email: signUpEmail,
-        password: crypto.randomUUID(), // Mot de passe temporaire
+        password: crypto.randomUUID(), // Mot de passe temporaire (l'utilisateur le définira après)
         options: {
-          emailRedirectTo: `${window.location.origin}/complete-profile`
+          // Rediriger vers setup-password pour définir le vrai mot de passe
+          emailRedirectTo: `${window.location.origin}/setup-password`
         }
       });
       
