@@ -26,10 +26,6 @@ const LOGO_DEV_TOKEN = import.meta.env.VITE_LOGO_DEV_TOKEN;
 export function CompanyLogo({ domain, companyName, size = 'md', className }: CompanyLogoProps) {
   const [hasError, setHasError] = useState(false);
 
-  // Debug logs temporaires
-  console.log('Logo.dev token:', LOGO_DEV_TOKEN ? 'Token présent' : 'Token MANQUANT');
-  console.log('Domain:', domain);
-
   // Si pas de domaine ou erreur de chargement, afficher le fallback
   if (!domain || hasError || !LOGO_DEV_TOKEN) {
     return (
@@ -47,7 +43,6 @@ export function CompanyLogo({ domain, companyName, size = 'md', className }: Com
   }
 
   const logoUrl = `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}&size=128&format=png`;
-  console.log('Logo URL:', logoUrl);
 
   return (
     <img
