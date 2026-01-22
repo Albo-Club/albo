@@ -30,14 +30,26 @@ export const SECTORS_LIST = [
   'Retail', 'SaaS', 'Silver Economy', 'Social', 'Sport & Leisure',
 ];
 
-// Couleurs des types d'investissement
+// Types d'investissement avec couleurs harmonisées
 export const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Share': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-400', border: 'border-blue-300 dark:border-blue-700' },
-  'BSA Air': { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-400', border: 'border-yellow-300 dark:border-yellow-700' },
+  'SPV Share': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-800 dark:text-emerald-400', border: 'border-emerald-300 dark:border-emerald-700' },
+  'BSA Air': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-400', border: 'border-amber-300 dark:border-amber-700' },
   'Royalties': { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-800 dark:text-purple-400', border: 'border-purple-300 dark:border-purple-700' },
-  'SPV': { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-400', border: 'border-green-300 dark:border-green-700' },
-  'Obligations': { bg: 'bg-gray-100 dark:bg-gray-900/30', text: 'text-gray-800 dark:text-gray-400', border: 'border-gray-300 dark:border-gray-700' },
+  'Obligation': { bg: 'bg-slate-100 dark:bg-slate-900/30', text: 'text-slate-800 dark:text-slate-400', border: 'border-slate-300 dark:border-slate-700' },
+  'OCA': { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-800 dark:text-orange-400', border: 'border-orange-300 dark:border-orange-700' },
+  'SPV SAFE': { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-800 dark:text-teal-400', border: 'border-teal-300 dark:border-teal-700' },
 };
+
+export const INVESTMENT_TYPES_LIST = [
+  'Share',
+  'SPV Share',
+  'BSA Air',
+  'Royalties',
+  'Obligation',
+  'OCA',
+  'SPV SAFE',
+];
 
 export const getSectorColors = (sector: string) => {
   return SECTOR_COLORS[sector] || { 
