@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ColumnFiltersState,
   SortingState,
@@ -40,6 +41,7 @@ interface PortfolioTableProps {
 }
 
 export function PortfolioTable({ data }: PortfolioTableProps) {
+  const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -167,7 +169,8 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/50"
+                    className="hover:bg-muted/50 cursor-pointer"
+                    onClick={() => navigate(`/portfolio/${row.original.id}`)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
