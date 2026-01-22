@@ -13,9 +13,10 @@ import {
   formatCurrency,
   formatDate,
   formatPercentage,
-  getSectorColor,
-  getInvestmentTypeColor,
 } from "@/lib/portfolioFormatters";
+import { getInvestmentTypeColors } from "@/types/portfolio";
+import { SectorBadges } from "./SectorBadges";
+import { cn } from "@/lib/utils";
 
 export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
   {
@@ -59,19 +60,17 @@ export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
     },
   },
   {
-    accessorKey: "sector",
+    accessorKey: "sectors",
     header: "Secteur",
     cell: ({ row }) => {
-      const sector = row.getValue("sector") as string | null;
-      if (!sector) return <span className="text-muted-foreground">-</span>;
-      return (
-        <Badge variant="outline" className={getSectorColor(sector)}>
-          {sector}
-        </Badge>
-      );
+      const sectors = row.original.sectors;
+      return <SectorBadges sectors={sectors} maxDisplay={2} />;
     },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id));
+    filterFn: (row, id, filterValues: string[]) => {
+      const sectors = row.original.sectors || [];
+      if (!filterValues || filterValues.length === 0) return true;
+      // Show row if company has at least one of the selected sectors
+      return filterValues.some((value) => sectors.includes(value));
     },
   },
   {
@@ -118,8 +117,9 @@ export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
     cell: ({ row }) => {
       const type = row.getValue("investment_type") as string | null;
       if (!type) return <span className="text-muted-foreground">-</span>;
+      const colors = getInvestmentTypeColors(type);
       return (
-        <Badge variant="outline" className={getInvestmentTypeColor(type)}>
+        <Badge variant="outline" className={cn(colors.bg, colors.text, colors.border)}>
           {type}
         </Badge>
       );

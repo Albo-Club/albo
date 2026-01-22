@@ -39,7 +39,6 @@ import {
   LogOut,
   Loader2,
   X,
-  Share2,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -61,13 +60,11 @@ export function WorkspaceDropdown() {
     createWorkspace,
     inviteMember,
     cancelInvitation,
-    shareDealsToWorkspace,
     refetch,
   } = useWorkspace();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -75,9 +72,6 @@ export function WorkspaceDropdown() {
   const [inviteEmails, setInviteEmails] = useState('');
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
   const [inviting, setInviting] = useState(false);
-  
-  const [selectedTargetWorkspace, setSelectedTargetWorkspace] = useState<string>('');
-  const [sharing, setSharing] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -96,29 +90,6 @@ export function WorkspaceDropdown() {
       toast.error(error.message || 'Error creating workspace');
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleShareDeals = async () => {
-    if (!selectedTargetWorkspace) {
-      toast.error('Please select a workspace');
-      return;
-    }
-    setSharing(true);
-    try {
-      const count = await shareDealsToWorkspace(selectedTargetWorkspace);
-      if (count > 0) {
-        toast.success(`${count} deal${count > 1 ? 's' : ''} shared to workspace`);
-      } else {
-        toast.info('No deals to share or all your deals are already shared');
-      }
-      setIsShareDialogOpen(false);
-      setSelectedTargetWorkspace('');
-    } catch (error: any) {
-      console.error('Error sharing deals:', error);
-      toast.error(error.message || 'Error sharing deals');
-    } finally {
-      setSharing(false);
     }
   };
 
@@ -316,11 +287,6 @@ export function WorkspaceDropdown() {
             </DropdownMenuItem>
           )}
 
-          <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Share deals
-          </DropdownMenuItem>
-
           <DropdownMenuSeparator />
 
           {/* Sign out */}
@@ -438,44 +404,6 @@ export function WorkspaceDropdown() {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Share Deals Dialog */}
-      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Share deals to workspace</DialogTitle>
-            <DialogDescription>
-              Share your personal deals to a team workspace.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div>
-              <Label>Target workspace</Label>
-              <Select value={selectedTargetWorkspace} onValueChange={setSelectedTargetWorkspace}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Select a workspace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allWorkspaces.map((ws) => (
-                    <SelectItem key={ws.id} value={ws.id}>
-                      {ws.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsShareDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleShareDeals} disabled={sharing || !selectedTargetWorkspace}>
-              {sharing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Share
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
