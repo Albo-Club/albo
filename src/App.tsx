@@ -19,6 +19,8 @@ import Portfolio from "./pages/Portfolio";
 import SubmitDeal from "./pages/SubmitDeal";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import AcceptInvite from "./pages/AcceptInvite";
+import CreateWorkspace from "./pages/onboarding/CreateWorkspace";
+import InviteTeam from "./pages/onboarding/InviteTeam";
 
 import DealDetail from "./pages/DealDetail";
 import Profile from "./pages/Profile";
@@ -47,7 +49,25 @@ const App = () => (
               
               {/* Complete profile - accessible even with incomplete profile */}
               <Route path="/complete-profile" element={<CompleteProfile />} />
-              
+
+              {/* Onboarding routes - require auth but not complete profile */}
+              <Route
+                path="/onboarding/workspace"
+                element={
+                  <ProtectedRoute>
+                    <CreateWorkspace />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/onboarding/invite-team"
+                element={
+                  <ProtectedRoute>
+                    <InviteTeam />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Protected routes - require complete profile */}
               <Route
                 path="/portfolio"
