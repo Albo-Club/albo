@@ -75,17 +75,17 @@ export default function AuthCallback() {
         console.log('Redirecting to setup-password (no profile)');
         navigate('/setup-password', { replace: true });
       } else if (profile.is_complete === false || !profile.name) {
-        // Profil incomplet = aller à complete-profile
-        console.log('Redirecting to complete-profile');
-        navigate('/complete-profile', { replace: true });
+        // Profil incomplet = aller à onboarding/profile
+        console.log('Redirecting to onboarding/profile');
+        navigate('/onboarding/profile', { replace: true });
       } else if (profile.onboarding_status === 'workspace_pending') {
         // Profil complet mais pas de workspace
         console.log('Redirecting to onboarding/workspace');
         navigate('/onboarding/workspace', { replace: true });
       } else if (profile.onboarding_status === 'invite_team') {
         // Workspace créé, étape invitation
-        console.log('Redirecting to onboarding/invite-team');
-        navigate('/onboarding/invite-team', { replace: true });
+        console.log('Redirecting to onboarding/invite');
+        navigate('/onboarding/invite', { replace: true });
       } else {
         // Tout est bon, aller au dashboard
         console.log('Redirecting to dashboard');
