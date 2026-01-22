@@ -17,7 +17,7 @@ import CreateWorkspaceNew from "./pages/onboarding/CreateWorkspaceNew";
 import CreateProfile from "./pages/onboarding/CreateProfile";
 import InviteTeamNew from "./pages/onboarding/InviteTeamNew";
 import Dashboard from "./pages/Dashboard";
-import Portfolio from "./pages/Portfolio";
+import PortfolioPage from "./pages/PortfolioPage";
 import SubmitDeal from "./pages/SubmitDeal";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import AcceptInvite from "./pages/AcceptInvite";
@@ -66,12 +66,24 @@ const App = () => (
               
               {/* Protected routes - require complete profile */}
               <Route
+                path="/opportunities"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Dashboard />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/portfolio"
                 element={
                   <ProtectedRoute>
                     <ProfileGuard>
                       <DashboardLayout>
-                        <Portfolio />
+                        <PortfolioPage />
                       </DashboardLayout>
                     </ProfileGuard>
                   </ProtectedRoute>
