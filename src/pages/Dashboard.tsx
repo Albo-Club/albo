@@ -63,27 +63,28 @@ export default function Dashboard() {
       if (error) throw error;
       dealsData = data || [];
     } else if (workspace?.id) {
-      // Récupérer les deals via la table deal_workspace_shares
+      // Utilise la fonction RPC pour récupérer les deals du workspace
+      // Elle retourne les deals triés du plus récent au plus ancien
       const { data, error } = await supabase
-        .from("deal_workspace_shares")
-        .select(`
-          deal_id,
-          shared_at,
-          shared_by,
-          deals!inner (
-            *,
-            owner:profiles!deals_user_id_fkey(id, name, email)
-          )
-        `)
-        .eq("workspace_id", workspace.id)
-        .order("shared_at", { ascending: false });
+        .rpc('get_workspace_deals', { p_workspace_id: workspace.id });
 
       if (error) throw error;
 
-      // Extraire les deals et filtrer les hidden
-      dealsData = (data || [])
-        .map((row: any) => row.deals)
-        .filter((deal: any) => !deal.is_hidden);
+      // Récupérer les infos du propriétaire pour chaque deal
+      const dealIds = (data || []).map((d: any) => d.id);
+      if (dealIds.length > 0) {
+        const { data: dealsWithOwner } = await supabase
+          .from("deals")
+          .select(`
+            *,
+            owner:profiles!deals_user_id_fkey(id, name, email)
+          `)
+          .in("id", dealIds)
+          .neq("is_hidden", true)
+          .order("created_at", { ascending: false });
+
+        dealsData = dealsWithOwner || [];
+      }
     } else {
       // Fallback: deals de l'utilisateur sans workspace
       const { data, error } = await supabase
