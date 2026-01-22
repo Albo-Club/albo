@@ -5,6 +5,7 @@ import { usePortfolioCompany } from "@/hooks/usePortfolioCompany";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { PortfolioCompanyLastNews } from "@/components/portfolio/PortfolioCompanyLastNews";
 import { PortfolioCompanyInfoCard } from "@/components/portfolio/PortfolioCompanyInfoCard";
+import { DealTabs } from "@/components/deals/DealTabs";
 
 export default function PortfolioCompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,23 @@ export default function PortfolioCompanyDetail() {
     );
   }
 
+  const overviewContent = (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Last News - 3 columns */}
+      <div className="lg:col-span-3">
+        <PortfolioCompanyLastNews
+          lastNews={company.last_news}
+          lastNewsUpdatedAt={company.last_news_updated_at}
+        />
+      </div>
+
+      {/* Info Card - 2 columns */}
+      <div className="lg:col-span-2">
+        <PortfolioCompanyInfoCard company={company} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -41,21 +59,8 @@ export default function PortfolioCompanyDetail() {
         investmentDate={company.investment_date}
       />
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Last News - 3 columns */}
-        <div className="lg:col-span-3">
-          <PortfolioCompanyLastNews
-            lastNews={company.last_news}
-            lastNewsUpdatedAt={company.last_news_updated_at}
-          />
-        </div>
-
-        {/* Info Card - 2 columns */}
-        <div className="lg:col-span-2">
-          <PortfolioCompanyInfoCard company={company} />
-        </div>
-      </div>
+      {/* Tabs */}
+      <DealTabs overviewContent={overviewContent} />
     </div>
   );
 }
