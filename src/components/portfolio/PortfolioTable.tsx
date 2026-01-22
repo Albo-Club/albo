@@ -71,10 +71,10 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
     },
   });
 
-  // Extraire les options uniques pour les filtres
+  // Extract unique options for filters from sectors array
   const sectorOptions = Array.from(
-    new Set(data.map((c) => c.sector).filter(Boolean))
-  ).map((sector) => ({ label: sector!, value: sector! }));
+    new Set(data.flatMap((c) => c.sectors || []).filter(Boolean))
+  ).map((sector) => ({ label: sector, value: sector }));
 
   const typeOptions = Array.from(
     new Set(data.map((c) => c.investment_type).filter(Boolean))
@@ -96,9 +96,9 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
               className="pl-9"
             />
           </div>
-          {table.getColumn("sector") && (
+          {table.getColumn("sectors") && (
             <DataTableFacetedFilter
-              column={table.getColumn("sector")}
+              column={table.getColumn("sectors")}
               title="Secteur"
               options={sectorOptions}
             />

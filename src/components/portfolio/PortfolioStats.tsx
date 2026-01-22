@@ -13,7 +13,10 @@ export function PortfolioStats({ companies }: PortfolioStatsProps) {
     0
   );
 
-  const uniqueSectors = new Set(companies.map((c) => c.sector).filter(Boolean));
+  // Collect unique sectors from the multi-sector array
+  const uniqueSectors = new Set(
+    companies.flatMap((c) => c.sectors || [])
+  );
 
   const averageOwnership =
     companies.length > 0
