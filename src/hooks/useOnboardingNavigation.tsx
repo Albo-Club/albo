@@ -29,7 +29,6 @@ const ONBOARDING_EXEMPT_ROUTES = [
   '/setup-password',
   '/invite',
   '/logout',
-  '/complete-profile',
   '/onboarding',
 ];
 
@@ -37,10 +36,9 @@ const ONBOARDING_EXEMPT_ROUTES = [
  * Routes d'onboarding (où l'utilisateur peut être pendant l'onboarding)
  */
 const ONBOARDING_ROUTES = [
-  '/complete-profile',
   '/onboarding/workspace',
-  '/onboarding/invite-team',
-  '/onboarding/complete',
+  '/onboarding/profile',
+  '/onboarding/invite',
 ];
 
 // ============================================================

@@ -87,16 +87,26 @@ const SetupPassword = () => {
     setLoading(true);
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase.auth.updateUser({
         password: password
       });
       
       if (error) throw error;
+
+      // Mettre à jour le statut d'onboarding
+      if (user?.id) {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_status: 'workspace_pending' })
+          .eq('id', user.id);
+      }
       
       toast.success('Mot de passe créé avec succès !');
       
-      // Rediriger vers complete-profile pour continuer l'onboarding
-      navigate('/complete-profile');
+      // Rediriger vers la création de workspace (nouveau flow)
+      navigate('/onboarding/workspace');
       
     } catch (error: any) {
       console.error('Error setting password:', error);

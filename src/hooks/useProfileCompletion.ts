@@ -19,7 +19,6 @@ export function useProfileCompletion() {
 
     // Pages autorisées même avec profil incomplet (inclut tout le flux d'onboarding)
     const allowedPaths = [
-      '/complete-profile', 
       '/auth', 
       '/auth/callback',
       '/logout', 
@@ -52,9 +51,9 @@ export function useProfileCompletion() {
     const profileIsComplete = profile?.is_complete ?? true;
     setIsComplete(profileIsComplete);
     
-    // Redirection forcée si profil incomplet
+    // Redirection forcée si profil incomplet -> vers le nouveau flow d'onboarding
     if (!profileIsComplete) {
-      navigate('/complete-profile', { 
+      navigate('/onboarding/workspace', { 
         replace: true,
         state: { from: location.pathname }
       });

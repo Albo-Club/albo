@@ -13,7 +13,9 @@ import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import ResetPassword from "./pages/ResetPassword";
 import SetupPassword from "./pages/SetupPassword";
-import CompleteProfile from "./pages/CompleteProfile";
+import CreateWorkspaceNew from "./pages/onboarding/CreateWorkspaceNew";
+import CreateProfile from "./pages/onboarding/CreateProfile";
+import InviteTeamNew from "./pages/onboarding/InviteTeamNew";
 import Dashboard from "./pages/Dashboard";
 import Portfolio from "./pages/Portfolio";
 import SubmitDeal from "./pages/SubmitDeal";
@@ -45,8 +47,22 @@ const App = () => (
               <Route path="/setup-password" element={<SetupPassword />} />
               <Route path="/invite/:token" element={<AcceptInvite />} />
               
-              {/* Complete profile - accessible even with incomplete profile */}
-              <Route path="/complete-profile" element={<CompleteProfile />} />
+              {/* Onboarding routes - new Twenty CRM style flow */}
+              <Route path="/onboarding/workspace" element={
+                <ProtectedRoute>
+                  <CreateWorkspaceNew />
+                </ProtectedRoute>
+              } />
+              <Route path="/onboarding/profile" element={
+                <ProtectedRoute>
+                  <CreateProfile />
+                </ProtectedRoute>
+              } />
+              <Route path="/onboarding/invite" element={
+                <ProtectedRoute>
+                  <InviteTeamNew />
+                </ProtectedRoute>
+              } />
               
               {/* Protected routes - require complete profile */}
               <Route
