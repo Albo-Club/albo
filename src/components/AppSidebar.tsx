@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Wallet, Table2, Plus, LogOut, ChevronLeft, ChevronRight, User as UserIcon } from "lucide-react";
+import { Home, Target, Wallet, Plus, LogOut, User as UserIcon } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,15 +40,21 @@ const FLAGGED_USERS = [
 
 const navItems = [
   {
-    title: "Dashboard",
-    url: "/portfolio",
-    icon: Wallet,
+    title: "Vue d'ensemble",
+    url: "/dashboard",
+    icon: Home,
     flagged: true,
   },
   {
-    title: "Deals",
-    url: "/dashboard",
-    icon: Table2,
+    title: "Opportunités",
+    url: "/opportunities",
+    icon: Target,
+    flagged: false,
+  },
+  {
+    title: "Portfolio",
+    url: "/portfolio",
+    icon: Wallet,
     flagged: false,
   },
   {
