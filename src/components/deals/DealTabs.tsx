@@ -1,4 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { ReactNode } from "react";
 
 interface DealTabsProps {
@@ -25,33 +26,57 @@ export function DealTabs({
         >
           Overview
         </TabsTrigger>
+        
         <TabsTrigger
           value="emails"
-          className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
           disabled={!emailsContent}
         >
           Emails
+          {!emailsContent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
+              Soon
+            </Badge>
+          )}
         </TabsTrigger>
+        
         <TabsTrigger
           value="folders"
-          className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
           disabled={!foldersContent}
         >
           Documents
+          {!foldersContent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
+              Soon
+            </Badge>
+          )}
         </TabsTrigger>
+        
         <TabsTrigger
           value="metrics"
-          className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
           disabled={!metricsContent}
         >
           Metrics
+          {!metricsContent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
+              Soon
+            </Badge>
+          )}
         </TabsTrigger>
+        
         <TabsTrigger
           value="notes"
-          className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
           disabled={!notesContent}
         >
           Notes
+          {!notesContent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
+              Soon
+            </Badge>
+          )}
         </TabsTrigger>
       </TabsList>
 
