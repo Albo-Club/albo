@@ -67,6 +67,109 @@ export const formatShortDate = (date: string | null | undefined): string => {
   });
 };
 
+// Format metric date with day (e.g., "15 Jan 2025")
+export const formatMetricDate = (date: string | null | undefined): string => {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+// Format metric key to human-readable label
+export const formatMetricLabel = (key: string): string => {
+  // Special cases
+  const specialCases: Record<string, string> = {
+    mrr: 'MRR',
+    arr: 'ARR',
+    aum: 'AuM',
+    ebitda: 'EBITDA',
+    yoy: '(YoY)',
+    mrr_growth_yoy: 'MRR (YoY)',
+    arr_growth_yoy: 'ARR (YoY)',
+    aum_growth_yoy: 'AuM (YoY)',
+    revenue_growth_yoy: 'Revenue (YoY)',
+    employees_growth_yoy: 'Employés (YoY)',
+  };
+
+  if (specialCases[key]) return specialCases[key];
+
+  // Remove _cents suffix and format
+  let formatted = key.replace(/_cents$/i, '');
+  
+  // Replace underscores with spaces
+  formatted = formatted.replace(/_/g, ' ');
+  
+  // Handle growth_yoy suffix
+  if (formatted.includes('growth yoy')) {
+    formatted = formatted.replace(' growth yoy', ' (YoY)');
+  }
+  
+  // Capitalize each word
+  formatted = formatted
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+  
+  return formatted;
+};
+
+// Format metric value based on its type
+export const formatMetricValue = (
+  value: string | null | undefined,
+  metricType: string,
+  metricKey: string
+): string => {
+  if (value === null || value === undefined || value === '') return '-';
+  
+  const numValue = parseFloat(value);
+  if (isNaN(numValue)) return value;
+  
+  switch (metricType) {
+    case 'currency':
+      // Check if the key contains "cents" - divide by 100
+      if (metricKey.toLowerCase().includes('cents')) {
+        return formatNumberCompact(numValue / 100, '€');
+      }
+      return formatNumberCompact(numValue, '€');
+    
+    case 'percentage':
+      // If stored as decimal (0.15), multiply by 100
+      if (Math.abs(numValue) < 10) {
+        return `${(numValue * 100).toFixed(1).replace('.', ',')}%`;
+      }
+      return `${numValue.toFixed(1).replace('.', ',')}%`;
+    
+    case 'number':
+      return numValue.toLocaleString('fr-FR');
+    
+    case 'months':
+      return `${numValue} mois`;
+    
+    default:
+      return value;
+  }
+};
+
+// Get the icon name for a metric key
+export const getMetricIconName = (key: string): string => {
+  const iconMap: Record<string, string> = {
+    mrr: 'BarChart3',
+    arr: 'BarChart3',
+    revenue: 'TrendingUp',
+    customers: 'Users',
+    aum: 'Wallet',
+    ebitda: 'PiggyBank',
+    cash_position: 'Banknote',
+    runway_months: 'Clock',
+    employees: 'Users',
+    default: 'Activity',
+  };
+  
+  return iconMap[key] || iconMap.default;
+};
+
 // Re-export color utilities for backward compatibility
 export { getSectorColors as getSectorColor, getInvestmentTypeColors as getInvestmentTypeColor };
 
