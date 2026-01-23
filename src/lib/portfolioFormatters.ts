@@ -170,6 +170,39 @@ export const getMetricIconName = (key: string): string => {
   return iconMap[key] || iconMap.default;
 };
 
+// Parse report period strings like "November 2025" or "Q4 2025" to Date
+export const parseReportPeriod = (period: string | null | undefined): Date | null => {
+  if (!period) return null;
+  
+  const directParse = new Date(period);
+  if (!isNaN(directParse.getTime())) return directParse;
+  
+  // "November 2025" → Date
+  const monthYearMatch = period.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})$/i);
+  if (monthYearMatch) {
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthIndex = monthNames.indexOf(monthYearMatch[1].toLowerCase());
+    return new Date(parseInt(monthYearMatch[2]), monthIndex, 1);
+  }
+  
+  // "Q4 2025" → Date (Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct)
+  const quarterMatch = period.match(/^Q([1-4])\s+(\d{4})$/i);
+  if (quarterMatch) {
+    const quarter = parseInt(quarterMatch[1]);
+    return new Date(parseInt(quarterMatch[2]), (quarter - 1) * 3, 1);
+  }
+  
+  return null;
+};
+
+// Format report period - returns the original string if already well-formatted
+export const formatReportPeriod = (period: string | null | undefined): string | null => {
+  if (!period) return null;
+  if (/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(period)) return period;
+  if (/^Q[1-4]\s+\d{4}$/i.test(period)) return period;
+  return period;
+};
+
 // Re-export color utilities for backward compatibility
 export { getSectorColors as getSectorColor, getInvestmentTypeColors as getInvestmentTypeColor };
 

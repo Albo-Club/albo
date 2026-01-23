@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { usePortfolioCompanyMetrics, PortfolioCompanyMetric } from "@/hooks/usePortfolioCompanyMetrics";
 import { SectorBadges } from "./SectorBadges";
-import { formatOwnership, formatMetricLabel } from "@/lib/portfolioFormatters";
+import { formatOwnership, formatMetricLabel, parseReportPeriod } from "@/lib/portfolioFormatters";
 import { ReportSummaryModal } from "./ReportSummaryModal";
 
 // Investment type color mapping
@@ -116,14 +116,15 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
   
   const latestReport = company.latest_report;
   const reportPeriod = latestReport?.report_period;
-  const reportDate = reportPeriod || latestReport?.report_date;
-  const isReportOld = reportDate 
-    ? differenceInMonths(new Date(), new Date(reportDate)) >= 1 
+  const reportDateParsed = parseReportPeriod(reportPeriod) 
+    || (latestReport?.report_date ? new Date(latestReport.report_date) : null);
+  const isReportOld = reportDateParsed 
+    ? differenceInMonths(new Date(), reportDateParsed) >= 1 
     : true;
   
-  const formattedReportDate = reportDate 
-    ? format(new Date(reportDate), "d MMM yyyy", { locale: fr })
-    : null;
+  const formattedReportDate = reportPeriod || (latestReport?.report_date 
+    ? format(new Date(latestReport.report_date), "d MMM yyyy", { locale: fr })
+    : null);
 
   const investmentTypeColors = company.investment_type 
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
@@ -369,7 +370,7 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
       <ReportSummaryModal
         open={showSummaryModal}
         onOpenChange={setShowSummaryModal}
-        reportPeriod={reportPeriod ? format(new Date(reportPeriod), "MMMM yyyy", { locale: fr }) : null}
+        reportPeriod={reportPeriod || null}
         summary={latestReport?.summary || null}
       />
     </Card>
