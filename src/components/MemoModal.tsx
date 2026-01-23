@@ -68,8 +68,8 @@ export function MemoModal({
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden bg-background">
-          <MemoHtmlFrame html={memoHtml} title={`Mémo - ${displayName}`} />
+        <div className="flex-1 min-h-0 overflow-hidden bg-background">
+          <MemoHtmlFrame html={memoHtml} title={`Mémo - ${displayName}`} className="h-full w-full" />
         </div>
       </DialogContent>
     </Dialog>

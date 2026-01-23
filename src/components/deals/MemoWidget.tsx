@@ -45,12 +45,8 @@ export function MemoWidget({ memoHtml, companyName, className }: MemoWidgetProps
           <DialogHeader className="flex-shrink-0 flex flex-row items-center justify-between">
             <DialogTitle>Mémo d'investissement - {companyName}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
-              <div className="pr-4">
-                <MemoHtmlFrame html={memoHtml} title={companyName} />
-              </div>
-            </ScrollArea>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <MemoHtmlFrame html={memoHtml} title={companyName} className="h-full w-full" />
           </div>
         </DialogContent>
       </Dialog>
