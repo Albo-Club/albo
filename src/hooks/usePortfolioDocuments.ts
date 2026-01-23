@@ -13,6 +13,8 @@ export interface PortfolioDocument {
   file_size_bytes: number | null;
   original_file_name: string | null;
   report_file_id: string | null;
+  text_content: string | null;
+  source_report_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -298,23 +300,44 @@ export function usePortfolioDocuments(companyId: string | undefined) {
 
   // Download file helper
   const downloadFile = async (doc: PortfolioDocument) => {
-    if (!doc.storage_path) {
-      toast.error('Aucun fichier associé');
-      return;
-    }
-
     try {
-      const { data, error } = await supabase.storage
-        .from('portfolio-documents')
-        .download(doc.storage_path);
+      let blob: Blob;
+      let fileName = doc.original_file_name || doc.name;
 
-      if (error) throw error;
+      // Case 1: File has text_content (like Synthèse.txt)
+      if (doc.text_content) {
+        blob = new Blob([doc.text_content], { type: 'text/plain;charset=utf-8' });
+      }
+      // Case 2: File has storage_path
+      else if (doc.storage_path) {
+        // Try portfolio-documents bucket first
+        let { data, error } = await supabase.storage
+          .from('portfolio-documents')
+          .download(doc.storage_path);
+
+        // If error, try report-files bucket
+        if (error) {
+          console.log('Trying report-files bucket...');
+          const result = await supabase.storage
+            .from('report-files')
+            .download(doc.storage_path);
+          
+          if (result.error) throw result.error;
+          data = result.data;
+        }
+
+        if (!data) throw new Error('No data received');
+        blob = data;
+      } else {
+        toast.error('Aucun fichier associé');
+        return;
+      }
 
       // Create download link
-      const url = URL.createObjectURL(data);
+      const url = URL.createObjectURL(blob);
       const a = window.document.createElement('a');
       a.href = url;
-      a.download = doc.original_file_name || doc.name;
+      a.download = fileName;
       window.document.body.appendChild(a);
       a.click();
       window.document.body.removeChild(a);
