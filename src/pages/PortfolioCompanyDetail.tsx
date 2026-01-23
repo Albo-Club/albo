@@ -6,7 +6,6 @@ import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyH
 import { PortfolioCompanyLastNews } from "@/components/portfolio/PortfolioCompanyLastNews";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
-import { CompanyReportsTab } from "@/components/portfolio/CompanyReportsTab";
 import { DealTabs } from "@/components/deals/DealTabs";
 
 export default function PortfolioCompanyDetail() {
@@ -57,7 +56,6 @@ export default function PortfolioCompanyDetail() {
   );
 
   const documentsContent = <PortfolioDocumentsBrowser companyId={company.id} />;
-  const reportsContent = <CompanyReportsTab companyId={company.id} />;
 
   return (
     <div className="space-y-6">
@@ -74,7 +72,6 @@ export default function PortfolioCompanyDetail() {
       <DealTabs 
         overviewContent={overviewContent} 
         foldersContent={documentsContent}
-        reportsContent={reportsContent}
       />
     </div>
   );

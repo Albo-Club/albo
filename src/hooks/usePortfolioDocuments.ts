@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 export interface PortfolioDocument {
   id: string;
   company_id: string;
-  type: 'folder' | 'file';
+  type: 'folder' | 'file' | 'synthesis';
   name: string;
   parent_id: string | null;
   storage_path: string | null;
@@ -18,6 +18,10 @@ export interface PortfolioDocument {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Virtual synthesis fields
+  is_virtual?: boolean;
+  report_period?: string;
+  cleaned_content?: string;
 }
 
 export interface DocumentTreeNode extends PortfolioDocument {
@@ -43,12 +47,15 @@ function buildDocumentTree(documents: PortfolioDocument[]): DocumentTreeNode[] {
     }
   });
 
-  // Sort children: folders first, then alphabetically
+  // Sort children: folders first, then synthesis, then alphabetically
   const sortNodes = (nodes: DocumentTreeNode[]) => {
     nodes.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === 'folder' ? -1 : 1;
-      }
+      // Folders first
+      if (a.type === 'folder' && b.type !== 'folder') return -1;
+      if (a.type !== 'folder' && b.type === 'folder') return 1;
+      // Then synthesis files
+      if (a.type === 'synthesis' && b.type !== 'synthesis') return 1;
+      if (a.type !== 'synthesis' && b.type === 'synthesis') return -1;
       return a.name.localeCompare(b.name);
     });
     nodes.forEach(node => sortNodes(node.children));
@@ -76,28 +83,85 @@ export function usePortfolioDocuments(companyId: string | undefined) {
   const queryClient = useQueryClient();
   const queryKey = ['portfolio-documents', companyId];
 
-  // Fetch documents
+  // Fetch documents AND reports with syntheses
   const {
-    data: documents = [],
+    data: documentsData = { documents: [], syntheses: [] },
     isLoading,
     error,
   } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!companyId) return [];
+      if (!companyId) return { documents: [], syntheses: [] };
 
-      const { data, error } = await supabase
+      // Fetch documents
+      const { data: docs, error: docsError } = await supabase
         .from('portfolio_documents')
         .select('*')
         .eq('company_id', companyId)
         .order('type', { ascending: true })
         .order('name', { ascending: true });
 
-      if (error) throw error;
-      return data as PortfolioDocument[];
+      if (docsError) throw docsError;
+
+      // Fetch reports with cleaned_content for virtual synthesis files
+      const { data: reports, error: reportsError } = await supabase
+        .from('company_reports')
+        .select('id, report_period, cleaned_content, processing_status, created_at')
+        .eq('company_id', companyId)
+        .eq('processing_status', 'completed')
+        .not('cleaned_content', 'is', null);
+
+      if (reportsError) throw reportsError;
+
+      return { 
+        documents: docs as PortfolioDocument[], 
+        syntheses: reports || [] 
+      };
     },
     enabled: !!companyId,
   });
+
+  // Merge real documents with virtual synthesis files
+  const documents = (() => {
+    const realDocs = documentsData.documents;
+    const syntheses = documentsData.syntheses;
+
+    // Find or create Reporting folder structure
+    const reportingFolder = realDocs.find(d => d.type === 'folder' && d.name === 'Reporting' && !d.parent_id);
+    
+    // Create virtual synthesis files for each report
+    const virtualSyntheses: PortfolioDocument[] = syntheses.map(report => {
+      // Find the folder for this report period
+      const periodFolder = realDocs.find(d => 
+        d.type === 'folder' && 
+        d.name === report.report_period &&
+        d.parent_id === reportingFolder?.id
+      );
+
+      return {
+        id: `synthesis-${report.id}`,
+        company_id: companyId!,
+        type: 'synthesis' as const,
+        name: 'Synthèse.md',
+        parent_id: periodFolder?.id || reportingFolder?.id || null,
+        storage_path: null,
+        mime_type: 'text/markdown',
+        file_size_bytes: report.cleaned_content?.length || 0,
+        original_file_name: 'Synthèse.md',
+        report_file_id: null,
+        text_content: null,
+        source_report_id: report.id,
+        created_by: null,
+        created_at: report.created_at,
+        updated_at: report.created_at,
+        is_virtual: true,
+        report_period: report.report_period,
+        cleaned_content: report.cleaned_content,
+      };
+    });
+
+    return [...realDocs, ...virtualSyntheses];
+  })();
 
   // Build tree from flat list
   const documentTree = buildDocumentTree(documents);
@@ -348,6 +412,16 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     }
   };
 
+  // Get synthesis content by document id
+  const getSynthesisContent = (docId: string): { reportPeriod: string; content: string } | null => {
+    const doc = documents.find(d => d.id === docId);
+    if (!doc || doc.type !== 'synthesis') return null;
+    return {
+      reportPeriod: doc.report_period || 'Report',
+      content: doc.cleaned_content || '',
+    };
+  };
+
   return {
     // Data
     documents,
@@ -369,7 +443,8 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     isMoving: moveMutation.isPending,
     isDeleting: deleteMutation.isPending,
 
-    // Helper
+    // Helpers
     downloadFile,
+    getSynthesisContent,
   };
 }
