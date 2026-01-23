@@ -20,6 +20,7 @@ export interface PortfolioCompany {
   last_news_updated_at: string | null;
   latest_metrics: Record<string, unknown> | null;
   latest_report_id: string | null;
+  displayed_metrics: string[] | null;
   sender_emails: string[] | null;
   created_at: string;
   updated_at: string;
