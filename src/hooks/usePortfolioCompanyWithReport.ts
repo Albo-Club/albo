@@ -10,6 +10,7 @@ export interface CompanyReportData {
   report_type: string | null;
   headline: string | null;
   summary: string | null;
+  cleaned_content: string | null;
   key_highlights: string[] | null;
   metrics: Record<string, unknown> | null;
   processed_at: string | null;
@@ -37,6 +38,7 @@ export function usePortfolioCompanyWithReport(companyId: string | undefined) {
             report_type,
             headline,
             summary,
+            cleaned_content,
             key_highlights,
             metrics,
             processed_at
