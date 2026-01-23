@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
   DollarSign, 
@@ -20,14 +21,18 @@ import {
   Clock,
   BarChart3,
   PiggyBank,
-  Activity
+  Activity,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle
 } from "lucide-react";
-import { differenceInMonths, format } from "date-fns";
+import { differenceInDays, differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
+import { usePortfolioCompanyMetrics, PortfolioCompanyMetric } from "@/hooks/usePortfolioCompanyMetrics";
 import { SectorBadges } from "./SectorBadges";
-import { formatNumberCompact, formatShortDate, formatOwnership } from "@/lib/portfolioFormatters";
+import { formatNumberCompact, formatShortDate, formatOwnership, formatMetricLabel, formatMetricValue, formatMetricDate } from "@/lib/portfolioFormatters";
 import { ReportSummaryModal } from "./ReportSummaryModal";
 
 // Investment type color mapping
@@ -41,23 +46,18 @@ const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border:
   'SPV SAFE': { bg: 'bg-teal-500/10', text: 'text-teal-700 dark:text-teal-400', border: 'border-teal-500/20' },
 };
 
-interface MetricConfig {
-  key: string;
-  label: string;
-  icon: React.ElementType;
-  format: 'currency' | 'number' | 'months';
-  growthKey?: string;
-}
-
-const METRIC_CONFIGS: MetricConfig[] = [
-  { key: 'aum', label: 'AuM', icon: Wallet, format: 'currency', growthKey: 'aum_growth_yoy' },
-  { key: 'mrr', label: 'MRR', icon: BarChart3, format: 'currency', growthKey: 'mrr_growth_yoy' },
-  { key: 'revenue', label: 'Revenue', icon: TrendingUp, format: 'currency' },
-  { key: 'ebitda', label: 'EBITDA', icon: PiggyBank, format: 'currency' },
-  { key: 'employees', label: 'Employés', icon: Users, format: 'number', growthKey: 'employees_growth_yoy' },
-  { key: 'cash_position', label: 'Cash', icon: Banknote, format: 'currency' },
-  { key: 'runway_months', label: 'Runway', icon: Clock, format: 'months' },
-];
+// Icon mapping for metric keys
+const METRIC_ICONS: Record<string, React.ElementType> = {
+  mrr: BarChart3,
+  arr: BarChart3,
+  revenue: TrendingUp,
+  customers: Users,
+  aum: Wallet,
+  ebitda: PiggyBank,
+  cash_position: Banknote,
+  runway_months: Clock,
+  employees: Users,
+};
 
 function formatCurrency(cents: number | null): string {
   if (cents === null) return '-';
@@ -71,31 +71,48 @@ function formatCurrency(cents: number | null): string {
   return `${euros.toFixed(0)}€`;
 }
 
-
-function TrendIcon({ value, growth }: { value: number | null | undefined; growth?: number | null }) {
-  // Determine trend based on growth or value sign
-  let isPositive = true;
-  let isNeutral = false;
+function TrendIcon({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) return null;
   
-  if (growth !== null && growth !== undefined) {
-    isPositive = growth >= 1;
-    isNeutral = growth === 1;
-  } else if (value !== null && value !== undefined) {
-    isPositive = value >= 0;
-    isNeutral = value === 0;
-  } else {
-    return null;
-  }
-  
-  if (isNeutral) {
+  if (value === 0) {
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   }
   
-  if (isPositive) {
+  if (value > 0) {
     return <TrendingUp className="h-3 w-3 text-green-500" />;
   }
   
   return <TrendingDown className="h-3 w-3 text-red-500" />;
+}
+
+function MetricDateBadge({ date }: { date: string }) {
+  const daysDiff = differenceInDays(new Date(), new Date(date));
+  
+  // > 90 days = destructive with alert icon
+  if (daysDiff > 90) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-destructive italic">
+        <AlertCircle className="h-2.5 w-2.5" />
+        {formatMetricDate(date)}
+      </span>
+    );
+  }
+  
+  // > 30 days = amber warning
+  if (daysDiff > 30) {
+    return (
+      <span className="text-[10px] text-amber-500 italic">
+        {formatMetricDate(date)}
+      </span>
+    );
+  }
+  
+  // Recent = normal muted
+  return (
+    <span className="text-[10px] text-muted-foreground italic">
+      {formatMetricDate(date)}
+    </span>
+  );
 }
 
 interface PortfolioCompanyOverviewProps {
@@ -104,9 +121,12 @@ interface PortfolioCompanyOverviewProps {
 
 export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewProps) {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showAllMetrics, setShowAllMetrics] = useState(false);
+  
+  // Fetch individual metrics from the new table
+  const { metrics, isLoading: metricsLoading } = usePortfolioCompanyMetrics(company.id);
   
   const latestReport = company.latest_report;
-  // Use report_period instead of processed_at/report_date
   const reportPeriod = latestReport?.report_period;
   const reportDate = reportPeriod || latestReport?.report_date;
   const isReportOld = reportDate 
@@ -117,43 +137,14 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
     ? format(new Date(reportDate), "d MMM yyyy", { locale: fr })
     : null;
 
-  const shortReportDate = reportPeriod ? formatShortDate(reportPeriod) : null;
-
   const investmentTypeColors = company.investment_type 
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
     : null;
 
-  // Get metrics from latest_metrics or report
-  const metrics = company.latest_metrics || latestReport?.metrics || {};
-
-  // Build metric items with proper formatting
-  const metricItems = METRIC_CONFIGS
-    .map(config => {
-      const value = metrics[config.key as keyof typeof metrics] as number | null | undefined;
-      const growth = config.growthKey 
-        ? (metrics[config.growthKey as keyof typeof metrics] as number | null | undefined)
-        : null;
-      
-      if (value === null || value === undefined) return null;
-      
-      let displayValue = '-';
-      if (config.format === 'currency') {
-        displayValue = formatNumberCompact(value, '€');
-      } else if (config.format === 'months') {
-        displayValue = `${value} mois`;
-      } else {
-        displayValue = value.toLocaleString('fr-FR');
-      }
-      
-      return {
-        ...config,
-        value,
-        growth,
-        displayValue,
-        reportDate: shortReportDate,
-      };
-    })
-    .filter(Boolean);
+  // Limit metrics display
+  const MAX_VISIBLE_METRICS = 9;
+  const visibleMetrics = showAllMetrics ? metrics : metrics.slice(0, MAX_VISIBLE_METRICS);
+  const hasMoreMetrics = metrics.length > MAX_VISIBLE_METRICS;
 
   return (
     <Card className="h-full">
@@ -270,8 +261,8 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
           </div>
         )}
 
-        {/* Metrics Section */}
-        {metricItems.length > 0 && (
+        {/* Metrics Section - Using new individual metrics */}
+        {metrics.length > 0 && (
           <>
             <Separator />
             <div className="space-y-2">
@@ -281,40 +272,78 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
                   Métriques
                 </p>
               </div>
-              <div className="space-y-2">
-                {metricItems.map((item) => {
-                  if (!item) return null;
-                  const Icon = item.icon;
-                  const isNegative = typeof item.value === 'number' && item.value < 0;
-
+              
+              {/* Grid layout for metrics */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {visibleMetrics.map((metric) => {
+                  const Icon = METRIC_ICONS[metric.metric_key] || Activity;
+                  const numValue = parseFloat(metric.metric_value);
+                  const isNegative = !isNaN(numValue) && numValue < 0;
+                  
                   return (
-                    <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 rounded-md bg-muted">
-                          <Icon className="h-3 w-3 text-muted-foreground" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-muted-foreground">{item.label}</span>
-                          {item.reportDate && (
-                            <span className="text-[10px] text-muted-foreground/60">{item.reportDate}</span>
-                          )}
-                        </div>
-                      </div>
+                    <div 
+                      key={metric.id} 
+                      className="flex flex-col p-2 rounded-md bg-muted/30"
+                    >
+                      {/* Line 1: Icon + Label */}
                       <div className="flex items-center gap-1.5">
+                        <Icon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {formatMetricLabel(metric.metric_key)}
+                        </span>
+                      </div>
+                      
+                      {/* Line 2: Value */}
+                      <div className="flex items-center gap-1 mt-0.5">
                         <span
                           className={cn(
                             "text-sm font-semibold",
-                            isNegative && "text-red-500"
+                            isNegative && "text-destructive"
                           )}
                         >
-                          {item.displayValue}
+                          {formatMetricValue(metric.metric_value, metric.metric_type, metric.metric_key)}
                         </span>
-                        <TrendIcon value={item.value} growth={item.growth} />
+                        <TrendIcon value={isNaN(numValue) ? null : numValue} />
                       </div>
+                      
+                      {/* Line 3: Date */}
+                      <MetricDateBadge date={metric.updated_at} />
                     </div>
                   );
                 })}
               </div>
+              
+              {/* Show more/less button */}
+              {hasMoreMetrics && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-xs text-muted-foreground"
+                  onClick={() => setShowAllMetrics(!showAllMetrics)}
+                >
+                  {showAllMetrics ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Voir moins
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      Voir plus ({metrics.length - MAX_VISIBLE_METRICS} autres)
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Metrics loading state */}
+        {metricsLoading && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-center py-4">
+              <span className="text-xs text-muted-foreground">Chargement des métriques...</span>
             </div>
           </>
         )}
