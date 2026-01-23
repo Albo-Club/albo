@@ -8,6 +8,7 @@ export interface PortfolioCompanyMetric {
   metric_value: string;
   metric_type: string;
   source_report_id: string | null;
+  report_period: string | null;
   updated_at: string;
   created_at: string;
 }
