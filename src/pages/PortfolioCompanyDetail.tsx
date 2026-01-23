@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { usePortfolioCompany } from "@/hooks/usePortfolioCompany";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { PortfolioCompanyLastNews } from "@/components/portfolio/PortfolioCompanyLastNews";
+import { PortfolioCompanyMetricsCard } from "@/components/portfolio/PortfolioCompanyMetricsCard";
 import { PortfolioCompanyInfoCard } from "@/components/portfolio/PortfolioCompanyInfoCard";
 import { DealTabs } from "@/components/deals/DealTabs";
 
@@ -31,18 +32,33 @@ export default function PortfolioCompanyDetail() {
     );
   }
 
+  // Extraire les données du dernier report
+  const latestReport = company.latest_report;
+  const headline = latestReport?.headline || company.last_news;
+  const keyHighlights = latestReport?.key_highlights || null;
+  const reportPeriod = latestReport?.report_period || null;
+  
+  // Utiliser latest_metrics de la company (synchro depuis le dernier report)
+  const metrics = company.latest_metrics || latestReport?.metrics || null;
+
   const overviewContent = (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Last News - 3 columns */}
+      {/* Key Highlights avec Headline en bulle - 3 columns */}
       <div className="lg:col-span-3">
         <PortfolioCompanyLastNews
-          lastNews={company.last_news}
+          headline={headline}
+          keyHighlights={keyHighlights}
+          reportPeriod={reportPeriod}
           lastNewsUpdatedAt={company.last_news_updated_at}
         />
       </div>
 
-      {/* Info Card - 2 columns */}
-      <div className="lg:col-span-2">
+      {/* Sidebar - 2 columns */}
+      <div className="lg:col-span-2 space-y-6">
+        {/* Metrics Card - les KPIs clés */}
+        <PortfolioCompanyMetricsCard metrics={metrics} />
+        
+        {/* Info Card - investissement */}
         <PortfolioCompanyInfoCard company={company} />
       </div>
     </div>
