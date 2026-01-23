@@ -12,13 +12,21 @@ import {
   AlertTriangle,
   FileText,
   TrendingUp,
-  Users
+  TrendingDown,
+  Minus,
+  Users,
+  Banknote,
+  Clock,
+  BarChart3,
+  PiggyBank,
+  Activity
 } from "lucide-react";
 import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { SectorBadges } from "./SectorBadges";
+import { formatNumberCompact, formatShortDate } from "@/lib/portfolioFormatters";
 
 // Investment type color mapping
 const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -31,11 +39,29 @@ const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border:
   'SPV SAFE': { bg: 'bg-teal-500/10', text: 'text-teal-700 dark:text-teal-400', border: 'border-teal-500/20' },
 };
 
+interface MetricConfig {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  format: 'currency' | 'number' | 'months';
+  growthKey?: string;
+}
+
+const METRIC_CONFIGS: MetricConfig[] = [
+  { key: 'aum', label: 'AuM', icon: Wallet, format: 'currency', growthKey: 'aum_growth_yoy' },
+  { key: 'mrr', label: 'MRR', icon: BarChart3, format: 'currency', growthKey: 'mrr_growth_yoy' },
+  { key: 'revenue', label: 'Revenue', icon: TrendingUp, format: 'currency' },
+  { key: 'ebitda', label: 'EBITDA', icon: PiggyBank, format: 'currency' },
+  { key: 'employees', label: 'Employés', icon: Users, format: 'number', growthKey: 'employees_growth_yoy' },
+  { key: 'cash_position', label: 'Cash', icon: Banknote, format: 'currency' },
+  { key: 'runway_months', label: 'Runway', icon: Clock, format: 'months' },
+];
+
 function formatCurrency(cents: number | null): string {
   if (cents === null) return '-';
   const euros = cents / 100;
   if (euros >= 1_000_000) {
-    return `${(euros / 1_000_000).toFixed(1)}M€`;
+    return `${(euros / 1_000_000).toFixed(1).replace('.', ',')}M€`;
   }
   if (euros >= 1_000) {
     return `${(euros / 1_000).toFixed(0)}k€`;
@@ -48,40 +74,30 @@ function formatPercentage(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
-function formatMetricValue(key: string, value: unknown): string {
-  if (value === null || value === undefined) return '-';
-  const num = Number(value);
+function TrendIcon({ value, growth }: { value: number | null | undefined; growth?: number | null }) {
+  // Determine trend based on growth or value sign
+  let isPositive = true;
+  let isNeutral = false;
   
-  // Currency fields (assuming cents)
-  if (['arr', 'mrr', 'revenue', 'cash_position', 'ebitda', 'aum'].includes(key.toLowerCase())) {
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M€`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(0)}k€`;
-    return `${num.toFixed(0)}€`;
+  if (growth !== null && growth !== undefined) {
+    isPositive = growth >= 1;
+    isNeutral = growth === 1;
+  } else if (value !== null && value !== undefined) {
+    isPositive = value >= 0;
+    isNeutral = value === 0;
+  } else {
+    return null;
   }
   
-  // Percentage fields
-  if (key.includes('rate') || key.includes('margin') || key.includes('growth')) {
-    return `${num.toFixed(1)}%`;
+  if (isNeutral) {
+    return <Minus className="h-3 w-3 text-muted-foreground" />;
   }
   
-  // Count fields
-  if (['employees', 'customers', 'users'].includes(key.toLowerCase())) {
-    return num.toLocaleString('fr-FR');
+  if (isPositive) {
+    return <TrendingUp className="h-3 w-3 text-green-500" />;
   }
   
-  // Months
-  if (key.includes('runway') || key.includes('months')) {
-    return `${num} mois`;
-  }
-  
-  return String(value);
-}
-
-function getMetricIcon(key: string) {
-  const k = key.toLowerCase();
-  if (['arr', 'mrr', 'revenue', 'aum'].includes(k)) return TrendingUp;
-  if (['customers', 'users', 'employees'].includes(k)) return Users;
-  return TrendingUp;
+  return <TrendingDown className="h-3 w-3 text-red-500" />;
 }
 
 interface PortfolioCompanyOverviewProps {
@@ -99,13 +115,43 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
     ? format(new Date(reportDate), "d MMM yyyy", { locale: fr })
     : null;
 
+  const shortReportDate = reportDate ? formatShortDate(reportDate) : null;
+
   const investmentTypeColors = company.investment_type 
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
     : null;
 
   // Get metrics from latest_metrics or report
   const metrics = company.latest_metrics || latestReport?.metrics || {};
-  const metricEntries = Object.entries(metrics).slice(0, 6);
+
+  // Build metric items with proper formatting
+  const metricItems = METRIC_CONFIGS
+    .map(config => {
+      const value = metrics[config.key as keyof typeof metrics] as number | null | undefined;
+      const growth = config.growthKey 
+        ? (metrics[config.growthKey as keyof typeof metrics] as number | null | undefined)
+        : null;
+      
+      if (value === null || value === undefined) return null;
+      
+      let displayValue = '-';
+      if (config.format === 'currency') {
+        displayValue = formatNumberCompact(value, '€');
+      } else if (config.format === 'months') {
+        displayValue = `${value} mois`;
+      } else {
+        displayValue = value.toLocaleString('fr-FR');
+      }
+      
+      return {
+        ...config,
+        value,
+        growth,
+        displayValue,
+        reportDate: shortReportDate,
+      };
+    })
+    .filter(Boolean);
 
   return (
     <Card className="h-full">
@@ -222,38 +268,45 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
         )}
 
         {/* Metrics Section */}
-        {metricEntries.length > 0 && (
+        {metricItems.length > 0 && (
           <>
             <Separator />
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-3 w-3 text-muted-foreground" />
                 <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Métriques
                 </p>
-                {formattedReportDate && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Report du {formattedReportDate}
-                  </p>
-                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {metricEntries.map(([key, value]) => {
-                  const Icon = getMetricIcon(key);
-                  const label = key
-                    .replace(/_/g, ' ')
-                    .replace(/([A-Z])/g, ' $1')
-                    .trim();
-                  
+              <div className="space-y-2">
+                {metricItems.map((item) => {
+                  if (!item) return null;
+                  const Icon = item.icon;
+                  const isNegative = typeof item.value === 'number' && item.value < 0;
+
                   return (
-                    <div key={key} className="flex items-center gap-2">
-                      <Icon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-muted-foreground capitalize truncate">
-                          {label}
-                        </p>
-                        <p className="text-xs font-medium">
-                          {formatMetricValue(key, value)}
-                        </p>
+                    <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded-md bg-muted">
+                          <Icon className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">{item.label}</span>
+                          {item.reportDate && (
+                            <span className="text-[10px] text-muted-foreground/60">{item.reportDate}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            "text-sm font-semibold",
+                            isNegative && "text-red-500"
+                          )}
+                        >
+                          {item.displayValue}
+                        </span>
+                        <TrendIcon value={item.value} growth={item.growth} />
                       </div>
                     </div>
                   );
