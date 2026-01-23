@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
   DollarSign, 
@@ -18,8 +19,11 @@ import {
   Clock,
   BarChart3,
   PiggyBank,
-  Activity
+  Activity,
+  Download
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -110,11 +114,65 @@ interface PortfolioCompanyOverviewProps {
 
 export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewProps) {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [reportPdfPath, setReportPdfPath] = useState<string | null>(null);
+  const [reportPdfName, setReportPdfName] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Fetch individual metrics from the new table
   const { metrics, metricsMap, isLoading: metricsLoading } = usePortfolioCompanyMetrics(company.id);
   
   const latestReport = company.latest_report;
+
+  // Fetch report PDF path
+  useEffect(() => {
+    async function fetchReportPDF() {
+      if (!latestReport?.id) {
+        setReportPdfPath(null);
+        setReportPdfName(null);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('report_files')
+        .select('storage_path, file_name')
+        .eq('report_id', latestReport.id)
+        .limit(1)
+        .maybeSingle();
+      
+      if (data) {
+        setReportPdfPath(data.storage_path);
+        setReportPdfName(data.file_name);
+      } else {
+        setReportPdfPath(null);
+        setReportPdfName(null);
+      }
+    }
+    fetchReportPDF();
+  }, [latestReport?.id]);
+
+  const handleViewReportPDF = async () => {
+    if (!reportPdfPath) return;
+    
+    setIsDownloading(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('report-files')
+        .download(reportPdfPath);
+      
+      if (error || !data) {
+        toast.error('Erreur lors du téléchargement du PDF');
+        return;
+      }
+      
+      // Open in new tab
+      const url = URL.createObjectURL(data);
+      window.open(url, '_blank');
+    } catch (err) {
+      toast.error('Erreur lors du téléchargement du PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const reportPeriod = latestReport?.report_period;
   const reportDateParsed = parseReportPeriod(reportPeriod) 
     || (latestReport?.report_date ? new Date(latestReport.report_date) : null);
@@ -151,24 +209,49 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Informations</h3>
-          {formattedReportDate ? (
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-[10px] gap-1 cursor-pointer hover:bg-muted transition-colors",
-                isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
-              )}
+          <div className="flex items-center gap-1.5">
+            {/* Bouton Synthèse */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[10px] gap-1"
               onClick={() => setShowSummaryModal(true)}
+              disabled={!latestReport?.summary}
             >
               <FileText className="h-2.5 w-2.5" />
-              {formattedReportDate}
-              {isReportOld && <AlertTriangle className="h-2.5 w-2.5" />}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              Aucun report
-            </Badge>
-          )}
+              Synthèse
+            </Button>
+            
+            {/* Bouton PDF */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[10px] gap-1"
+              onClick={handleViewReportPDF}
+              disabled={!reportPdfPath || isDownloading}
+            >
+              <Download className="h-2.5 w-2.5" />
+              PDF
+            </Button>
+            
+            {/* Badge date existant */}
+            {formattedReportDate ? (
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px] gap-1",
+                  isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                )}
+              >
+                {formattedReportDate}
+                {isReportOld && <AlertTriangle className="h-2.5 w-2.5" />}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                Aucun report
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       
