@@ -34,16 +34,14 @@ export default function PortfolioCompanyDetail() {
 
   // Extraire les données du dernier report
   const latestReport = company.latest_report;
-  const headline = latestReport?.headline || company.last_news;
   const keyHighlights = latestReport?.key_highlights || null;
   const reportPeriod = latestReport?.report_period || latestReport?.report_title || null;
 
   const overviewContent = (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Key Highlights avec Headline en bulle - 3 columns */}
+      {/* Key Highlights - 3 columns */}
       <div className="lg:col-span-3">
         <PortfolioCompanyLastNews
-          headline={headline}
           keyHighlights={keyHighlights}
           reportPeriod={reportPeriod}
           lastNewsUpdatedAt={company.last_news_updated_at}
