@@ -20,7 +20,7 @@ import {
   BarChart3,
   PiggyBank,
   Activity,
-  Download
+  Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -217,8 +217,9 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
               className="h-6 px-2 text-[10px] gap-1"
               onClick={() => setShowSummaryModal(true)}
               disabled={!latestReport?.summary}
+              title="Voir la synthèse AI"
             >
-              <FileText className="h-2.5 w-2.5" />
+              <Eye className="h-2.5 w-2.5" />
               Synthèse
             </Button>
             
@@ -229,8 +230,9 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
               className="h-6 px-2 text-[10px] gap-1"
               onClick={handleViewReportPDF}
               disabled={!reportPdfPath || isDownloading}
+              title="Voir le PDF du report"
             >
-              <Download className="h-2.5 w-2.5" />
+              <Eye className="h-2.5 w-2.5" />
               PDF
             </Button>
             
@@ -455,6 +457,7 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
         onOpenChange={setShowSummaryModal}
         reportPeriod={reportPeriod || null}
         summary={latestReport?.summary || null}
+        companyName={company.company_name}
       />
     </Card>
   );
