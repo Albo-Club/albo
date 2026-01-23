@@ -1,17 +1,17 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePortfolioCompany } from "@/hooks/usePortfolioCompany";
+import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { PortfolioCompanyLastNews } from "@/components/portfolio/PortfolioCompanyLastNews";
-import { PortfolioCompanyMetricsCard } from "@/components/portfolio/PortfolioCompanyMetricsCard";
-import { PortfolioCompanyInfoCard } from "@/components/portfolio/PortfolioCompanyInfoCard";
+import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
+import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
 import { DealTabs } from "@/components/deals/DealTabs";
 
 export default function PortfolioCompanyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: company, isLoading, error } = usePortfolioCompany(id);
+  const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
 
   if (isLoading) {
     return (
@@ -36,10 +36,7 @@ export default function PortfolioCompanyDetail() {
   const latestReport = company.latest_report;
   const headline = latestReport?.headline || company.last_news;
   const keyHighlights = latestReport?.key_highlights || null;
-  const reportPeriod = latestReport?.report_period || null;
-  
-  // Utiliser latest_metrics de la company (synchro depuis le dernier report)
-  const metrics = company.latest_metrics || latestReport?.metrics || null;
+  const reportPeriod = latestReport?.report_period || latestReport?.report_title || null;
 
   const overviewContent = (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -54,15 +51,13 @@ export default function PortfolioCompanyDetail() {
       </div>
 
       {/* Sidebar - 2 columns */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Metrics Card - les KPIs clés */}
-        <PortfolioCompanyMetricsCard metrics={metrics} />
-        
-        {/* Info Card - investissement */}
-        <PortfolioCompanyInfoCard company={company} />
+      <div className="lg:col-span-2">
+        <PortfolioCompanyOverview company={company} />
       </div>
     </div>
   );
+
+  const documentsContent = <PortfolioDocumentsBrowser companyId={company.id} />;
 
   return (
     <div className="space-y-6">
@@ -76,7 +71,10 @@ export default function PortfolioCompanyDetail() {
       />
 
       {/* Tabs */}
-      <DealTabs overviewContent={overviewContent} />
+      <DealTabs 
+        overviewContent={overviewContent} 
+        foldersContent={documentsContent}
+      />
     </div>
   );
 }

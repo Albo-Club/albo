@@ -6,6 +6,7 @@ export interface CompanyReportData {
   id: string;
   report_date: string | null;
   report_title: string | null;
+  report_period: string | null;
   report_type: string | null;
   headline: string | null;
   summary: string | null;
@@ -32,6 +33,7 @@ export function usePortfolioCompanyWithReport(companyId: string | undefined) {
             id,
             report_date,
             report_title,
+            report_period,
             report_type,
             headline,
             summary,
