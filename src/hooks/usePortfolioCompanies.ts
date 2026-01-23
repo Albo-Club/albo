@@ -18,6 +18,9 @@ export interface PortfolioCompany {
   entry_valuation_cents: number | null;
   last_news: string | null;
   last_news_updated_at: string | null;
+  latest_metrics: Record<string, unknown> | null;
+  latest_report_id: string | null;
+  sender_emails: string[] | null;
   created_at: string;
   updated_at: string;
 }
