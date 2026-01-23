@@ -3,41 +3,12 @@ import { Newspaper } from "lucide-react";
 import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import React from "react";
 
 interface PortfolioCompanyLastNewsProps {
   keyHighlights: string[] | null;
   reportPeriod: string | null;
   lastNewsUpdatedAt: string | null;
 }
-
-// Fonction pour mettre en gras les chiffres clés dans le texte
-const highlightNumbers = (text: string): React.ReactNode => {
-  // Regex pour détecter : montants €, pourcentages, multiplicateurs, grands nombres
-  const regex = /(\d+[,.\s]?\d*\s?[MkK]?€|\d+[,.]?\d*\s?%|x\d+[,.]?\d*|\d{1,3}(?:[\s,]\d{3})+(?:[,.]\d+)?|\d+[,.]?\d*\s?(?:M€|k€|K€))/g;
-  
-  const parts = text.split(regex);
-  const matches = text.match(regex) || [];
-  
-  const result: React.ReactNode[] = [];
-  let matchIndex = 0;
-  
-  parts.forEach((part, i) => {
-    if (part) {
-      result.push(part);
-    }
-    if (matchIndex < matches.length && i < parts.length - 1) {
-      result.push(
-        <strong key={`match-${i}`} className="font-semibold text-foreground">
-          {matches[matchIndex]}
-        </strong>
-      );
-      matchIndex++;
-    }
-  });
-  
-  return result;
-};
 
 export function PortfolioCompanyLastNews({
   keyHighlights,
@@ -53,7 +24,7 @@ export function PortfolioCompanyLastNews({
     : null;
 
   return (
-    <Card className="h-full">
+    <Card className="h-auto">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -84,8 +55,8 @@ export function PortfolioCompanyLastNews({
                 key={index}
                 className="bg-muted/50 border-l-4 border-primary rounded-md p-4"
               >
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {highlightNumbers(highlight)}
+                <p className="font-semibold text-foreground/80 text-sm leading-relaxed">
+                  {highlight}
                 </p>
               </div>
             ))}
