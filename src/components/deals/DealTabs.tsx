@@ -6,6 +6,7 @@ interface DealTabsProps {
   overviewContent: ReactNode;
   emailsContent?: ReactNode;
   foldersContent?: ReactNode;
+  reportsContent?: ReactNode;
   metricsContent?: ReactNode;
   notesContent?: ReactNode;
 }
@@ -14,6 +15,7 @@ export function DealTabs({
   overviewContent,
   emailsContent,
   foldersContent,
+  reportsContent,
   metricsContent,
   notesContent,
 }: DealTabsProps) {
@@ -47,6 +49,19 @@ export function DealTabs({
         >
           Documents
           {!foldersContent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
+              Soon
+            </Badge>
+          )}
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="reports"
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
+          disabled={!reportsContent}
+        >
+          Reports
+          {!reportsContent && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
               Soon
             </Badge>
@@ -96,6 +111,14 @@ export function DealTabs({
         {foldersContent || (
           <div className="text-center py-12 text-muted-foreground">
             Aucun document associé à ce deal
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="reports" className="mt-6">
+        {reportsContent || (
+          <div className="text-center py-12 text-muted-foreground">
+            Aucun report disponible
           </div>
         )}
       </TabsContent>
