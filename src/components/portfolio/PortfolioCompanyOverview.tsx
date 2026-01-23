@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +27,8 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { SectorBadges } from "./SectorBadges";
-import { formatNumberCompact, formatShortDate } from "@/lib/portfolioFormatters";
+import { formatNumberCompact, formatShortDate, formatOwnership } from "@/lib/portfolioFormatters";
+import { ReportSummaryModal } from "./ReportSummaryModal";
 
 // Investment type color mapping
 const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -69,10 +71,6 @@ function formatCurrency(cents: number | null): string {
   return `${euros.toFixed(0)}€`;
 }
 
-function formatPercentage(value: number | null): string {
-  if (value === null) return '-';
-  return `${value.toFixed(1)}%`;
-}
 
 function TrendIcon({ value, growth }: { value: number | null | undefined; growth?: number | null }) {
   // Determine trend based on growth or value sign
@@ -105,8 +103,12 @@ interface PortfolioCompanyOverviewProps {
 }
 
 export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewProps) {
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  
   const latestReport = company.latest_report;
-  const reportDate = latestReport?.processed_at || latestReport?.report_date;
+  // Use report_period instead of processed_at/report_date
+  const reportPeriod = latestReport?.report_period;
+  const reportDate = reportPeriod || latestReport?.report_date;
   const isReportOld = reportDate 
     ? differenceInMonths(new Date(), new Date(reportDate)) >= 1 
     : true;
@@ -115,7 +117,7 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
     ? format(new Date(reportDate), "d MMM yyyy", { locale: fr })
     : null;
 
-  const shortReportDate = reportDate ? formatShortDate(reportDate) : null;
+  const shortReportDate = reportPeriod ? formatShortDate(reportPeriod) : null;
 
   const investmentTypeColors = company.investment_type 
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
@@ -162,9 +164,10 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
             <Badge 
               variant="outline" 
               className={cn(
-                "text-[10px] gap-1",
+                "text-[10px] gap-1 cursor-pointer hover:bg-muted transition-colors",
                 isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
               )}
+              onClick={() => setShowSummaryModal(true)}
             >
               <FileText className="h-2.5 w-2.5" />
               {formattedReportDate}
@@ -209,7 +212,7 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground">Participation</p>
               <p className="text-xs font-medium truncate">
-                {formatPercentage(company.ownership_percentage)}
+                {formatOwnership(company.ownership_percentage)}
               </p>
             </div>
           </div>
@@ -354,6 +357,14 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
           </>
         )}
       </CardContent>
+      
+      {/* Report Summary Modal */}
+      <ReportSummaryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+        reportPeriod={reportPeriod ? format(new Date(reportPeriod), "MMMM yyyy", { locale: fr }) : null}
+        summary={latestReport?.summary || null}
+      />
     </Card>
   );
 }

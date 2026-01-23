@@ -10,10 +10,16 @@ export const formatCurrency = (cents: number | null): string => {
   }).format(cents / 100);
 };
 
-// Format pourcentage depuis décimal (0.008 → 0.80%)
+// Format pourcentage depuis décimal (0.00156 → 0.156%)
 export const formatPercentage = (value: number | null): string => {
   if (value === null || value === undefined) return '-';
-  return `${(value * 100).toFixed(2)}%`;
+  return `${(value * 100).toFixed(3)}%`;
+};
+
+// Format ownership percentage with 3 decimal places (0.00156 → 0.156%)
+export const formatOwnership = (value: number | null): string => {
+  if (value === null || value === undefined) return '0.000%';
+  return `${(value * 100).toFixed(3)}%`;
 };
 
 // Format date en français
