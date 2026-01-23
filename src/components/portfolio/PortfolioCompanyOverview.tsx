@@ -12,7 +12,6 @@ import {
   Building2, 
   Calendar,
   AlertTriangle,
-  FileText,
   TrendingUp,
   Users,
   Banknote,
@@ -23,7 +22,6 @@ import {
   Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -31,7 +29,9 @@ import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithRepor
 import { usePortfolioCompanyMetrics, PortfolioCompanyMetric } from "@/hooks/usePortfolioCompanyMetrics";
 import { SectorBadges } from "./SectorBadges";
 import { formatOwnership, formatMetricLabel, parseReportPeriod } from "@/lib/portfolioFormatters";
-import { ReportSummaryModal } from "./ReportSummaryModal";
+import { ReportSynthesisModal } from "./ReportSynthesisModal";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import type { PortfolioDocument } from "@/hooks/usePortfolioDocuments";
 
 // Investment type color mapping
 const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -113,64 +113,81 @@ interface PortfolioCompanyOverviewProps {
 }
 
 export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewProps) {
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [reportPdfPath, setReportPdfPath] = useState<string | null>(null);
-  const [reportPdfName, setReportPdfName] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [showSynthesisModal, setShowSynthesisModal] = useState(false);
+  const [pdfDocument, setPdfDocument] = useState<PortfolioDocument | null>(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   
   // Fetch individual metrics from the new table
   const { metrics, metricsMap, isLoading: metricsLoading } = usePortfolioCompanyMetrics(company.id);
   
   const latestReport = company.latest_report;
 
-  // Fetch report PDF path
+  // Fetch report PDF document for DocumentPreviewModal
   useEffect(() => {
-    async function fetchReportPDF() {
+    async function fetchReportPdfDocument() {
       if (!latestReport?.id) {
-        setReportPdfPath(null);
-        setReportPdfName(null);
+        setPdfDocument(null);
         return;
       }
       
-      const { data } = await supabase
+      const { data: reportFile } = await supabase
         .from('report_files')
-        .select('storage_path, file_name')
+        .select('id, file_name, storage_path, mime_type, file_size_bytes')
         .eq('report_id', latestReport.id)
         .limit(1)
         .maybeSingle();
       
-      if (data) {
-        setReportPdfPath(data.storage_path);
-        setReportPdfName(data.file_name);
+      if (reportFile) {
+        // Create a PortfolioDocument compatible with DocumentPreviewModal
+        setPdfDocument({
+          id: reportFile.id,
+          company_id: company.id,
+          type: 'file',
+          name: reportFile.file_name,
+          parent_id: null,
+          storage_path: reportFile.storage_path,
+          mime_type: reportFile.mime_type || 'application/pdf',
+          file_size_bytes: reportFile.file_size_bytes,
+          original_file_name: reportFile.file_name,
+          report_file_id: reportFile.id,
+          text_content: null,
+          source_report_id: latestReport.id,
+          created_by: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       } else {
-        setReportPdfPath(null);
-        setReportPdfName(null);
+        setPdfDocument(null);
       }
     }
-    fetchReportPDF();
-  }, [latestReport?.id]);
-
-  const handleViewReportPDF = async () => {
-    if (!reportPdfPath) return;
     
-    setIsDownloading(true);
+    fetchReportPdfDocument();
+  }, [latestReport?.id, company.id]);
+
+  // Download handler for DocumentPreviewModal
+  const handleDownloadPdf = async (doc: PortfolioDocument) => {
+    if (!doc.storage_path) return;
+    
     try {
       const { data, error } = await supabase.storage
         .from('report-files')
-        .download(reportPdfPath);
+        .download(doc.storage_path);
       
       if (error || !data) {
-        toast.error('Erreur lors du téléchargement du PDF');
+        console.error('Download error:', error);
         return;
       }
       
-      // Open in new tab
       const url = URL.createObjectURL(data);
-      window.open(url, '_blank');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error('Erreur lors du téléchargement du PDF');
-    } finally {
-      setIsDownloading(false);
+      console.error('Error downloading PDF:', err);
     }
   };
   const reportPeriod = latestReport?.report_period;
@@ -210,26 +227,26 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Informations</h3>
           <div className="flex items-center gap-1.5">
-            {/* Bouton Synthèse */}
+            {/* Bouton Synthèse - utilise ReportSynthesisModal */}
             <Button
               variant="outline"
               size="sm"
               className="h-6 px-2 text-[10px] gap-1"
-              onClick={() => setShowSummaryModal(true)}
-              disabled={!latestReport?.summary}
+              onClick={() => setShowSynthesisModal(true)}
+              disabled={!latestReport?.cleaned_content}
               title="Voir la synthèse AI"
             >
               <Eye className="h-2.5 w-2.5" />
               Synthèse
             </Button>
             
-            {/* Bouton PDF */}
+            {/* Bouton PDF - utilise DocumentPreviewModal */}
             <Button
               variant="outline"
               size="sm"
               className="h-6 px-2 text-[10px] gap-1"
-              onClick={handleViewReportPDF}
-              disabled={!reportPdfPath || isDownloading}
+              onClick={() => setPdfPreviewOpen(true)}
+              disabled={!pdfDocument}
               title="Voir le PDF du report"
             >
               <Eye className="h-2.5 w-2.5" />
@@ -451,13 +468,20 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
         )}
       </CardContent>
       
-      {/* Report Summary Modal */}
-      <ReportSummaryModal
-        open={showSummaryModal}
-        onOpenChange={setShowSummaryModal}
+      {/* Modal Synthèse - Utilise ReportSynthesisModal comme dans Documents */}
+      <ReportSynthesisModal
+        open={showSynthesisModal}
+        onOpenChange={setShowSynthesisModal}
         reportPeriod={reportPeriod || null}
-        summary={latestReport?.summary || null}
-        companyName={company.company_name}
+        content={latestReport?.cleaned_content || null}
+      />
+
+      {/* Modal PDF - Utilise DocumentPreviewModal comme dans Documents */}
+      <DocumentPreviewModal
+        document={pdfDocument}
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        onDownload={handleDownloadPdf}
       />
     </Card>
   );
