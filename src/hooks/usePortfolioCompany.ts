@@ -47,6 +47,8 @@ export interface PortfolioCompanyFull {
   latest_metrics: PortfolioCompanyMetrics | null;
   latest_report_id: string | null;
   displayed_metrics: string[] | null;
+  related_people: string | null;
+  related_people_linkedin: string | null;
   created_at: string;
   updated_at: string;
   // Report jointure
