@@ -56,19 +56,31 @@ const METRIC_PRIORITY: Record<string, number> = {
 
 // Infer metric type from key
 function inferMetricType(key: string): string {
-  const lowerKey = key.toLowerCase();
-  if (lowerKey.includes('revenue') || lowerKey.includes('mrr') || lowerKey.includes('arr') || 
-      lowerKey.includes('aum') || lowerKey.includes('cash') || lowerKey.includes('ebitda') ||
-      lowerKey.includes('burn') || lowerKey.includes('amount') || lowerKey.includes('debt')) {
+  const k = key.toLowerCase();
+  
+  // Currency metrics
+  if (k.includes('revenue') || k.includes('mrr') || k.includes('arr') || 
+      k.includes('aum') || k.includes('cash') || k.includes('ebitda') ||
+      k.includes('burn') || k.includes('debt') || k.includes('inflow') ||
+      k.includes('outflow') || (k.includes('margin') && !k.includes('rate'))) {
     return 'currency';
   }
-  if (lowerKey.includes('rate') || lowerKey.includes('growth') || lowerKey.includes('margin') ||
-      lowerKey.includes('percent')) {
+  
+  // Percentage/rate metrics
+  if (k.includes('rate') || k.includes('growth') || k.includes('churn')) {
     return 'percentage';
   }
-  if (lowerKey.includes('months') || lowerKey.includes('runway')) {
+  
+  // Duration metrics
+  if (k.includes('months') || k.includes('runway')) {
     return 'months';
   }
+  
+  // Count metrics
+  if (k.includes('employees') || k.includes('customers') || k.includes('count') || k.includes('contracts')) {
+    return 'count';
+  }
+  
   return 'number';
 }
 
@@ -108,39 +120,65 @@ function formatCurrency(cents: number | null): string {
   return `${euros.toFixed(0)}€`;
 }
 
-// Format metric value based on type and key
+// Format metric value based on type and key - values are stored in EUROS (not cents)
 function formatMetricDisplayValue(value: string, metricType: string, metricKey: string): string {
   const numValue = parseFloat(value);
   if (isNaN(numValue)) return value;
   
   const lowerKey = metricKey.toLowerCase();
   
-  // Currency-like metrics
-  if (metricType === 'currency' || ['aum', 'mrr', 'arr', 'cash', 'cash_position', 'ebitda', 'revenue'].some(k => lowerKey.includes(k))) {
-    // If value > 100000, likely stored as cents
-    const euros = numValue > 100000 ? numValue / 100 : numValue;
-    if (Math.abs(euros) >= 1_000_000_000) {
-      return `${(euros / 1_000_000_000).toFixed(1).replace('.', ',')}Md€`;
+  // Currency-like metrics - values are stored in EUROS (not cents)
+  const isCurrencyMetric = metricType === 'currency' || 
+    ['aum', 'mrr', 'arr', 'cash', 'cash_position', 'ebitda', 'revenue', 'debt', 'burn', 'inflow', 'outflow', 'cash_flow', 'gross_margin'].some(k => lowerKey.includes(k));
+  
+  if (isCurrencyMetric) {
+    const absValue = Math.abs(numValue);
+    const sign = numValue < 0 ? '-' : '';
+    
+    if (absValue >= 1_000_000_000) {
+      return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace('.', ',')}Md€`;
     }
-    if (Math.abs(euros) >= 1_000_000) {
-      return `${(euros / 1_000_000).toFixed(1).replace('.', ',')}M€`;
+    if (absValue >= 1_000_000) {
+      return `${sign}${(absValue / 1_000_000).toFixed(1).replace('.', ',')}M€`;
     }
-    if (Math.abs(euros) >= 1_000) {
-      return `${(euros / 1_000).toFixed(0)}k€`;
+    if (absValue >= 1_000) {
+      return `${sign}${Math.round(absValue / 1_000)}k€`;
     }
-    return `${euros.toFixed(0)}€`;
+    return `${sign}${Math.round(absValue)}€`;
   }
   
-  // Percentage-like metrics
-  if (metricType === 'percentage' || lowerKey.includes('rate') || lowerKey.includes('growth')) {
-    // If stored as decimal (0.15), multiply by 100
-    const pct = Math.abs(numValue) < 10 ? numValue * 100 : numValue;
-    return `${pct >= 0 ? '+' : ''}${pct.toFixed(1).replace('.', ',')}%`;
+  // Percentage-like metrics (growth rates, ratios)
+  const isPercentageMetric = metricType === 'percentage' || 
+    lowerKey.includes('rate') || lowerKey.includes('growth') || lowerKey.includes('margin');
+  
+  if (isPercentageMetric) {
+    // YoY growth multipliers (2.3 = x2.3)
+    if (lowerKey.includes('growth') && lowerKey.includes('yoy')) {
+      return `x${numValue.toFixed(1).replace('.', ',')}`;
+    }
+    
+    // Regular percentages - if value is <= 1, it's likely a decimal
+    if (Math.abs(numValue) <= 1) {
+      return `${(numValue * 100).toFixed(1).replace('.', ',')}%`;
+    }
+    // Already in percentage form
+    return `${numValue.toFixed(1).replace('.', ',')}%`;
   }
   
-  // Months
+  // Months (runway)
   if (lowerKey.includes('months') || lowerKey.includes('runway')) {
-    return `${numValue} mois`;
+    return `${Math.round(numValue)} mois`;
+  }
+  
+  // Count metrics (employees, customers, contracts)
+  if (lowerKey.includes('employees') || lowerKey.includes('customers') || lowerKey.includes('count') || lowerKey.includes('contracts')) {
+    if (numValue >= 1_000_000) {
+      return `${(numValue / 1_000_000).toFixed(1).replace('.', ',')}M`;
+    }
+    if (numValue >= 10_000) {
+      return `${Math.round(numValue / 1_000)}k`;
+    }
+    return numValue.toLocaleString('fr-FR');
   }
   
   // Default number formatting
