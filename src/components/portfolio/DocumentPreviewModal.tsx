@@ -218,7 +218,7 @@ export function DocumentPreviewModal({
   if (!document) return null;
 
   const fileType = getFileType(document);
-  const showZoomControls = fileType === 'pdf' || fileType === 'image' || fileType === 'text';
+  const showZoomControls = fileType === 'image' || fileType === 'text';
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 25, 200));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 25, 50));
@@ -314,21 +314,36 @@ export function DocumentPreviewModal({
       );
     }
 
-    // PDF
+    // PDF - use object with fallback for better compatibility
     if (fileType === 'pdf' && fileUrl) {
       return (
-        <div className="flex-1 overflow-auto p-4">
-          <iframe
-            src={fileUrl}
-            className="w-full h-full border-0 rounded-lg bg-white"
+        <div className="flex-1 flex flex-col overflow-hidden p-4">
+          <object
+            data={fileUrl}
+            type="application/pdf"
+            className="flex-1 w-full rounded-lg border bg-white"
             style={{
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top left',
-              width: `${10000 / zoom}%`,
-              height: `${10000 / zoom}%`,
+              minHeight: '100%',
             }}
-            title={document.name}
-          />
+          >
+            {/* Fallback if object doesn't work */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+              <FileText className="h-16 w-16 text-muted-foreground" />
+              <p className="text-muted-foreground text-center">
+                La prévisualisation PDF n'est pas disponible dans votre navigateur.
+              </p>
+              <Button onClick={() => onDownload(document)}>
+                <Download className="h-4 w-4 mr-2" />
+                Télécharger le PDF
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.open(fileUrl, '_blank')}
+              >
+                Ouvrir dans un nouvel onglet
+              </Button>
+            </div>
+          </object>
         </div>
       );
     }
