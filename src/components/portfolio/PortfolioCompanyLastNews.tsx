@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Newspaper } from "lucide-react";
 import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,50 +22,55 @@ export function PortfolioCompanyLastNews({
     ? format(new Date(lastNewsUpdatedAt), "d MMMM yyyy", { locale: fr })
     : null;
 
+  // Use reportPeriod if available, otherwise formatted date
+  const displayDate = reportPeriod || formattedDate;
+
   return (
-    <Card className="h-auto">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Newspaper className="h-4 w-4 text-primary" />
-            <CardTitle className="text-lg">
-              Last news {reportPeriod && `- ${reportPeriod}`}
-            </CardTitle>
-          </div>
-          {formattedDate && (
-            <span
-              className={cn(
-                "text-sm",
-                isOlderThanOneMonth
-                  ? "text-destructive font-medium"
-                  : "text-muted-foreground"
-              )}
-            >
-              {formattedDate}
-            </span>
-          )}
+    <div className="space-y-4">
+      {/* Minimalist Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Newspaper className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium tracking-wider uppercase text-muted-foreground">
+            Key Highlights
+          </span>
         </div>
-      </CardHeader>
-      <CardContent>
-        {keyHighlights && keyHighlights.length > 0 ? (
-          <div className="space-y-3">
-            {keyHighlights.map((highlight, index) => (
-              <div
-                key={index}
-                className="bg-muted/50 border-l-4 border-primary rounded-md p-4"
-              >
-                <p className="font-semibold text-foreground/80 text-sm leading-relaxed">
-                  {highlight}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
+        {displayDate && (
+          <span
+            className={cn(
+              "text-xs",
+              isOlderThanOneMonth
+                ? "text-amber-600 font-medium"
+                : "text-muted-foreground"
+            )}
+          >
+            {displayDate}
+          </span>
+        )}
+      </div>
+
+      {/* Key Highlights */}
+      {keyHighlights && keyHighlights.length > 0 ? (
+        <div className="space-y-1">
+          {keyHighlights.map((highlight, index) => (
+            <div
+              key={index}
+              className="group border-l-2 border-primary/50 pl-4 py-3 hover:border-primary hover:bg-muted/30 transition-all rounded-r-md cursor-default"
+            >
+              <p className="text-sm text-foreground/85 leading-relaxed group-hover:text-foreground transition-colors">
+                {highlight}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Newspaper className="h-8 w-8 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">
             Aucun report reçu pour cette entreprise.
           </p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 }

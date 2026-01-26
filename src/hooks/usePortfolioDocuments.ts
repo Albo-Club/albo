@@ -18,6 +18,7 @@ export interface PortfolioDocument {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  source_bucket?: string; // Optional: indicates the source storage bucket
 }
 
 export interface DocumentTreeNode extends PortfolioDocument {
