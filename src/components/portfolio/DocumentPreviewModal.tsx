@@ -23,6 +23,7 @@ import {
   ZoomOut,
   RotateCcw,
   Loader2,
+  X,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { PortfolioDocument } from '@/hooks/usePortfolioDocuments';
@@ -107,31 +108,20 @@ export function DocumentPreviewModal({
       try {
         let data: Blob | null = null;
 
-        // Try portfolio-documents bucket first
-        const result1 = await supabase.storage
-          .from('portfolio-documents')
-          .download(document.storage_path!);
+        // Use source_bucket if provided, otherwise try buckets in order
+        const buckets = document.source_bucket
+          ? [document.source_bucket, 'portfolio-documents', 'report-files', 'deck-files']
+          : ['portfolio-documents', 'report-files', 'deck-files'];
 
-        if (!result1.error && result1.data) {
-          data = result1.data;
-        } else {
-          // Try report-files bucket
-          console.log('Trying report-files bucket for preview...');
-          const result2 = await supabase.storage
-            .from('report-files')
+        for (const bucket of buckets) {
+          const result = await supabase.storage
+            .from(bucket)
             .download(document.storage_path!);
 
-          if (!result2.error && result2.data) {
-            data = result2.data;
-          } else {
-            // Try deck-files bucket
-            console.log('Trying deck-files bucket for preview...');
-            const result3 = await supabase.storage
-              .from('deck-files')
-              .download(document.storage_path!);
-
-            if (result3.error) throw result3.error;
-            data = result3.data;
+          if (!result.error && result.data) {
+            data = result.data;
+            console.log(`File loaded from bucket: ${bucket}`);
+            break;
           }
         }
 
@@ -377,7 +367,7 @@ export function DocumentPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 [&>button]:hidden">
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -387,7 +377,7 @@ export function DocumentPreviewModal({
               </DialogTitle>
             </div>
             <div className="flex items-center gap-2">
-              {/* Zoom controls - only for PDF/images/text */}
+              {/* Zoom controls - only for images/text */}
               {showZoomControls && (
                 <div className="flex items-center gap-1 border rounded-lg px-2 py-1">
                   <Button
@@ -427,6 +417,15 @@ export function DocumentPreviewModal({
               >
                 <Download className="h-4 w-4 mr-2" />
                 Télécharger
+              </Button>
+              {/* Close button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>

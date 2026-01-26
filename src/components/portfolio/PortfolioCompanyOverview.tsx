@@ -264,6 +264,7 @@ export function PortfolioCompanyOverview({
       
       if (reportFile) {
         // Create a PortfolioDocument compatible with DocumentPreviewModal
+        // Include source_bucket to indicate where the file is stored
         setPdfDocument({
           id: reportFile.id,
           company_id: company.id,
@@ -280,6 +281,7 @@ export function PortfolioCompanyOverview({
           created_by: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          source_bucket: 'report-files',
         });
       } else {
         setPdfDocument(null);
@@ -370,19 +372,21 @@ export function PortfolioCompanyOverview({
               <Select value={selectedReport?.id || undefined} onValueChange={onReportChange}>
                 <SelectTrigger 
                   className={cn(
-                    "h-6 w-[140px] text-[10px] gap-1",
+                    "h-7 w-auto min-w-[140px] max-w-[200px] text-xs gap-1.5 px-3",
                     isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
                   )}
                 >
                   <SelectValue placeholder="Période">
-                    {formattedReportDate || "Période"}
-                    {isReportOld && <AlertTriangle className="h-2.5 w-2.5 ml-1" />}
+                    <span className="flex items-center gap-1.5">
+                      {formattedReportDate || "Période"}
+                      {isReportOld && <AlertTriangle className="h-3 w-3" />}
+                    </span>
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {reports.map((report) => (
                     <SelectItem key={report.id} value={report.id} className="text-xs">
-                      {report.report_period || format(new Date(report.created_at), "MMM yyyy", { locale: fr })}
+                      {report.report_period || format(new Date(report.created_at), "MMMM yyyy", { locale: fr })}
                     </SelectItem>
                   ))}
                 </SelectContent>
