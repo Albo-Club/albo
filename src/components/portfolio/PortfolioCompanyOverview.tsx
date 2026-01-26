@@ -158,25 +158,19 @@ interface ReportMetricItem {
 interface PortfolioCompanyOverviewProps {
   company: PortfolioCompanyWithReport;
   reports: CompanyReport[];
-  selectedReportId: string | null;
+  selectedReport: CompanyReport | null;
   onReportChange: (reportId: string) => void;
 }
 
 export function PortfolioCompanyOverview({ 
   company, 
   reports, 
-  selectedReportId, 
+  selectedReport,
   onReportChange 
 }: PortfolioCompanyOverviewProps) {
   const [showSynthesisModal, setShowSynthesisModal] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<PortfolioDocument | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
-  
-  // Get selected report from props or fallback to latest
-  const selectedReport = useMemo(() => {
-    if (!selectedReportId) return reports[0] || null;
-    return reports.find(r => r.id === selectedReportId) || reports[0] || null;
-  }, [selectedReportId, reports]);
   
   // Use selected report instead of company.latest_report for display
   const latestReport = selectedReport ? {
@@ -334,7 +328,7 @@ export function PortfolioCompanyOverview({
             
             {/* Report period selector - only show if multiple reports */}
             {reports.length > 1 ? (
-              <Select value={selectedReportId || undefined} onValueChange={onReportChange}>
+              <Select value={selectedReport?.id || undefined} onValueChange={onReportChange}>
                 <SelectTrigger 
                   className={cn(
                     "h-6 w-[140px] text-[10px] gap-1",

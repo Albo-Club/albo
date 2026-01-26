@@ -77,7 +77,7 @@ export default function PortfolioCompanyDetail() {
         <PortfolioCompanyOverview 
           company={company}
           reports={completedReports}
-          selectedReportId={selectedReportId}
+          selectedReport={selectedReport}
           onReportChange={setSelectedReportId}
         />
       </div>
