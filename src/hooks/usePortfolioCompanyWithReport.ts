@@ -18,6 +18,8 @@ export interface CompanyReportData {
 
 export interface PortfolioCompanyWithReport extends PortfolioCompany {
   latest_report?: CompanyReportData | null;
+  related_people?: string | null;
+  related_people_linkedin?: string | null;
 }
 
 export function usePortfolioCompanyWithReport(companyId: string | undefined) {

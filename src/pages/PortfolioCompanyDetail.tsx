@@ -60,6 +60,7 @@ export default function PortfolioCompanyDetail() {
   // Use selected report data instead of latest_report
   const keyHighlights = selectedReport?.key_highlights || null;
   const reportPeriod = selectedReport?.report_period || null;
+  const headline = selectedReport?.headline || null;
 
   const overviewContent = (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -69,6 +70,7 @@ export default function PortfolioCompanyDetail() {
           keyHighlights={keyHighlights}
           reportPeriod={reportPeriod}
           lastNewsUpdatedAt={selectedReport?.created_at || company.last_news_updated_at}
+          headline={headline}
         />
       </div>
 
