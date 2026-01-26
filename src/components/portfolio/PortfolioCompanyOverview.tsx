@@ -3,6 +3,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   DollarSign, 
   Wallet, 
@@ -32,6 +39,7 @@ import { formatOwnership, formatMetricLabel, parseReportPeriod } from "@/lib/por
 import { ReportSynthesisModal } from "./ReportSynthesisModal";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import type { PortfolioDocument } from "@/hooks/usePortfolioDocuments";
+import type { CompanyReport } from "@/hooks/useCompanyReports";
 
 // Investment type color mapping
 const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -110,9 +118,17 @@ function formatMetricDisplayValue(value: string, metricType: string, metricKey: 
 
 interface PortfolioCompanyOverviewProps {
   company: PortfolioCompanyWithReport;
+  reports: CompanyReport[];
+  selectedReportId: string | null;
+  onReportChange: (reportId: string) => void;
 }
 
-export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewProps) {
+export function PortfolioCompanyOverview({ 
+  company, 
+  reports, 
+  selectedReportId, 
+  onReportChange 
+}: PortfolioCompanyOverviewProps) {
   const [showSynthesisModal, setShowSynthesisModal] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<PortfolioDocument | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -120,7 +136,26 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
   // Fetch individual metrics from the new table
   const { metrics, metricsMap, isLoading: metricsLoading } = usePortfolioCompanyMetrics(company.id);
   
-  const latestReport = company.latest_report;
+  // Get selected report from props or fallback to latest
+  const selectedReport = useMemo(() => {
+    if (!selectedReportId) return reports[0] || null;
+    return reports.find(r => r.id === selectedReportId) || reports[0] || null;
+  }, [selectedReportId, reports]);
+  
+  // Use selected report instead of company.latest_report for display
+  const latestReport = selectedReport ? {
+    id: selectedReport.id,
+    report_date: selectedReport.created_at,
+    report_title: null,
+    report_period: selectedReport.report_period,
+    report_type: selectedReport.report_type,
+    headline: selectedReport.headline,
+    summary: null,
+    cleaned_content: selectedReport.cleaned_content,
+    key_highlights: selectedReport.key_highlights,
+    metrics: selectedReport.metrics,
+    processed_at: selectedReport.created_at,
+  } : company.latest_report;
 
   // Fetch report PDF document for DocumentPreviewModal
   useEffect(() => {
@@ -253,8 +288,29 @@ export function PortfolioCompanyOverview({ company }: PortfolioCompanyOverviewPr
               PDF
             </Button>
             
-            {/* Badge date existant */}
-            {formattedReportDate ? (
+            {/* Report period selector - only show if multiple reports */}
+            {reports.length > 1 ? (
+              <Select value={selectedReportId || undefined} onValueChange={onReportChange}>
+                <SelectTrigger 
+                  className={cn(
+                    "h-6 w-[140px] text-[10px] gap-1",
+                    isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                  )}
+                >
+                  <SelectValue placeholder="Période">
+                    {formattedReportDate || "Période"}
+                    {isReportOld && <AlertTriangle className="h-2.5 w-2.5 ml-1" />}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {reports.map((report) => (
+                    <SelectItem key={report.id} value={report.id} className="text-xs">
+                      {report.report_period || format(new Date(report.created_at), "MMM yyyy", { locale: fr })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : formattedReportDate ? (
               <Badge 
                 variant="outline" 
                 className={cn(
