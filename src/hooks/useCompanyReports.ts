@@ -13,6 +13,7 @@ export interface CompanyReport {
   id: string;
   company_id: string;
   report_period: string | null;
+  report_date: string | null;
   report_type: string | null;
   processing_status: string | null;
   headline: string | null;
@@ -34,7 +35,7 @@ export function useCompanyReports(companyId: string | undefined) {
         .from('company_reports')
         .select('*')
         .eq('company_id', companyId)
-        .order('created_at', { ascending: false });
+        .order('report_date', { ascending: false, nullsFirst: false });
 
       if (reportsError) throw reportsError;
       if (!reports || reports.length === 0) return [];
@@ -67,6 +68,7 @@ export function useCompanyReports(companyId: string | undefined) {
         id: report.id,
         company_id: report.company_id,
         report_period: report.report_period,
+        report_date: report.report_date,
         report_type: report.report_type,
         processing_status: report.processing_status,
         headline: report.headline,

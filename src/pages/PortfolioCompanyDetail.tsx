@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
-import { useCompanyReports, CompanyReport } from "@/hooks/useCompanyReports";
+import { useCompanyReports } from "@/hooks/useCompanyReports";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
-import { PortfolioCompanyLastNews } from "@/components/portfolio/PortfolioCompanyLastNews";
+import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
 import { DealTabs } from "@/components/deals/DealTabs";
@@ -16,27 +16,20 @@ export default function PortfolioCompanyDetail() {
   const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
   const { data: allReports = [], isLoading: reportsLoading } = useCompanyReports(id);
   
-  // Filter only completed reports
-  const completedReports = useMemo(() => 
-    allReports.filter(r => r.processing_status === 'completed'),
+  // Filter only completed reports and sort by report_date DESC
+  const sortedReports = useMemo(() => 
+    allReports
+      .filter(r => r.processing_status === 'completed')
+      .sort((a, b) => {
+        const dateA = a.report_date ? new Date(a.report_date).getTime() : 0;
+        const dateB = b.report_date ? new Date(b.report_date).getTime() : 0;
+        return dateB - dateA; // DESC - plus récent en premier
+      }),
     [allReports]
   );
   
-  // State for selected report - initialize with latest_report.id when available
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  
-  // Initialize selectedReportId when company loads
-  useEffect(() => {
-    if (company?.latest_report?.id && !selectedReportId) {
-      setSelectedReportId(company.latest_report.id);
-    }
-  }, [company?.latest_report?.id, selectedReportId]);
-  
-  // Derive selected report from completedReports
-  const selectedReport = useMemo(() => {
-    if (!selectedReportId) return completedReports[0] || null;
-    return completedReports.find(r => r.id === selectedReportId) || completedReports[0] || null;
-  }, [selectedReportId, completedReports]);
+  // Latest report for the sidebar metrics
+  const latestReport = sortedReports[0] || null;
 
   if (isLoading) {
     return (
@@ -57,31 +50,21 @@ export default function PortfolioCompanyDetail() {
     );
   }
 
-  // Use selected report data instead of latest_report
-  const keyHighlights = selectedReport?.key_highlights || null;
-  const reportPeriod = selectedReport?.report_period || null;
-  const headline = selectedReport?.headline || null;
-
   const overviewContent = (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Key Highlights - 3 columns */}
-      <div className="lg:col-span-3">
-        <PortfolioCompanyLastNews
-          keyHighlights={keyHighlights}
-          reportPeriod={reportPeriod}
-          lastNewsUpdatedAt={selectedReport?.created_at || company.last_news_updated_at}
-          headline={headline}
-        />
+      {/* Colonne gauche - Scrollable */}
+      <div className="lg:col-span-3 min-h-0">
+        <ReportsTimeline reports={sortedReports} companyId={company.id} />
       </div>
-
-      {/* Sidebar - 2 columns */}
+      
+      {/* Colonne droite - Sticky */}
       <div className="lg:col-span-2">
-        <PortfolioCompanyOverview 
-          company={company}
-          reports={completedReports}
-          selectedReport={selectedReport}
-          onReportChange={setSelectedReportId}
-        />
+        <div className="sticky top-4">
+          <PortfolioCompanyOverview 
+            company={company}
+            latestReport={latestReport}
+          />
+        </div>
       </div>
     </div>
   );

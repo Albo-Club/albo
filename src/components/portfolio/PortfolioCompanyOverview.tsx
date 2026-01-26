@@ -1,15 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   DollarSign, 
   Wallet, 
@@ -18,7 +10,6 @@ import {
   Globe, 
   Building2, 
   Calendar,
-  AlertTriangle,
   TrendingUp,
   Users,
   Banknote,
@@ -26,19 +17,13 @@ import {
   BarChart3,
   PiggyBank,
   Activity,
-  Eye,
-  Sparkles
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { differenceInMonths, format } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { SectorBadges } from "./SectorBadges";
-import { formatOwnership, formatMetricLabel, parseReportPeriod } from "@/lib/portfolioFormatters";
-import { ReportSynthesisModal } from "./ReportSynthesisModal";
-import { DocumentPreviewModal } from "./DocumentPreviewModal";
-import type { PortfolioDocument } from "@/hooks/usePortfolioDocuments";
+import { formatOwnership, formatMetricLabel } from "@/lib/portfolioFormatters";
 import type { CompanyReport } from "@/hooks/useCompanyReports";
 
 // Metric priority for sorting
@@ -196,48 +181,26 @@ interface ReportMetricItem {
 
 interface PortfolioCompanyOverviewProps {
   company: PortfolioCompanyWithReport;
-  reports: CompanyReport[];
-  selectedReport: CompanyReport | null;
-  onReportChange: (reportId: string) => void;
+  latestReport: CompanyReport | null;
 }
 
 export function PortfolioCompanyOverview({ 
   company, 
-  reports, 
-  selectedReport,
-  onReportChange 
+  latestReport,
 }: PortfolioCompanyOverviewProps) {
-  const [showSynthesisModal, setShowSynthesisModal] = useState(false);
-  const [pdfDocument, setPdfDocument] = useState<PortfolioDocument | null>(null);
-  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   
-  // Use selected report instead of company.latest_report for display
-  const latestReport = selectedReport ? {
-    id: selectedReport.id,
-    report_date: selectedReport.created_at,
-    report_title: null,
-    report_period: selectedReport.report_period,
-    report_type: selectedReport.report_type,
-    headline: selectedReport.headline,
-    summary: null,
-    cleaned_content: selectedReport.cleaned_content,
-    key_highlights: selectedReport.key_highlights,
-    metrics: selectedReport.metrics,
-    processed_at: selectedReport.created_at,
-  } : company.latest_report;
-  
-  // Metrics from the selected report (instead of usePortfolioCompanyMetrics hook)
+  // Metrics from the latest report
   const reportMetrics = useMemo<ReportMetricItem[]>(() => {
-    if (!selectedReport?.metrics) return [];
+    if (!latestReport?.metrics) return [];
     
-    return Object.entries(selectedReport.metrics)
+    return Object.entries(latestReport.metrics)
       .filter(([_, value]) => value !== null && value !== undefined)
       .map(([key, value], index) => ({
-        id: `${selectedReport.id}-${key}-${index}`,
+        id: `${latestReport.id}-${key}-${index}`,
         metric_key: key,
         metric_value: String(value),
         metric_type: inferMetricType(key),
-        report_period: selectedReport.report_period,
+        report_period: latestReport.report_period,
       }))
       .sort((a, b) => {
         const priorityA = METRIC_PRIORITY[a.metric_key] || 100;
@@ -245,88 +208,7 @@ export function PortfolioCompanyOverview({
         return priorityA - priorityB;
       })
       .slice(0, 6);
-  }, [selectedReport]);
-
-  // Fetch report PDF document for DocumentPreviewModal
-  useEffect(() => {
-    async function fetchReportPdfDocument() {
-      if (!latestReport?.id) {
-        setPdfDocument(null);
-        return;
-      }
-      
-      const { data: reportFile } = await supabase
-        .from('report_files')
-        .select('id, file_name, storage_path, mime_type, file_size_bytes')
-        .eq('report_id', latestReport.id)
-        .limit(1)
-        .maybeSingle();
-      
-      if (reportFile) {
-        // Create a PortfolioDocument compatible with DocumentPreviewModal
-        // Include source_bucket to indicate where the file is stored
-        setPdfDocument({
-          id: reportFile.id,
-          company_id: company.id,
-          type: 'file',
-          name: reportFile.file_name,
-          parent_id: null,
-          storage_path: reportFile.storage_path,
-          mime_type: reportFile.mime_type || 'application/pdf',
-          file_size_bytes: reportFile.file_size_bytes,
-          original_file_name: reportFile.file_name,
-          report_file_id: reportFile.id,
-          text_content: null,
-          source_report_id: latestReport.id,
-          created_by: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          source_bucket: 'report-files',
-        });
-      } else {
-        setPdfDocument(null);
-      }
-    }
-    
-    fetchReportPdfDocument();
-  }, [latestReport?.id, company.id]);
-
-  // Download handler for DocumentPreviewModal
-  const handleDownloadPdf = async (doc: PortfolioDocument) => {
-    if (!doc.storage_path) return;
-    
-    try {
-      const { data, error } = await supabase.storage
-        .from('report-files')
-        .download(doc.storage_path);
-      
-      if (error || !data) {
-        console.error('Download error:', error);
-        return;
-      }
-      
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error downloading PDF:', err);
-    }
-  };
-  const reportPeriod = latestReport?.report_period;
-  const reportDateParsed = parseReportPeriod(reportPeriod) 
-    || (latestReport?.report_date ? new Date(latestReport.report_date) : null);
-  const isReportOld = reportDateParsed 
-    ? differenceInMonths(new Date(), reportDateParsed) >= 1 
-    : true;
-  
-  const formattedReportDate = reportPeriod || (latestReport?.report_date 
-    ? format(new Date(latestReport.report_date), "d MMM yyyy", { locale: fr })
-    : null);
+  }, [latestReport]);
 
   const investmentTypeColors = company.investment_type 
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
@@ -338,77 +220,7 @@ export function PortfolioCompanyOverview({
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Informations</h3>
-          <div className="flex items-center gap-1.5">
-            {/* Bouton Synthèse - utilise ReportSynthesisModal */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-[10px] gap-1"
-              onClick={() => setShowSynthesisModal(true)}
-              disabled={!latestReport?.cleaned_content}
-              title="Voir la synthèse AI"
-            >
-              <Sparkles className="h-2.5 w-2.5 text-blue-500" />
-              Synthèse
-            </Button>
-            
-            {/* Bouton PDF - utilise DocumentPreviewModal */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-[10px] gap-1"
-              onClick={() => setPdfPreviewOpen(true)}
-              disabled={!pdfDocument}
-              title="Voir le PDF du report"
-            >
-              <Eye className="h-2.5 w-2.5" />
-              PDF
-            </Button>
-            
-            {/* Report period selector - only show if multiple reports */}
-            {reports.length > 1 ? (
-              <Select value={selectedReport?.id || undefined} onValueChange={onReportChange}>
-                <SelectTrigger 
-                  className={cn(
-                    "h-7 w-auto min-w-[140px] max-w-[200px] text-xs gap-1.5 px-3",
-                    isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
-                  )}
-                >
-                  <SelectValue placeholder="Période">
-                    <span className="flex items-center gap-1.5">
-                      {formattedReportDate || "Période"}
-                      {isReportOld && <AlertTriangle className="h-3 w-3" />}
-                    </span>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {reports.map((report) => (
-                    <SelectItem key={report.id} value={report.id} className="text-xs">
-                      {report.report_period || format(new Date(report.created_at), "MMMM yyyy", { locale: fr })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : formattedReportDate ? (
-              <Badge 
-                variant="outline" 
-                className={cn(
-                  "text-[10px] gap-1",
-                  isReportOld && "border-amber-500/50 text-amber-600 dark:text-amber-400"
-                )}
-              >
-                {formattedReportDate}
-                {isReportOld && <AlertTriangle className="h-2.5 w-2.5" />}
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                Aucun report
-              </Badge>
-            )}
-          </div>
-        </div>
+        <h3 className="text-sm font-semibold">Informations</h3>
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -571,21 +383,20 @@ export function PortfolioCompanyOverview({
                           <TrendingUp className="h-3 w-3 text-emerald-500" />
                         )}
                       </div>
-                      
-                      {/* Line 3: Report period */}
-                      {metric.report_period && (
-                        <span className="text-[10px] text-muted-foreground italic">
-                          {metric.report_period}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
               </div>
+              
+              {/* Report period indicator */}
+              {latestReport?.report_period && (
+                <p className="text-[10px] text-muted-foreground italic text-right pt-1">
+                  Données: {latestReport.report_period}
+                </p>
+              )}
             </div>
           </>
         )}
-
 
         {/* Investment Date */}
         {company.investment_date && (
@@ -603,22 +414,6 @@ export function PortfolioCompanyOverview({
           </>
         )}
       </CardContent>
-      
-      {/* Modal Synthèse - Utilise ReportSynthesisModal comme dans Documents */}
-      <ReportSynthesisModal
-        open={showSynthesisModal}
-        onOpenChange={setShowSynthesisModal}
-        reportPeriod={reportPeriod || null}
-        content={latestReport?.cleaned_content || null}
-      />
-
-      {/* Modal PDF - Utilise DocumentPreviewModal comme dans Documents */}
-      <DocumentPreviewModal
-        document={pdfDocument}
-        open={pdfPreviewOpen}
-        onOpenChange={setPdfPreviewOpen}
-        onDownload={handleDownloadPdf}
-      />
     </Card>
   );
 }
