@@ -33,13 +33,44 @@ import { differenceInMonths, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
-import { usePortfolioCompanyMetrics, PortfolioCompanyMetric } from "@/hooks/usePortfolioCompanyMetrics";
 import { SectorBadges } from "./SectorBadges";
 import { formatOwnership, formatMetricLabel, parseReportPeriod } from "@/lib/portfolioFormatters";
 import { ReportSynthesisModal } from "./ReportSynthesisModal";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import type { PortfolioDocument } from "@/hooks/usePortfolioDocuments";
 import type { CompanyReport } from "@/hooks/useCompanyReports";
+
+// Metric priority for sorting
+const METRIC_PRIORITY: Record<string, number> = {
+  aum: 1,
+  mrr: 2,
+  arr: 3,
+  revenue: 4,
+  ebitda: 5,
+  cash_position: 6,
+  runway_months: 7,
+  employees: 8,
+  customers: 9,
+  contracts_count: 10,
+};
+
+// Infer metric type from key
+function inferMetricType(key: string): string {
+  const lowerKey = key.toLowerCase();
+  if (lowerKey.includes('revenue') || lowerKey.includes('mrr') || lowerKey.includes('arr') || 
+      lowerKey.includes('aum') || lowerKey.includes('cash') || lowerKey.includes('ebitda') ||
+      lowerKey.includes('burn') || lowerKey.includes('amount') || lowerKey.includes('debt')) {
+    return 'currency';
+  }
+  if (lowerKey.includes('rate') || lowerKey.includes('growth') || lowerKey.includes('margin') ||
+      lowerKey.includes('percent')) {
+    return 'percentage';
+  }
+  if (lowerKey.includes('months') || lowerKey.includes('runway')) {
+    return 'months';
+  }
+  return 'number';
+}
 
 // Investment type color mapping
 const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -116,6 +147,14 @@ function formatMetricDisplayValue(value: string, metricType: string, metricKey: 
   return numValue.toLocaleString('fr-FR');
 }
 
+interface ReportMetricItem {
+  id: string;
+  metric_key: string;
+  metric_value: string;
+  metric_type: string;
+  report_period: string | null;
+}
+
 interface PortfolioCompanyOverviewProps {
   company: PortfolioCompanyWithReport;
   reports: CompanyReport[];
@@ -132,9 +171,6 @@ export function PortfolioCompanyOverview({
   const [showSynthesisModal, setShowSynthesisModal] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<PortfolioDocument | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
-  
-  // Fetch individual metrics from the new table
-  const { metrics, metricsMap, isLoading: metricsLoading } = usePortfolioCompanyMetrics(company.id);
   
   // Get selected report from props or fallback to latest
   const selectedReport = useMemo(() => {
@@ -156,6 +192,27 @@ export function PortfolioCompanyOverview({
     metrics: selectedReport.metrics,
     processed_at: selectedReport.created_at,
   } : company.latest_report;
+  
+  // Metrics from the selected report (instead of usePortfolioCompanyMetrics hook)
+  const reportMetrics = useMemo<ReportMetricItem[]>(() => {
+    if (!selectedReport?.metrics) return [];
+    
+    return Object.entries(selectedReport.metrics)
+      .filter(([_, value]) => value !== null && value !== undefined)
+      .map(([key, value], index) => ({
+        id: `${selectedReport.id}-${key}-${index}`,
+        metric_key: key,
+        metric_value: String(value),
+        metric_type: inferMetricType(key),
+        report_period: selectedReport.report_period,
+      }))
+      .sort((a, b) => {
+        const priorityA = METRIC_PRIORITY[a.metric_key] || 100;
+        const priorityB = METRIC_PRIORITY[b.metric_key] || 100;
+        return priorityA - priorityB;
+      })
+      .slice(0, 6);
+  }, [selectedReport]);
 
   // Fetch report PDF document for DocumentPreviewModal
   useEffect(() => {
@@ -240,21 +297,8 @@ export function PortfolioCompanyOverview({
     ? INVESTMENT_TYPE_COLORS[company.investment_type] || INVESTMENT_TYPE_COLORS['Share']
     : null;
 
-  // Get displayed metrics: use company.displayed_metrics or fallback to first 6
-  const displayedMetrics = useMemo(() => {
-    const MAX_METRICS = 6;
-    
-    // If company has displayed_metrics configured, use that order
-    if (company.displayed_metrics && company.displayed_metrics.length > 0) {
-      return company.displayed_metrics
-        .slice(0, MAX_METRICS)
-        .map(key => metricsMap.get(key))
-        .filter((m): m is PortfolioCompanyMetric => m !== undefined);
-    }
-    
-    // Fallback: first 6 metrics from the sorted list
-    return metrics.slice(0, MAX_METRICS);
-  }, [company.displayed_metrics, metrics, metricsMap]);
+  // Use report metrics directly (already sorted and limited to 6)
+  const displayedMetrics = reportMetrics;
 
   return (
     <Card className="h-full">
@@ -475,18 +519,8 @@ export function PortfolioCompanyOverview({
           </>
         )}
 
-        {/* Metrics loading state */}
-        {metricsLoading && (
-          <>
-            <Separator />
-            <div className="flex items-center justify-center py-4">
-              <span className="text-xs text-muted-foreground">Chargement des métriques...</span>
-            </div>
-          </>
-        )}
-
-        {/* Last News Section */}
-        {company.last_news && (
+        {/* Last News Section - Use selectedReport.headline */}
+        {selectedReport?.headline && (
           <>
             <Separator />
             <div className="space-y-2">
@@ -494,14 +528,14 @@ export function PortfolioCompanyOverview({
                 <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Dernières nouvelles
                 </p>
-                {company.last_news_updated_at && (
+                {selectedReport.report_period && (
                   <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(company.last_news_updated_at), "d MMM yyyy", { locale: fr })}
+                    {selectedReport.report_period}
                   </p>
                 )}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-4">
-                {company.last_news}
+                {selectedReport.headline}
               </p>
             </div>
           </>
