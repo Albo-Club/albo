@@ -49,7 +49,6 @@ import {
   LayoutList,
   LayoutGrid,
   Eye,
-  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -57,24 +56,22 @@ import { cn } from "@/lib/utils";
 import { usePortfolioDocuments, PortfolioDocument, DocumentTreeNode } from "@/hooks/usePortfolioDocuments";
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
-import { ReportSynthesisModal } from "./ReportSynthesisModal";
 
 interface PortfolioDocumentsBrowserProps {
   companyId: string;
 }
 
-// Helper: get file icon and badge info based on mime type, name, and type
-function getFileIconInfo(mimeType: string | null, fileName: string, docType?: string): { 
+// Helper: get file icon and badge info based on mime type and name
+function getFileIconInfo(mimeType: string | null, fileName: string): { 
   icon: typeof File; 
   badge?: { text: string; color: string };
-  isSynthesis?: boolean;
 } {
   const name = fileName.toLowerCase();
   const mime = mimeType?.toLowerCase() || '';
 
-  // Synthesis (virtual AI-generated file)
-  if (docType === 'synthesis' || name === 'synthèse.md') {
-    return { icon: Sparkles, badge: { text: 'AI', color: 'bg-blue-500' }, isSynthesis: true };
+  // Markdown synthesis files (real files with AI-generated content)
+  if (name.startsWith('synthèse') && name.endsWith('.md')) {
+    return { icon: FileText, badge: { text: 'MD', color: 'bg-purple-500' } };
   }
   // PDF
   if (name.endsWith('.pdf') || mime.includes('pdf')) {
@@ -236,7 +233,6 @@ function ListViewItem({
   onRename,
   onDelete,
   onPreview,
-  onOpenSynthesis,
   countItems,
 }: {
   item: PortfolioDocument;
@@ -245,21 +241,17 @@ function ListViewItem({
   onRename: (doc: PortfolioDocument) => void;
   onDelete: (doc: PortfolioDocument) => void;
   onPreview: (doc: PortfolioDocument) => void;
-  onOpenSynthesis: (doc: PortfolioDocument) => void;
   countItems: (folderId: string) => number;
 }) {
   const isFolder = item.type === 'folder';
-  const isSynthesis = item.type === 'synthesis';
-  const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name, item.type);
+  const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name);
   const isImage = isImageFile(item.mime_type);
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
   const canPreview = isPreviewable(item);
 
   const handleDoubleClick = () => {
     if (isFolder) return;
-    if (isSynthesis) {
-      onOpenSynthesis(item);
-    } else if (canPreview) {
+    if (canPreview) {
       onPreview(item);
     } else {
       onDownload(item);
@@ -269,16 +261,13 @@ function ListViewItem({
   const handleClick = () => {
     if (isFolder) {
       onNavigate(item.id);
-    } else if (isSynthesis) {
-      onOpenSynthesis(item);
     }
   };
 
   return (
     <div
       className={cn(
-        "group flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md cursor-pointer transition-all duration-200 hover:scale-[1.01] animate-fade-in",
-        (isFolder || isSynthesis) ? "cursor-pointer" : ""
+        "group flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md cursor-pointer transition-all duration-200 hover:scale-[1.01] animate-fade-in"
       )}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -322,23 +311,8 @@ function ListViewItem({
         </p>
       </div>
 
-      {/* Preview icon on hover (for synthesis, show Eye icon) */}
-      {isSynthesis && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenSynthesis(item);
-          }}
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </Button>
-      )}
-
-      {/* Preview icon on hover (regular files) */}
-      {!isSynthesis && canPreview && (
+      {/* Preview icon on hover */}
+      {canPreview && (
         <Button
           variant="ghost"
           size="sm"
@@ -365,16 +339,7 @@ function ListViewItem({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {isSynthesis && (
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onOpenSynthesis(item);
-            }}>
-              <Eye className="h-3.5 w-3.5 mr-2" />
-              Voir la synthèse
-            </DropdownMenuItem>
-          )}
-          {!isSynthesis && canPreview && (
+          {canPreview && (
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
               onPreview(item);
@@ -383,7 +348,7 @@ function ListViewItem({
               Prévisualiser
             </DropdownMenuItem>
           )}
-          {!isFolder && !isSynthesis && (
+          {!isFolder && (
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
               onDownload(item);
@@ -392,28 +357,24 @@ function ListViewItem({
               Télécharger
             </DropdownMenuItem>
           )}
-          {!isSynthesis && (
-            <>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onRename(item);
-              }}>
-                <Pencil className="h-3.5 w-3.5 mr-2" />
-                Renommer
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(item);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
-            </>
-          )}
+          <DropdownMenuItem onClick={(e) => {
+            e.stopPropagation();
+            onRename(item);
+          }}>
+            <Pencil className="h-3.5 w-3.5 mr-2" />
+            Renommer
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Supprimer
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -428,7 +389,6 @@ function GridViewItem({
   onRename,
   onDelete,
   onPreview,
-  onOpenSynthesis,
 }: {
   item: PortfolioDocument;
   onNavigate: (id: string) => void;
@@ -436,20 +396,16 @@ function GridViewItem({
   onRename: (doc: PortfolioDocument) => void;
   onDelete: (doc: PortfolioDocument) => void;
   onPreview: (doc: PortfolioDocument) => void;
-  onOpenSynthesis: (doc: PortfolioDocument) => void;
 }) {
   const isFolder = item.type === 'folder';
-  const isSynthesis = item.type === 'synthesis';
-  const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name, item.type);
+  const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name);
   const isImage = isImageFile(item.mime_type);
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
   const canPreview = isPreviewable(item);
 
   const handleDoubleClick = () => {
     if (isFolder) return;
-    if (isSynthesis) {
-      onOpenSynthesis(item);
-    } else if (canPreview) {
+    if (canPreview) {
       onPreview(item);
     } else {
       onDownload(item);
@@ -459,8 +415,6 @@ function GridViewItem({
   const handleClick = () => {
     if (isFolder) {
       onNavigate(item.id);
-    } else if (isSynthesis) {
-      onOpenSynthesis(item);
     }
   };
 
@@ -485,16 +439,7 @@ function GridViewItem({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {isSynthesis && (
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onOpenSynthesis(item);
-            }}>
-              <Eye className="h-3.5 w-3.5 mr-2" />
-              Voir la synthèse
-            </DropdownMenuItem>
-          )}
-          {!isSynthesis && canPreview && (
+          {canPreview && (
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
               onPreview(item);
@@ -503,7 +448,7 @@ function GridViewItem({
               Prévisualiser
             </DropdownMenuItem>
           )}
-          {!isFolder && !isSynthesis && (
+          {!isFolder && (
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
               onDownload(item);
@@ -512,28 +457,24 @@ function GridViewItem({
               Télécharger
             </DropdownMenuItem>
           )}
-          {!isSynthesis && (
-            <>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onRename(item);
-              }}>
-                <Pencil className="h-3.5 w-3.5 mr-2" />
-                Renommer
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(item);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
-            </>
-          )}
+          <DropdownMenuItem onClick={(e) => {
+            e.stopPropagation();
+            onRename(item);
+          }}>
+            <Pencil className="h-3.5 w-3.5 mr-2" />
+            Renommer
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Supprimer
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -562,18 +503,7 @@ function GridViewItem({
             <FileIcon className="h-12 w-12 text-muted-foreground" />
           )}
           {/* Preview overlay */}
-          {isSynthesis && (
-            <div 
-              className="absolute inset-0 flex items-center justify-center bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenSynthesis(item);
-              }}
-            >
-              <Eye className="h-5 w-5 text-white" />
-            </div>
-          )}
-          {!isSynthesis && canPreview && (
+          {canPreview && (
             <div 
               className="absolute inset-0 flex items-center justify-center bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => {
@@ -589,8 +519,7 @@ function GridViewItem({
         {/* Name */}
         <p className="text-xs font-medium truncate w-full">{item.name}</p>
         <p className="text-[10px] text-muted-foreground">
-          {!isFolder && !isSynthesis && formatFileSize(item.file_size_bytes)}
-          {isSynthesis && 'Généré par IA'}
+          {!isFolder && formatFileSize(item.file_size_bytes)}
         </p>
       </div>
     </Card>
@@ -627,18 +556,16 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
   const [isDragging, setIsDragging] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<PortfolioDocument | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [synthesisModalOpen, setSynthesisModalOpen] = useState(false);
-  const [synthesisDoc, setSynthesisDoc] = useState<PortfolioDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  // Get current folder contents (include synthesis files)
+  // Get current folder contents
   const currentContents = useMemo(() => {
     return documents.filter(d => d.parent_id === currentFolderId);
   }, [documents, currentFolderId]);
 
   const folders = currentContents.filter(d => d.type === 'folder');
-  const files = currentContents.filter(d => d.type === 'file' || d.type === 'synthesis');
+  const files = currentContents.filter(d => d.type === 'file');
 
   // Get folder tree for sidebar (only root-level folders)
   const rootFolders = documentTree.filter(d => d.type === 'folder');
@@ -771,12 +698,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
   const openPreview = (item: PortfolioDocument) => {
     setPreviewDocument(item);
     setPreviewOpen(true);
-  };
-
-  // Open synthesis modal
-  const openSynthesisModal = (item: PortfolioDocument) => {
-    setSynthesisDoc(item);
-    setSynthesisModalOpen(true);
   };
 
   if (isLoading) {
@@ -941,7 +862,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                             onRename={openRenameDialog}
                             onDelete={openDeleteDialog}
                             onPreview={openPreview}
-                            onOpenSynthesis={openSynthesisModal}
                             countItems={countFolderItems}
                           />
                         ))}
@@ -965,7 +885,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                             onRename={openRenameDialog}
                             onDelete={openDeleteDialog}
                             onPreview={openPreview}
-                            onOpenSynthesis={openSynthesisModal}
                             countItems={countFolderItems}
                           />
                         ))}
@@ -985,7 +904,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                       onRename={openRenameDialog}
                       onDelete={openDeleteDialog}
                       onPreview={openPreview}
-                      onOpenSynthesis={openSynthesisModal}
                     />
                   ))}
                   {files.map(file => (
@@ -997,7 +915,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                       onRename={openRenameDialog}
                       onDelete={openDeleteDialog}
                       onPreview={openPreview}
-                      onOpenSynthesis={openSynthesisModal}
                     />
                   ))}
                 </div>
@@ -1107,14 +1024,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         onDownload={downloadFile}
-      />
-
-      {/* Synthesis Modal */}
-      <ReportSynthesisModal
-        open={synthesisModalOpen}
-        onOpenChange={setSynthesisModalOpen}
-        reportPeriod={synthesisDoc?.report_period || null}
-        content={synthesisDoc?.cleaned_content || null}
       />
     </>
   );

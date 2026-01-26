@@ -26,7 +26,8 @@ import {
   BarChart3,
   PiggyBank,
   Activity,
-  Eye
+  Eye,
+  Sparkles
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInMonths, format } from "date-fns";
@@ -347,7 +348,7 @@ export function PortfolioCompanyOverview({
               disabled={!latestReport?.cleaned_content}
               title="Voir la synthèse AI"
             >
-              <Eye className="h-2.5 w-2.5" />
+              <Sparkles className="h-2.5 w-2.5 text-blue-500" />
               Synthèse
             </Button>
             
