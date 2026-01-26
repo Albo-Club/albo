@@ -198,13 +198,28 @@ export default function AcceptInvite() {
       });
 
       if (error) {
+        console.error('Accept invitation error:', error);
+        
         // Vérifier si l'erreur est "déjà membre"
         if (error.message.includes('already a member')) {
           toast.info('Vous êtes déjà membre de ce workspace');
           goToWorkspace();
           return;
         }
-        toast.error('Erreur lors de l\'acceptation de l\'invitation.');
+        
+        // Vérifier si l'erreur est "workspace externe multiple"
+        if (error.message.includes('one external workspace')) {
+          toast.error(
+            'Vous ne pouvez être membre que d\'un seul workspace externe. ' +
+            'Veuillez d\'abord quitter votre workspace actuel.',
+            { duration: 6000 }
+          );
+          setAccepting(false);
+          return;
+        }
+        
+        // Erreur générique
+        toast.error(error.message || 'Erreur lors de l\'acceptation de l\'invitation.');
         setAccepting(false);
         return;
       }
