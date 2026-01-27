@@ -6,7 +6,7 @@ import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithRe
 import { useCompanyReports } from "@/hooks/useCompanyReports";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
-import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
+import { PortfolioCompanyOverviewWithChat } from "@/components/portfolio/PortfolioCompanyOverviewWithChat";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
 import { DealTabs } from "@/components/deals/DealTabs";
 import { sortReportsByPeriodAndScope } from "@/lib/portfolioFormatters";
@@ -55,7 +55,7 @@ export default function PortfolioCompanyDetail() {
       {/* Colonne droite - Sticky */}
       <div className="lg:col-span-2">
         <div className="sticky top-4">
-          <PortfolioCompanyOverview 
+          <PortfolioCompanyOverviewWithChat 
             company={company}
             latestReport={latestReport}
           />
