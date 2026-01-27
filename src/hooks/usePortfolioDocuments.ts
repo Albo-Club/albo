@@ -202,6 +202,8 @@ export function usePortfolioDocuments(companyId: string | undefined) {
           .single();
         
         if (parentFolder?.name === 'Deck') {
+          console.log('📂 PDF uploaded to Deck folder. Initiating embedding process...');
+          
           // Récupérer l'entrée deck_embeddings créée par le trigger
           // On attend un peu pour laisser le trigger s'exécuter
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -220,45 +222,47 @@ export function usePortfolioDocuments(companyId: string | undefined) {
               .eq('id', companyId)
               .single();
             
-            // Récupérer l'URL signée du fichier (valide 1h)
-            const { data: signedUrlData } = await supabase.storage
-              .from('portfolio-documents')
-              .createSignedUrl(storagePath, 3600); // 1 heure
-            
-            // Appeler le webhook N8N
+            // Appeler le webhook N8N avec FormData (comme SubmitDeal.tsx)
             try {
-              const webhookPayload = {
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('deck_embedding_id', deckEmbedding.id);
+              formData.append('company_id', companyId);
+              formData.append('company_name', company?.company_name || 'Unknown');
+              formData.append('document_id', data.id);
+              formData.append('file_name', file.name);
+              formData.append('storage_path', storagePath);
+              formData.append('event', 'deck_uploaded');
+              
+              console.log('📤 Calling N8N webhook for deck embedding with FormData:', {
                 deck_embedding_id: deckEmbedding.id,
                 company_id: companyId,
                 company_name: company?.company_name || 'Unknown',
                 document_id: data.id,
                 file_name: file.name,
                 storage_path: storagePath,
-                signed_url: signedUrlData?.signedUrl || null,
                 event: 'deck_uploaded'
-              };
-              
-              console.log('📤 Calling N8N webhook for deck embedding:', webhookPayload);
+              });
               
               const response = await fetch(N8N_DECK_EMBEDDING_WEBHOOK, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(webhookPayload),
+                body: formData,
+                // Ne pas mettre Content-Type, le browser le gère automatiquement pour FormData
               });
               
               if (!response.ok) {
-                console.error('N8N webhook failed:', response.status);
+                console.error('❌ N8N webhook failed:', response.status, await response.text());
                 // On ne throw pas l'erreur pour ne pas bloquer l'upload
                 // L'embedding pourra être relancé manuellement si nécessaire
               } else {
                 console.log('✅ N8N webhook called successfully');
               }
             } catch (webhookError) {
-              console.error('Error calling N8N webhook:', webhookError);
+              console.error('❌ Error calling N8N webhook:', webhookError);
               // Idem, on ne bloque pas l'upload
             }
+          } else {
+            console.warn('⚠️ No deck_embedding entry found for document:', data.id);
           }
         }
       }
