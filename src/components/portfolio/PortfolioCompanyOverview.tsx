@@ -25,6 +25,7 @@ import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithRepor
 import { SectorBadges } from "./SectorBadges";
 import { formatOwnership, formatMetricLabel } from "@/lib/portfolioFormatters";
 import type { CompanyReport } from "@/hooks/useCompanyReports";
+import { PortfolioChatPanel } from "./PortfolioChatPanel";
 
 // Metric priority for sorting
 const METRIC_PRIORITY: Record<string, number> = {
@@ -218,6 +219,7 @@ export function PortfolioCompanyOverview({
   const displayedMetrics = reportMetrics;
 
   return (
+  <>
     <Card className="h-full">
       <CardHeader className="pb-3">
         <h3 className="text-sm font-semibold">Informations</h3>
@@ -417,5 +419,12 @@ export function PortfolioCompanyOverview({
 
       </CardContent>
     </Card>
+
+    {/* Chat with this deal */}
+    <PortfolioChatPanel 
+      companyId={company.id} 
+      companyName={company.company_name} 
+    />
+  </>
   );
 }
