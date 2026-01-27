@@ -148,7 +148,7 @@ export function DataTableUnifiedFilter<TData>({
       ],
     },
     {
-      id: "amount_sought",
+      id: "investment_amount_eur",
       label: "Montant",
       type: "sort" as const,
       sortOptions: [

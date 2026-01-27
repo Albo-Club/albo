@@ -79,10 +79,9 @@ export default function Portfolio() {
       enCours: deals?.filter((d) => d.status === "analyzing").length || 0,
       valides: deals?.filter((d) => d.status === "completed").length || 0,
       montantTotal: deals
-        ?.filter((d) => d.status === "completed" && d.amount_sought)
+        ?.filter((d) => d.status === "completed" && d.investment_amount_eur)
         .reduce((sum, d) => {
-          const amount = parseInt(d.amount_sought?.replace(/[^\d]/g, "") || "0");
-          return sum + amount;
+          return sum + (d.investment_amount_eur || 0);
         }, 0) || 0,
       ceMois: deals?.filter((d) => d.created_at >= startOfCurrentMonth).length || 0,
     };

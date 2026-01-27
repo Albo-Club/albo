@@ -9,7 +9,6 @@ interface DealInfoCardProps {
     sector?: string | null;
     sub_sector?: string | null;
     stage?: string | null;
-    amount_sought?: string | null;
     investment_amount_eur?: number | null;
     funding_type?: string | null;
     source?: string | null;
@@ -24,8 +23,6 @@ interface DealInfoCardProps {
 export function DealInfoCard({ deal, onDownloadDeck, hasDeck }: DealInfoCardProps) {
   const displayAmount = deal.investment_amount_eur
     ? formatAmount(String(deal.investment_amount_eur))
-    : deal.amount_sought
-    ? formatAmount(deal.amount_sought)
     : null;
 
   const infoItems = [

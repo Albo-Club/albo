@@ -25,6 +25,8 @@ export interface WorkspaceMember {
   };
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
 export interface WorkspaceInvitation {
   id: string;
   workspace_id: string;
@@ -35,6 +37,11 @@ export interface WorkspaceInvitation {
   created_at: string;
   accepted_at: string | null;
   expires_at: string;
+  // New fields
+  is_link_invite: boolean;
+  status: InvitationStatus;
+  resend_count: number;
+  last_resent_at: string | null;
   inviter?: {
     name: string;
   };

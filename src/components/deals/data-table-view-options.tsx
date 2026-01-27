@@ -21,7 +21,7 @@ const columnLabels: Record<string, string> = {
   sector: "Secteur",
   stage: "Stade",
   funding_type: "Type",
-  amount_sought: "Montant",
+  investment_amount_eur: "Montant",
   created_at: "Date de réception",
 };
 
