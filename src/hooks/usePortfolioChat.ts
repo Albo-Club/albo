@@ -41,7 +41,7 @@ export interface PortfolioMessage {
 // ============================================
 
 // URL du webhook N8N pour le chat portfolio
-const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/e5cc201f-c649-4ace-a970-8c640ed4324b';
+const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df';
 
 // ============================================
 // Hook principal
