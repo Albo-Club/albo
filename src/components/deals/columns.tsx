@@ -22,7 +22,7 @@ export interface Deal {
   one_liner: string | null;
   sector: string | null;
   stage: string | null;
-  amount_sought: string | null;
+  investment_amount_eur: number | null;
   funding_type: string | null;
   status: string;
   source: string | null;
@@ -235,17 +235,21 @@ export const columns: ColumnDef<Deal>[] = [
     },
   },
   {
-    accessorKey: "amount_sought",
+    accessorKey: "investment_amount_eur",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Montant" />
     ),
     cell: ({ row }) => {
-      const deal = row.original;
+      const amount = row.original.investment_amount_eur;
+      if (!amount) return <span className="text-muted-foreground">-</span>;
       return (
-        <InlineAmountEditor
-          dealId={deal.id}
-          value={deal.amount_sought}
-        />
+        <span className="font-medium tabular-nums">
+          {new Intl.NumberFormat('fr-FR', { 
+            style: 'currency', 
+            currency: 'EUR',
+            maximumFractionDigits: 0 
+          }).format(amount)}
+        </span>
       );
     },
   },

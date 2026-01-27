@@ -65,6 +65,8 @@ export default function AcceptInvite() {
           expires_at,
           accepted_at,
           workspace_id,
+          status,
+          is_link_invite,
           workspaces:workspace_id (name)
         `)
         .eq('token', token)
@@ -127,8 +129,11 @@ export default function AcceptInvite() {
         }
       }
 
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        setError('Cette invitation a expiré');
+      // Check if invitation is expired (via status or expires_at)
+      if (data.status === 'expired' || 
+          data.status === 'cancelled' ||
+          (data.expires_at && new Date(data.expires_at) < new Date())) {
+        setError('Cette invitation a expiré. Demandez à l\'administrateur de vous renvoyer une invitation.');
         setLoading(false);
         return;
       }

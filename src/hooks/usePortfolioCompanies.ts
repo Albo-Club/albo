@@ -6,8 +6,7 @@ export interface PortfolioCompany {
   id: string;
   workspace_id: string;
   company_name: string;
-  sector: string | null; // Legacy field for backward compatibility
-  sectors: string[] | null; // New multi-sector field
+  sectors: string[] | null;
   domain: string | null;
   preview: string | null;
   logo_url: string | null;

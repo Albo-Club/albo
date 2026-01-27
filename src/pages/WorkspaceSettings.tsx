@@ -29,10 +29,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const roleIcons: Record<WorkspaceRole, typeof Crown> = {
   owner: Crown,
@@ -70,6 +71,7 @@ export default function WorkspaceSettings() {
     cancelInvitation,
     migrateDeals,
     deleteWorkspace,
+    refetch,
   } = useWorkspace();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -85,6 +87,7 @@ export default function WorkspaceSettings() {
 
   const [migrating, setMigrating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -160,6 +163,57 @@ export default function WorkspaceSettings() {
     } catch (error: any) {
       console.error('Error canceling invitation:', error);
       toast.error(error.message || 'Erreur');
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: string) => {
+    if (!user?.id) return;
+
+    setResending(invitationId);
+    try {
+      // 1. Call the RPC function
+      const { data, error } = await supabase.rpc('resend_workspace_invitation', {
+        _invitation_id: invitationId,
+        _user_id: user.id
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      // 2. Call the Edge Function to send the email
+      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        body: {
+          email: data.email,
+          token: data.token,
+          workspaceId: data.workspace_id,
+          workspaceName: workspace?.name,
+          inviterName: user.user_metadata?.name || user.email,
+          isResend: true
+        }
+      });
+
+      if (emailError) throw emailError;
+
+      toast.success('Invitation renvoyée !');
+      // Refresh the list
+      await refetch();
+
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+
+      // User-friendly error messages
+      const errorMessages: Record<string, string> = {
+        'Maximum resend limit reached': 'Limite de renvois atteinte (max 5)',
+        'Please wait before resending': 'Veuillez attendre 1h entre chaque renvoi',
+        'Invitation is not pending': 'Cette invitation n\'est plus en attente',
+        'Cannot resend link invitations': 'Impossible de renvoyer une invitation par lien',
+        'Invitation not found': 'Invitation introuvable',
+        'Permission denied': 'Permission refusée',
+      };
+
+      toast.error(errorMessages[error.message] || 'Erreur lors du renvoi');
+    } finally {
+      setResending(null);
     }
   };
 
@@ -411,39 +465,75 @@ export default function WorkspaceSettings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Invitations en attente ({invitations.length})
+              Invitations en attente ({invitations.filter(inv => !inv.is_link_invite).length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {invitations.map((invitation) => (
-                <div
-                  key={invitation.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
-                >
-                  <div>
-                    <p className="font-medium">{invitation.email}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(invitation.created_at), {
-                        addSuffix: true,
-                        locale: fr,
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={roleColors[invitation.role]}>
-                      {roleLabels[invitation.role]}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCancelInvitation(invitation.id)}
+              {invitations
+                .filter(inv => !inv.is_link_invite)
+                .map((invitation) => {
+                  const isExpired = invitation.status === 'expired' || new Date(invitation.expires_at) < new Date();
+                  
+                  return (
+                    <div
+                      key={invitation.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      <div>
+                        <p className="font-medium">{invitation.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDistanceToNow(new Date(invitation.created_at), {
+                            addSuffix: true,
+                            locale: fr,
+                          })}
+                          {invitation.resend_count > 0 && (
+                            <span className="ml-2 text-xs">
+                              (renvoyé {invitation.resend_count}x)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Status badge */}
+                        {isExpired ? (
+                          <Badge variant="destructive">Expirée</Badge>
+                        ) : (
+                          <Badge className={roleColors[invitation.role]}>
+                            {roleLabels[invitation.role]}
+                          </Badge>
+                        )}
+
+                        {/* Resend button - only if pending and not link invite */}
+                        {invitation.status === 'pending' && !invitation.is_link_invite && !isExpired && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleResendInvitation(invitation.id)}
+                            disabled={resending === invitation.id}
+                            title="Renvoyer l'invitation"
+                          >
+                            {resending === invitation.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Cancel button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                          title="Annuler l'invitation"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </CardContent>
         </Card>

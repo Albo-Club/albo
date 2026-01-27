@@ -153,8 +153,9 @@ export function InlineAmountEditor({
 
   const handleSave = async () => {
     const parsedValue = parseAmount(inputValue);
+    const numericValue = parsedValue ? parseFloat(parsedValue.replace(/[^\d.]/g, "")) : null;
     
-    if (parsedValue === value) {
+    if (String(numericValue) === String(value)) {
       setIsOpen(false);
       return;
     }
@@ -163,7 +164,7 @@ export function InlineAmountEditor({
     try {
       const { error } = await supabase
         .from("deals")
-        .update({ amount_sought: parsedValue })
+        .update({ investment_amount_eur: numericValue })
         .eq("id", dealId);
 
       if (error) throw error;

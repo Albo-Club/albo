@@ -73,8 +73,8 @@ export function DealSidePanel({
 
   useEffect(() => {
     if (deal) {
-      const amount = deal.amount_sought || "";
-      setRawAmount(parseAmount(amount) || amount.replace(/[^\d]/g, ""));
+      const amount = deal.investment_amount_eur ? String(deal.investment_amount_eur) : "";
+      setRawAmount(amount);
       setFormData({
         sector: deal.sector || "",
         stage: deal.stage || "",
@@ -140,7 +140,7 @@ export function DealSidePanel({
         sector: formData.sector || null,
         stage: formData.stage || null,
         status: formData.status || null,
-        amount_sought: rawAmount || null,
+        investment_amount_eur: rawAmount ? parseFloat(rawAmount) : null,
         funding_type: formData.funding_type || null,
         user_notes: formData.user_notes || null,
       };

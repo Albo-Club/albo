@@ -25,7 +25,6 @@ interface Deal {
   memo_content: string | null;
   one_liner: string | null;
   additional_context: string | null;
-  amount_sought: string | null;
   investment_amount_eur: number | null;
   funding_type: string | null;
   domain: string | null;
