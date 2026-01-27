@@ -9,6 +9,7 @@ import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
 import { DealTabs } from "@/components/deals/DealTabs";
+import { sortReportsByPeriodAndScope } from "@/lib/portfolioFormatters";
 
 export default function PortfolioCompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,17 +17,11 @@ export default function PortfolioCompanyDetail() {
   const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
   const { data: allReports = [], isLoading: reportsLoading } = useCompanyReports(id);
   
-  // Filter only completed reports and sort by report_date DESC
-  const sortedReports = useMemo(() => 
-    allReports
-      .filter(r => r.processing_status === 'completed')
-      .sort((a, b) => {
-        const dateA = a.report_date ? new Date(a.report_date).getTime() : 0;
-        const dateB = b.report_date ? new Date(b.report_date).getTime() : 0;
-        return dateB - dateA; // DESC - plus récent en premier
-      }),
-    [allReports]
-  );
+  // Filter completed reports and sort by period end date + scope
+  const sortedReports = useMemo(() => {
+    const completed = allReports.filter(r => r.processing_status === 'completed');
+    return sortReportsByPeriodAndScope(completed);
+  }, [allReports]);
   
   // Latest report for the sidebar metrics
   const latestReport = sortedReports[0] || null;

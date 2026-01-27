@@ -203,6 +203,84 @@ export const formatReportPeriod = (period: string | null | undefined): string | 
   return period;
 };
 
+// Report type scope priority (higher = broader scope, displayed first)
+const REPORT_TYPE_SCOPE: Record<string, number> = {
+  'annual': 5,
+  'biannual': 4,
+  'seasonal': 3,
+  'quarterly': 3,
+  'monthly': 1,
+};
+
+// Parse report period to get END date for sorting
+export const getReportPeriodEndDate = (period: string | null | undefined): Date | null => {
+  if (!period) return null;
+  
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                      'july', 'august', 'september', 'october', 'november', 'december'];
+  
+  // "Q3 2025 (SS25 Season)" → extract Q3 2025 → end of september
+  const quarterWithExtraMatch = period.match(/^Q([1-4])\s+(\d{4})/i);
+  if (quarterWithExtraMatch) {
+    const quarter = parseInt(quarterWithExtraMatch[1]);
+    const year = parseInt(quarterWithExtraMatch[2]);
+    const endMonth = quarter * 3 - 1; // Q1→2 (mars), Q2→5 (juin), Q3→8 (sept), Q4→11 (déc)
+    return new Date(year, endMonth + 1, 0); // Last day of month
+  }
+  
+  // "October-December 2025" → end of december
+  const rangeMatch = period.match(/^(\w+)-(\w+)\s+(\d{4})$/i);
+  if (rangeMatch) {
+    const endMonthIndex = monthNames.indexOf(rangeMatch[2].toLowerCase());
+    if (endMonthIndex !== -1) {
+      const year = parseInt(rangeMatch[3]);
+      return new Date(year, endMonthIndex + 1, 0);
+    }
+  }
+  
+  // "November 2025" → end of november
+  const monthYearMatch = period.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})$/i);
+  if (monthYearMatch) {
+    const monthIndex = monthNames.indexOf(monthYearMatch[1].toLowerCase());
+    const year = parseInt(monthYearMatch[2]);
+    return new Date(year, monthIndex + 1, 0);
+  }
+  
+  return null;
+};
+
+// Get scope priority for sorting (higher = broader, displayed first at same end date)
+export const getReportTypeScope = (reportType: string | null | undefined): number => {
+  if (!reportType) return 0;
+  return REPORT_TYPE_SCOPE[reportType.toLowerCase()] || 1;
+};
+
+// Sort reports: by end date DESC, then by scope DESC (broader first)
+export const sortReportsByPeriodAndScope = <T extends { 
+  report_period: string | null; 
+  report_type: string | null;
+  report_date?: string | null;
+}>(reports: T[]): T[] => {
+  return [...reports].sort((a, b) => {
+    // 1. By period end date (most recent first)
+    const endDateA = getReportPeriodEndDate(a.report_period);
+    const endDateB = getReportPeriodEndDate(b.report_period);
+    
+    const timeA = endDateA?.getTime() || 0;
+    const timeB = endDateB?.getTime() || 0;
+    
+    if (timeA !== timeB) {
+      return timeB - timeA;
+    }
+    
+    // 2. At same date, broader scope first
+    const scopeA = getReportTypeScope(a.report_type);
+    const scopeB = getReportTypeScope(b.report_type);
+    
+    return scopeB - scopeA;
+  });
+};
+
 // Re-export color utilities for backward compatibility
 export { getSectorColors as getSectorColor, getInvestmentTypeColors as getInvestmentTypeColor };
 
