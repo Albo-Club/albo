@@ -63,23 +63,6 @@ export function PortfolioCompanyHeader({
           {preview && (
             <p className="text-muted-foreground mt-1 line-clamp-2">{preview}</p>
           )}
-
-          {/* Metadata */}
-          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-            {formattedDate && (
-              <span>Investi le: {formattedDate}</span>
-            )}
-            {domain && (
-              <a
-                href={`https://${domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                {domain}
-              </a>
-            )}
-          </div>
         </div>
       </div>
     </div>

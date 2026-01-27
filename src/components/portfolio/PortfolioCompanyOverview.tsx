@@ -224,9 +224,9 @@ export function PortfolioCompanyOverview({
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Investment Info Grid */}
+        {/* Investment Info Grid - 4 rows, 2 columns */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Entry Valuation */}
+          {/* Row 1: Entry Valuation | Amount Invested */}
           <div className="flex items-center gap-2">
             <DollarSign className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
@@ -237,7 +237,6 @@ export function PortfolioCompanyOverview({
             </div>
           </div>
           
-          {/* Amount Invested */}
           <div className="flex items-center gap-2">
             <Wallet className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
@@ -248,7 +247,7 @@ export function PortfolioCompanyOverview({
             </div>
           </div>
           
-          {/* Ownership */}
+          {/* Row 2: Ownership | Investment Type */}
           <div className="flex items-center gap-2">
             <PieChart className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
@@ -259,7 +258,6 @@ export function PortfolioCompanyOverview({
             </div>
           </div>
           
-          {/* Investment Type */}
           <div className="flex items-center gap-2">
             <Briefcase className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
@@ -281,66 +279,85 @@ export function PortfolioCompanyOverview({
               )}
             </div>
           </div>
-        </div>
 
-        {/* Domain */}
-        {company.domain && (
+          {/* Row 3: Domain | Investment Date */}
           <div className="flex items-center gap-2">
             <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground">Domaine</p>
-              <a 
-                href={`https://${company.domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline truncate block"
-              >
-                {company.domain}
-              </a>
+              {company.domain ? (
+                <a 
+                  href={`https://${company.domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline truncate block"
+                >
+                  {company.domain}
+                </a>
+              ) : (
+                <p className="text-xs font-medium">-</p>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Sectors */}
-        {company.sectors && company.sectors.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Date d'investissement</p>
+              <p className="text-xs font-medium">
+                {company.investment_date 
+                  ? format(new Date(company.investment_date), "d MMMM yyyy", { locale: fr })
+                  : "-"}
+              </p>
+            </div>
+          </div>
+
+          {/* Row 4: Sectors | Related People */}
           <div className="flex items-start gap-2">
             <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-muted-foreground mb-1">Secteurs</p>
-              <SectorBadges sectors={company.sectors} maxDisplay={3} />
-            </div>
-          </div>
-        )}
-
-        {/* Related People */}
-        {company.related_people && (
-          <div className="flex items-start gap-2">
-            <Users className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-muted-foreground mb-1">Related People</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">{company.related_people}</span>
-                {company.related_people_linkedin && (
-                  <a
-                    href={company.related_people_linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#0A66C2] hover:opacity-80 transition-opacity"
-                    title="Voir le profil LinkedIn"
-                  >
-                    <svg 
-                      className="h-3.5 w-3.5" 
-                      viewBox="0 0 24 24" 
-                      fill="currentColor"
-                    >
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
-                  </a>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Secteurs</p>
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {company.sectors && company.sectors.length > 0 ? (
+                  <SectorBadges sectors={company.sectors} maxDisplay={2} />
+                ) : (
+                  <p className="text-xs font-medium">-</p>
                 )}
               </div>
             </div>
           </div>
-        )}
+
+          <div className="flex items-start gap-2">
+            <Users className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Related People</p>
+              {company.related_people ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <p className="text-xs font-medium truncate">{company.related_people}</p>
+                  {company.related_people_linkedin && (
+                    <a 
+                      href={company.related_people_linkedin} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[#0A66C2] hover:opacity-80 transition-opacity"
+                      title="Voir le profil LinkedIn"
+                    >
+                      <svg 
+                        className="h-3 w-3" 
+                        viewBox="0 0 24 24" 
+                        fill="currentColor"
+                      >
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs font-medium">-</p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Metrics Section - Compact 6 metrics max */}
         {displayedMetrics.length > 0 && (
@@ -398,21 +415,6 @@ export function PortfolioCompanyOverview({
           </>
         )}
 
-        {/* Investment Date */}
-        {company.investment_date && (
-          <>
-            <Separator />
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Date d'investissement</p>
-                <p className="text-xs font-medium">
-                  {format(new Date(company.investment_date), "d MMMM yyyy", { locale: fr })}
-                </p>
-              </div>
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );
