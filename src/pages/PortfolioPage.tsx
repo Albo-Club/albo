@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Upload } from "lucide-react";
 import { usePortfolioCompanies } from "@/hooks/usePortfolioCompanies";
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioTable } from "@/components/portfolio/PortfolioTable";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { AddPortfolioCompanyModal } from "@/components/portfolio/AddPortfolioCompanyModal";
+import { ImportPortfolioModal } from "@/components/portfolio/ImportPortfolioModal";
 
 export default function PortfolioPage() {
   const { workspace, loading: workspaceLoading } = useWorkspace();
   const { data: companies = [], isLoading, error } = usePortfolioCompanies();
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   if (workspaceLoading || isLoading) {
     return (
@@ -51,10 +53,16 @@ export default function PortfolioPage() {
             Entreprises dans lesquelles le fonds a investi
           </p>
         </div>
-        <Button onClick={() => setAddModalOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Company
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setImportModalOpen(true)} variant="outline" className="gap-2">
+            <Upload className="h-4 w-4" />
+            Import CSV
+          </Button>
+          <Button onClick={() => setAddModalOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Company
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -67,6 +75,12 @@ export default function PortfolioPage() {
       <AddPortfolioCompanyModal 
         open={addModalOpen} 
         onClose={() => setAddModalOpen(false)} 
+      />
+
+      {/* Import CSV Modal */}
+      <ImportPortfolioModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
     </div>
   );
