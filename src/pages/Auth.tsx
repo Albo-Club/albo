@@ -31,7 +31,7 @@ export default function Auth() {
     setResetLoading(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth/confirm`,
     });
 
     if (error) {
@@ -62,8 +62,8 @@ export default function Auth() {
         email: signUpEmail,
         password: crypto.randomUUID(), // Mot de passe temporaire (l'utilisateur le définira après)
         options: {
-          // Rediriger vers setup-password pour définir le vrai mot de passe
-          emailRedirectTo: `${window.location.origin}/setup-password`
+          // Rediriger vers auth/confirm qui validera et redirigera vers setup-password
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
         }
       });
       
