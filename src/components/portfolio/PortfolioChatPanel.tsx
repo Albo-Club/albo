@@ -8,7 +8,7 @@
  * - Streaming simulé (effet machine à écrire)
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Send, 
   Bot, 
@@ -57,15 +57,24 @@ interface PortfolioChatPanelProps {
 // Composant principal
 // ============================================
 
+// Configuration du resize
+const MIN_PANEL_WIDTH = 350;
+const MAX_PANEL_WIDTH = 600;
+const DEFAULT_PANEL_WIDTH = 420;
+
 export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPanelProps) {
   // État local pour l'interface
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dragStartX = useRef<number>(0);
+  const dragStartWidth = useRef<number>(DEFAULT_PANEL_WIDTH);
   
   // Hook de chat
   const {
@@ -91,6 +100,45 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       }
     }
   }, [messages]);
+
+  // Handler pour le resize
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isExpanded) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = panelWidth;
+    setIsResizing(true);
+  }, [isExpanded, panelWidth]);
+
+  // Gestion du mouse move/up pour le resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const deltaX = dragStartX.current - e.clientX;
+      const newWidth = dragStartWidth.current + deltaX;
+      const clampedWidth = Math.min(Math.max(newWidth, MIN_PANEL_WIDTH), MAX_PANEL_WIDTH);
+      setPanelWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing]);
 
   // ============================================
   // Handlers
@@ -132,13 +180,13 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       <div
         key={message.id}
         className={cn(
-          "flex gap-3 mb-4",
+          "flex gap-2 mb-4",
           isUser ? "justify-end" : "justify-start"
         )}
       >
         {/* Avatar assistant */}
         {!isUser && (
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
             <Bot className="h-4 w-4 text-primary" />
           </div>
         )}
@@ -146,7 +194,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
         {/* Bulle de message */}
         <div
           className={cn(
-            "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
+            "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm",
             isUser
               ? "bg-primary text-primary-foreground"
               : "bg-muted"
@@ -259,8 +307,8 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
         
         {/* Avatar utilisateur */}
         {isUser && (
-          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-1">
-            <User className="h-4 w-4 text-secondary-foreground" />
+          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+            <User className="h-4 w-4 text-primary-foreground" />
           </div>
         )}
       </div>
@@ -272,8 +320,8 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   // ============================================
   
   const renderLoadingIndicator = () => (
-    <div className="flex gap-3 mb-4">
-      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+    <div className="flex gap-2 mb-4">
+      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
         <Bot className="h-4 w-4 text-primary" />
       </div>
       <div className="bg-muted rounded-2xl px-4 py-3">
@@ -374,10 +422,32 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       className={cn(
         "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300 flex flex-col",
         isExpanded 
-          ? "fixed inset-4 z-50 lg:inset-auto lg:absolute lg:-left-[400px] lg:right-0 lg:top-0 lg:bottom-0" 
-          : "h-[450px]"
+          ? "absolute bottom-0 right-0 z-50 shadow-xl" 
+          : "h-[450px]",
+        isResizing && "transition-none"
       )}
+      style={isExpanded ? { 
+        width: `${panelWidth}px`,
+        height: 'calc(100vh - 200px)',
+        maxHeight: '700px'
+      } : undefined}
     >
+      {/* Bordure de resize (uniquement en mode expanded) */}
+      {isExpanded && (
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-3 -translate-x-1/2 z-50",
+            "flex items-center justify-center cursor-ew-resize group",
+            "hover:bg-primary/10",
+            "before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2",
+            "before:w-0.5 before:bg-border before:rounded-full",
+            "hover:before:bg-primary/50 hover:before:w-1",
+            isResizing && "before:bg-primary before:w-1.5"
+          )}
+          title="Glisser pour redimensionner"
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50 shrink-0">
         <div className="flex items-center gap-2">
