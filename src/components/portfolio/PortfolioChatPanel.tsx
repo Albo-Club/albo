@@ -420,17 +420,13 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   return (
     <div
       className={cn(
-        "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300 flex flex-col",
+        "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300 flex flex-col relative",
         isExpanded 
-          ? "absolute bottom-0 right-0 z-50 shadow-xl" 
-          : "h-[450px]",
+          ? "h-[700px] shadow-xl" 
+          : "h-[400px]",
         isResizing && "transition-none"
       )}
-      style={isExpanded ? { 
-        width: `${panelWidth}px`,
-        height: 'calc(100vh - 200px)',
-        maxHeight: '700px'
-      } : undefined}
+      style={isExpanded ? { width: `${panelWidth}px` } : undefined}
     >
       {/* Bordure de resize (uniquement en mode expanded) */}
       {isExpanded && (
