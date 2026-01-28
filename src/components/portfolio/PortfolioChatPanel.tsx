@@ -57,24 +57,29 @@ interface PortfolioChatPanelProps {
 // Composant principal
 // ============================================
 
-// Configuration du resize
+// Configuration du resize (style LinkedIn Messenger)
 const MIN_PANEL_WIDTH = 350;
-const MAX_PANEL_WIDTH = 600;
-const DEFAULT_PANEL_WIDTH = 420;
+const MAX_PANEL_WIDTH = 650;
+const MIN_PANEL_HEIGHT = 350;
+const MAX_PANEL_HEIGHT = 700;
 
 export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPanelProps) {
   // État local pour l'interface
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [panelWidth, setPanelWidth] = useState(380);
+  const [panelHeight, setPanelHeight] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
+  const [resizeType, setResizeType] = useState<'width' | 'height' | 'both' | null>(null);
   
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragStartX = useRef<number>(0);
-  const dragStartWidth = useRef<number>(DEFAULT_PANEL_WIDTH);
+  const dragStartY = useRef<number>(0);
+  const dragStartWidth = useRef<number>(380);
+  const dragStartHeight = useRef<number>(400);
   
   // Hook de chat
   const {
@@ -101,35 +106,58 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
     }
   }, [messages]);
 
+  // Toggle expanded avec dimensions
+  const toggleExpanded = () => {
+    if (isExpanded) {
+      setPanelWidth(380);
+      setPanelHeight(400);
+    } else {
+      setPanelWidth(500);
+      setPanelHeight(600);
+    }
+    setIsExpanded(!isExpanded);
+  };
+
   // Handler pour le resize
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!isExpanded) return;
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent, type: 'width' | 'height' | 'both') => {
     e.preventDefault();
     e.stopPropagation();
     dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
     dragStartWidth.current = panelWidth;
+    dragStartHeight.current = panelHeight;
+    setResizeType(type);
     setIsResizing(true);
-  }, [isExpanded, panelWidth]);
+  }, [panelWidth, panelHeight]);
 
   // Gestion du mouse move/up pour le resize
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      const deltaX = dragStartX.current - e.clientX;
-      const newWidth = dragStartWidth.current + deltaX;
-      const clampedWidth = Math.min(Math.max(newWidth, MIN_PANEL_WIDTH), MAX_PANEL_WIDTH);
-      setPanelWidth(clampedWidth);
+      if (!isResizing || !resizeType) return;
+      
+      if (resizeType === 'width' || resizeType === 'both') {
+        const deltaX = dragStartX.current - e.clientX;
+        const newWidth = dragStartWidth.current + deltaX;
+        setPanelWidth(Math.min(Math.max(newWidth, MIN_PANEL_WIDTH), MAX_PANEL_WIDTH));
+      }
+      
+      if (resizeType === 'height' || resizeType === 'both') {
+        const deltaY = dragStartY.current - e.clientY;
+        const newHeight = dragStartHeight.current + deltaY;
+        setPanelHeight(Math.min(Math.max(newHeight, MIN_PANEL_HEIGHT), MAX_PANEL_HEIGHT));
+      }
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      setResizeType(null);
     };
 
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.userSelect = 'none';
-      document.body.style.cursor = 'ew-resize';
+      document.body.style.cursor = resizeType === 'width' ? 'ew-resize' : resizeType === 'height' ? 'ns-resize' : 'nwse-resize';
     }
 
     return () => {
@@ -138,7 +166,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-  }, [isResizing]);
+  }, [isResizing, resizeType]);
 
   // ============================================
   // Handlers
@@ -420,30 +448,34 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   return (
     <div
       className={cn(
-        "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300 flex flex-col relative",
-        isExpanded 
-          ? "h-[700px] shadow-xl" 
-          : "h-[400px]",
+        "fixed z-50 border rounded-lg bg-card shadow-xl overflow-hidden flex flex-col",
+        "transition-all duration-300 ease-in-out",
         isResizing && "transition-none"
       )}
-      style={isExpanded ? { width: `${panelWidth}px` } : undefined}
+      style={{
+        bottom: '24px',
+        right: '24px',
+        width: `${panelWidth}px`,
+        height: `${panelHeight}px`,
+      }}
     >
-      {/* Bordure de resize (uniquement en mode expanded) */}
-      {isExpanded && (
-        <div
-          onMouseDown={handleResizeMouseDown}
-          className={cn(
-            "absolute left-0 top-0 bottom-0 w-3 -translate-x-1/2 z-50",
-            "flex items-center justify-center cursor-ew-resize group",
-            "hover:bg-primary/10",
-            "before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2",
-            "before:w-0.5 before:bg-border before:rounded-full",
-            "hover:before:bg-primary/50 hover:before:w-1",
-            isResizing && "before:bg-primary before:w-1.5"
-          )}
-          title="Glisser pour redimensionner"
-        />
-      )}
+      {/* Bordure resize GAUCHE (largeur) */}
+      <div
+        onMouseDown={(e) => handleResizeMouseDown(e, 'width')}
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/20 transition-colors"
+      />
+      
+      {/* Bordure resize HAUT (hauteur) */}
+      <div
+        onMouseDown={(e) => handleResizeMouseDown(e, 'height')}
+        className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-primary/20 transition-colors"
+      />
+      
+      {/* Coin HAUT-GAUCHE (les deux) */}
+      <div
+        onMouseDown={(e) => handleResizeMouseDown(e, 'both')}
+        className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize hover:bg-primary/30 transition-colors z-10"
+      />
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50 shrink-0">
         <div className="flex items-center gap-2">
@@ -471,7 +503,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={toggleExpanded}
               >
                 {isExpanded ? (
                   <Minimize2 className="h-4 w-4" />
@@ -497,7 +529,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       {/* Zone de messages */}
       <ScrollArea 
         ref={scrollRef}
-        className="flex-1 px-3 py-3"
+        className="flex-1 px-3 py-3 overflow-y-auto"
       >
         <div className="space-y-1">
           {messages.length === 0 ? (
