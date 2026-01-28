@@ -1,12 +1,16 @@
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Plus } from "lucide-react";
 import { usePortfolioCompanies } from "@/hooks/usePortfolioCompanies";
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioTable } from "@/components/portfolio/PortfolioTable";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { Button } from "@/components/ui/button";
+import { AddPortfolioCompanyModal } from "@/components/portfolio/AddPortfolioCompanyModal";
 
 export default function PortfolioPage() {
   const { workspace, loading: workspaceLoading } = useWorkspace();
   const { data: companies = [], isLoading, error } = usePortfolioCompanies();
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   if (workspaceLoading || isLoading) {
     return (
@@ -40,11 +44,17 @@ export default function PortfolioPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
-        <p className="text-muted-foreground">
-          Entreprises dans lesquelles le fonds a investi
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
+          <p className="text-muted-foreground">
+            Entreprises dans lesquelles le fonds a investi
+          </p>
+        </div>
+        <Button onClick={() => setAddModalOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add Company
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -52,6 +62,12 @@ export default function PortfolioPage() {
 
       {/* Table */}
       <PortfolioTable data={companies} />
+
+      {/* Add Company Modal */}
+      <AddPortfolioCompanyModal 
+        open={addModalOpen} 
+        onClose={() => setAddModalOpen(false)} 
+      />
     </div>
   );
 }
