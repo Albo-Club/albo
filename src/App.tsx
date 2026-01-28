@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import ResetPassword from "./pages/ResetPassword";
+import AuthConfirm from "./pages/AuthConfirm";
 import SetupPassword from "./pages/SetupPassword";
 import CreateWorkspaceNew from "./pages/onboarding/CreateWorkspaceNew";
 import CreateProfile from "./pages/onboarding/CreateProfile";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/auth/confirm" element={<AuthConfirm />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/setup-password" element={<SetupPassword />} />
               <Route path="/invite/:token" element={<AcceptInvite />} />

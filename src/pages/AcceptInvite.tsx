@@ -275,8 +275,8 @@ export default function AcceptInvite() {
           data: {
             name: signupData.name,
           },
-          // Continuer le nouveau flux d'onboarding (setup-password -> complete-profile -> workspace)
-          emailRedirectTo: `${APP_CONFIG.baseUrl}/setup-password`,
+          // Rediriger vers auth/confirm qui validera et redirigera vers setup-password
+          emailRedirectTo: `${APP_CONFIG.baseUrl}/auth/confirm`,
         },
       });
 
