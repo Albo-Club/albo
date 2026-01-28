@@ -4,8 +4,8 @@
  * Interface style "Messenger" avec :
  * - Historique des conversations en accordéon
  * - Mode rétractable/agrandi
- * - Bulles de messages
- * - Input de message avec envoi
+ * - Bulles de messages avec Markdown
+ * - Streaming simulé (effet machine à écrire)
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -21,10 +21,12 @@ import {
   Loader2,
   History,
   Sparkles,
+  Square,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Collapsible, 
@@ -57,13 +59,13 @@ interface PortfolioChatPanelProps {
 
 export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPanelProps) {
   // État local pour l'interface
-  const [isExpanded, setIsExpanded] = useState(false); // Mode agrandi
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false); // Accordéon historique
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   
-  // Ref pour le scroll automatique
+  // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Hook de chat
   const {
@@ -71,17 +73,22 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
     messages,
     activeConversationId,
     isLoading,
-    isLoadingConversations,
+    isStreaming,
+    streamingMessageId,
     sendMessage,
     selectConversation,
     createNewConversation,
     deleteConversation,
+    stopStreaming,
   } = usePortfolioChat(companyId);
   
-  // Auto-scroll quand nouveaux messages
+  // Auto-scroll quand nouveaux messages ou streaming
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -90,7 +97,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   // ============================================
   
   const handleSendMessage = () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || isStreaming) return;
     sendMessage(inputValue.trim());
     setInputValue('');
   };
@@ -110,7 +117,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   const handleNewConversation = () => {
     createNewConversation();
     setIsHistoryOpen(false);
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   };
 
   // ============================================
@@ -119,18 +126,19 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   
   const renderMessage = (message: PortfolioMessage) => {
     const isUser = message.role === 'user';
+    const isCurrentlyStreaming = message.id === streamingMessageId;
     
     return (
       <div
         key={message.id}
         className={cn(
-          "flex gap-2 mb-4",
+          "flex gap-3 mb-4",
           isUser ? "justify-end" : "justify-start"
         )}
       >
         {/* Avatar assistant */}
         {!isUser && (
-          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
             <Bot className="h-4 w-4 text-primary" />
           </div>
         )}
@@ -138,7 +146,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
         {/* Bulle de message */}
         <div
           className={cn(
-            "max-w-[90%] rounded-2xl px-4 py-3 text-sm",
+            "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
             isUser
               ? "bg-primary text-primary-foreground"
               : "bg-muted"
@@ -201,7 +209,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
                       </code>
                     );
                   },
-                  // Blockquotes for sources
+                  // Blockquotes
                   blockquote: ({ children }) => (
                     <blockquote className="border-l-4 border-primary/50 pl-4 py-1 my-3 bg-primary/5 rounded-r-lg italic text-muted-foreground">
                       {children}
@@ -238,14 +246,49 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
                   ),
                 }}
               >
-                {message.content}
+                {message.content || ''}
               </ReactMarkdown>
+              
+              {/* Curseur clignotant pendant le streaming */}
+              {isCurrentlyStreaming && (
+                <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5" />
+              )}
             </div>
           )}
         </div>
+        
+        {/* Avatar utilisateur */}
+        {isUser && (
+          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-1">
+            <User className="h-4 w-4 text-secondary-foreground" />
+          </div>
+        )}
       </div>
     );
   };
+
+  // ============================================
+  // Rendu: Indicateur de chargement (typing)
+  // ============================================
+  
+  const renderLoadingIndicator = () => (
+    <div className="flex gap-3 mb-4">
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+        <Bot className="h-4 w-4 text-primary" />
+      </div>
+      <div className="bg-muted rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-2">
+          {/* Typing animation - 3 dots */}
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+          <span className="text-sm text-muted-foreground ml-2">Analyse en cours...</span>
+        </div>
+      </div>
+    </div>
+  );
 
   // ============================================
   // Rendu: Historique des conversations
@@ -283,11 +326,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
           </button>
           
           {/* Liste des conversations */}
-          {isLoadingConversations ? (
-            <div className="flex items-center justify-center py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : conversations.length === 0 ? (
+          {conversations.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               Aucune conversation
             </p>
@@ -333,19 +372,33 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   return (
     <div
       className={cn(
-        "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300",
+        "border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-300 flex flex-col",
         isExpanded 
           ? "fixed inset-4 z-50 lg:inset-auto lg:absolute lg:-left-[400px] lg:right-0 lg:top-0 lg:bottom-0" 
-          : "h-[400px]"
+          : "h-[450px]"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50">
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50 shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Chat with this deal</span>
+          <span className="font-medium text-sm">Assistant IA</span>
+          <span className="text-xs text-muted-foreground">• {companyName}</span>
         </div>
         <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleNewConversation}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Nouvelle conversation</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -369,70 +422,79 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       </div>
       
       {/* Historique (accordéon) */}
-      <div className="px-2 py-1 border-b">
-        {renderConversationHistory()}
-      </div>
+      {conversations.length > 0 && (
+        <div className="px-2 py-1 border-b shrink-0">
+          {renderConversationHistory()}
+        </div>
+      )}
       
       {/* Zone de messages */}
       <ScrollArea 
-        ref={scrollRef as any}
-        className={cn(
-          "px-3 py-3",
-          isExpanded ? "h-[calc(100%-140px)]" : "h-[calc(100%-140px)]"
-        )}
+        ref={scrollRef}
+        className="flex-1 px-3 py-3"
       >
         <div className="space-y-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-8">
               <Bot className="h-10 w-10 text-muted-foreground/50 mb-3" />
               <p className="text-sm text-muted-foreground mb-1">
-                Posez vos questions sur {companyName}
+                Posez une question sur {companyName}
               </p>
               <p className="text-xs text-muted-foreground/70">
-                Ex: "Quelle est l'évolution des AUM ?" ou "Résume les derniers reports"
+                Business model, métriques, stratégie...
               </p>
             </div>
           ) : (
-            messages.map(renderMessage)
-          )}
-          
-          {/* Indicateur de chargement amélioré */}
-          {isLoading && (
-            <div className="flex gap-2 mb-3">
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                <Bot className="h-4 w-4 text-primary" />
-              </div>
-              <div className="bg-muted rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">Analyse en cours...</span>
-                </div>
-              </div>
-            </div>
+            <>
+              {messages.map(renderMessage)}
+              {isLoading && !isStreaming && renderLoadingIndicator()}
+            </>
           )}
         </div>
       </ScrollArea>
       
       {/* Zone de saisie */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 border-t bg-card">
-        <div className="flex items-center gap-2">
-          <Input
-            ref={inputRef}
+      <div className="p-3 border-t bg-card shrink-0">
+        <div className="flex items-end gap-2">
+          <Textarea
+            ref={textareaRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Posez votre question..."
-            disabled={isLoading}
-            className="flex-1 h-9 text-sm"
+            disabled={isLoading || isStreaming}
+            className="min-h-[44px] max-h-[120px] resize-none text-sm flex-1"
+            rows={1}
           />
-          <Button
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          
+          {isStreaming ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-[44px] w-[44px] shrink-0"
+                  onClick={stopStreaming}
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Arrêter</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              size="icon"
+              className="h-[44px] w-[44px] shrink-0"
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>

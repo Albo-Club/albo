@@ -6,10 +6,11 @@
  * - La création de nouvelles conversations
  * - L'envoi de messages au webhook N8N
  * - La sauvegarde des messages dans Supabase
+ * - Le streaming simulé (effet machine à écrire)
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ export interface PortfolioMessage {
   content: string;
   attachments: any[];
   created_at: string;
+  isStreaming?: boolean; // Indique si le message est en cours de streaming
 }
 
 // ============================================
@@ -42,6 +44,10 @@ export interface PortfolioMessage {
 
 // URL du webhook N8N pour le chat portfolio
 const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df';
+
+// Configuration du streaming simulé
+const TYPING_SPEED = 12; // millisecondes par tick
+const CHUNK_SIZE = 4; // nombre de caractères à ajouter par tick
 
 // ============================================
 // Hook principal
@@ -55,10 +61,28 @@ export function usePortfolioChat(companyId: string | undefined) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<PortfolioMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // États pour le streaming futur
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  
+  // Ref pour le streaming
+  const streamingRef = useRef<{
+    fullContent: string;
+    currentIndex: number;
+    intervalId: NodeJS.Timeout | null;
+  }>({
+    fullContent: '',
+    currentIndex: 0,
+    intervalId: null,
+  });
+
+  // Cleanup du streaming au démontage
+  useEffect(() => {
+    return () => {
+      if (streamingRef.current.intervalId) {
+        clearInterval(streamingRef.current.intervalId);
+      }
+    };
+  }, []);
 
   // ============================================
   // Query: Charger les conversations de cette company
@@ -66,7 +90,6 @@ export function usePortfolioChat(companyId: string | undefined) {
   const {
     data: conversations = [],
     isLoading: isLoadingConversations,
-    refetch: refetchConversations,
   } = useQuery({
     queryKey: ['portfolio-conversations', companyId],
     queryFn: async () => {
@@ -85,117 +108,127 @@ export function usePortfolioChat(companyId: string | undefined) {
   });
 
   // ============================================
-  // Query: Charger les messages de la conversation active
+  // Fonction: Simuler le streaming (effet machine à écrire)
   // ============================================
-  const {
-    data: conversationMessages = [],
-    isLoading: isLoadingMessages,
-    refetch: refetchMessages,
-  } = useQuery({
-    queryKey: ['portfolio-messages', activeConversationId],
-    queryFn: async () => {
-      if (!activeConversationId) return [];
-      
-      const { data, error } = await supabase
-        .from('portfolio_conversation_messages')
-        .select('*')
-        .eq('conversation_id', activeConversationId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      return data as PortfolioMessage[];
-    },
-    enabled: !!activeConversationId,
-  });
+  const simulateStreaming = useCallback((
+    messageId: string, 
+    fullContent: string,
+    conversationId: string,
+    onComplete: () => void
+  ) => {
+    // Cleanup précédent
+    if (streamingRef.current.intervalId) {
+      clearInterval(streamingRef.current.intervalId);
+    }
 
-  // Mettre à jour l'état local quand les messages changent
-  useEffect(() => {
-    setMessages(conversationMessages);
-  }, [conversationMessages]);
+    streamingRef.current = {
+      fullContent,
+      currentIndex: 0,
+      intervalId: null,
+    };
 
-  // ============================================
-  // Mutation: Créer une nouvelle conversation
-  // ============================================
-  const createConversationMutation = useMutation({
-    mutationFn: async (title?: string) => {
-      if (!companyId || !user) throw new Error('Missing companyId or user');
-      
-      const { data, error } = await supabase
-        .from('portfolio_conversations')
-        .insert({
-          company_id: companyId,
-          user_id: user.id,
-          title: title || 'Nouvelle conversation',
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as PortfolioConversation;
-    },
-    onSuccess: (newConversation) => {
-      queryClient.invalidateQueries({ queryKey: ['portfolio-conversations', companyId] });
-      setActiveConversationId(newConversation.id);
-      setMessages([]);
-    },
-    onError: (error) => {
-      console.error('Error creating conversation:', error);
-      toast.error('Erreur lors de la création de la conversation');
-    },
-  });
+    setIsStreaming(true);
+    setStreamingMessageId(messageId);
 
-  // ============================================
-  // Mutation: Supprimer une conversation
-  // ============================================
-  const deleteConversationMutation = useMutation({
-    mutationFn: async (conversationId: string) => {
-      const { error } = await supabase
-        .from('portfolio_conversations')
-        .delete()
-        .eq('id', conversationId);
-      
-      if (error) throw error;
-      return conversationId;
-    },
-    onSuccess: (deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ['portfolio-conversations', companyId] });
-      if (activeConversationId === deletedId) {
-        setActiveConversationId(null);
-        setMessages([]);
+    // Créer le message vide avec flag streaming
+    setMessages(prev => [
+      ...prev,
+      {
+        id: messageId,
+        conversation_id: conversationId,
+        role: 'assistant',
+        content: '',
+        attachments: [],
+        created_at: new Date().toISOString(),
+        isStreaming: true,
       }
-      toast.success('Conversation supprimée');
-    },
-    onError: (error) => {
-      console.error('Error deleting conversation:', error);
-      toast.error('Erreur lors de la suppression');
-    },
-  });
+    ]);
+
+    // Streaming progressif
+    streamingRef.current.intervalId = setInterval(() => {
+      const { fullContent, currentIndex } = streamingRef.current;
+      
+      if (currentIndex >= fullContent.length) {
+        // Streaming terminé
+        if (streamingRef.current.intervalId) {
+          clearInterval(streamingRef.current.intervalId);
+          streamingRef.current.intervalId = null;
+        }
+        
+        // Mettre à jour le message final (sans flag streaming)
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: fullContent, isStreaming: false }
+            : msg
+        ));
+        
+        setIsStreaming(false);
+        setStreamingMessageId(null);
+        onComplete();
+        return;
+      }
+
+      // Ajouter les prochains caractères
+      const nextIndex = Math.min(currentIndex + CHUNK_SIZE, fullContent.length);
+      const newContent = fullContent.substring(0, nextIndex);
+      
+      streamingRef.current.currentIndex = nextIndex;
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content: newContent }
+          : msg
+      ));
+    }, TYPING_SPEED);
+  }, []);
 
   // ============================================
-  // Mutation: Renommer une conversation
+  // Fonction: Arrêter le streaming
   // ============================================
-  const renameConversationMutation = useMutation({
-    mutationFn: async ({ conversationId, newTitle }: { conversationId: string; newTitle: string }) => {
-      const { error } = await supabase
-        .from('portfolio_conversations')
-        .update({ title: newTitle })
-        .eq('id', conversationId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolio-conversations', companyId] });
-    },
-  });
+  const stopStreaming = useCallback(() => {
+    if (streamingRef.current.intervalId) {
+      clearInterval(streamingRef.current.intervalId);
+      streamingRef.current.intervalId = null;
+    }
+    
+    // Afficher le contenu complet immédiatement
+    if (streamingMessageId) {
+      setMessages(prev => prev.map(msg => 
+        msg.id === streamingMessageId 
+          ? { ...msg, content: streamingRef.current.fullContent, isStreaming: false }
+          : msg
+      ));
+    }
+    
+    setIsStreaming(false);
+    setStreamingMessageId(null);
+  }, [streamingMessageId]);
+
+  // ============================================
+  // Fonction: Charger les messages d'une conversation
+  // ============================================
+  const loadMessages = useCallback(async (conversationId: string) => {
+    const { data, error } = await supabase
+      .from('portfolio_conversation_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Error loading messages:', error);
+      return;
+    }
+    
+    setMessages(data as PortfolioMessage[]);
+  }, []);
 
   // ============================================
   // Fonction: Envoyer un message
   // ============================================
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || !user || !companyId) return;
+    if (!content.trim() || !user || !companyId || isLoading || isStreaming) return;
     
     setIsLoading(true);
-    setStreamingContent('');
     
     try {
       // 1. Créer une conversation si nécessaire
@@ -267,83 +300,136 @@ export function usePortfolioChat(companyId: string | undefined) {
       if (!assistantContent || assistantContent.trim() === '') {
         assistantContent = "Je n'ai pas pu générer de réponse. Veuillez réessayer.";
       }
+
+      // 4. Arrêter le loading, lancer le streaming
+      setIsLoading(false);
       
-      // 4. Sauvegarder la réponse de l'assistant
-      const { data: savedAssistantMsg, error: aiMsgError } = await supabase
-        .from('portfolio_conversation_messages')
-        .insert({
-          conversation_id: conversationId,
-          role: 'assistant',
-          content: assistantContent,
-          attachments: [],
-        })
-        .select()
-        .single();
+      // 5. Générer un ID temporaire pour le message streaming
+      const tempMessageId = `streaming-${Date.now()}`;
       
-      if (aiMsgError) throw aiMsgError;
-      
-      // Afficher la réponse de l'assistant
-      setMessages(prev => [...prev, savedAssistantMsg as PortfolioMessage]);
-      
-      // Mettre à jour le timestamp de la conversation
-      await supabase
-        .from('portfolio_conversations')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
+      // 6. Lancer le streaming simulé
+      simulateStreaming(tempMessageId, assistantContent, conversationId, async () => {
+        // Callback appelé quand le streaming est terminé
+        // Sauvegarder le message assistant dans Supabase
+        try {
+          const { data: savedAssistantMsg, error: assistantMsgError } = await supabase
+            .from('portfolio_conversation_messages')
+            .insert({
+              conversation_id: conversationId,
+              role: 'assistant',
+              content: assistantContent,
+              attachments: [],
+            })
+            .select()
+            .single();
+          
+          if (assistantMsgError) {
+            console.error('Erreur sauvegarde message:', assistantMsgError);
+          } else {
+            // Remplacer le message temporaire par le vrai
+            setMessages(prev => prev.map(msg => 
+              msg.id === tempMessageId ? (savedAssistantMsg as PortfolioMessage) : msg
+            ));
+          }
+          
+          // Mettre à jour le timestamp de la conversation
+          await supabase
+            .from('portfolio_conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', conversationId);
+            
+        } catch (err) {
+          console.error('Erreur sauvegarde:', err);
+        }
+      });
       
     } catch (error: any) {
       console.error('Erreur chat portfolio:', error);
       toast.error(error.message || 'Erreur de connexion');
-    } finally {
       setIsLoading(false);
-      setIsStreaming(false);
     }
-  }, [activeConversationId, companyId, user, queryClient]);
+  }, [activeConversationId, companyId, user, isLoading, isStreaming, queryClient, simulateStreaming]);
 
   // ============================================
   // Fonction: Sélectionner une conversation
   // ============================================
   const selectConversation = useCallback((conversationId: string | null) => {
+    // Arrêter le streaming en cours si besoin
+    stopStreaming();
+    
     setActiveConversationId(conversationId);
-    if (!conversationId) {
+    if (conversationId) {
+      loadMessages(conversationId);
+    } else {
       setMessages([]);
     }
-  }, []);
+  }, [loadMessages, stopStreaming]);
 
   // ============================================
   // Fonction: Créer une nouvelle conversation
   // ============================================
   const createNewConversation = useCallback(() => {
+    stopStreaming();
     setActiveConversationId(null);
     setMessages([]);
-  }, []);
+  }, [stopStreaming]);
+
+  // ============================================
+  // Fonction: Supprimer une conversation
+  // ============================================
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      // Supprimer les messages d'abord
+      await supabase
+        .from('portfolio_conversation_messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+      
+      // Puis la conversation
+      const { error } = await supabase
+        .from('portfolio_conversations')
+        .delete()
+        .eq('id', conversationId);
+      
+      if (error) throw error;
+      
+      // Rafraîchir et reset si c'était la conversation active
+      queryClient.invalidateQueries({ queryKey: ['portfolio-conversations', companyId] });
+      
+      if (activeConversationId === conversationId) {
+        setActiveConversationId(null);
+        setMessages([]);
+      }
+      
+      toast.success('Conversation supprimée');
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  }, [companyId, activeConversationId, queryClient]);
 
   // ============================================
   // Return
   // ============================================
   return {
-    // État
+    // Conversations
     conversations,
+    isLoadingConversations,
+    
+    // Messages
     messages,
     activeConversationId,
-    isLoading,
-    isLoadingConversations,
-    isLoadingMessages,
     
-    // Streaming (préparé pour le futur)
+    // États
+    isLoading,
     isStreaming,
-    streamingContent,
+    streamingMessageId,
     
     // Actions
     sendMessage,
     selectConversation,
     createNewConversation,
-    createConversation: createConversationMutation.mutate,
-    deleteConversation: deleteConversationMutation.mutate,
-    renameConversation: renameConversationMutation.mutate,
-    
-    // Mutations states
-    isCreating: createConversationMutation.isPending,
-    isDeleting: deleteConversationMutation.isPending,
+    deleteConversation,
+    stopStreaming,
   };
 }
