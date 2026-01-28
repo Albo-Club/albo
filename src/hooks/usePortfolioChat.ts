@@ -55,6 +55,10 @@ export function usePortfolioChat(companyId: string | undefined) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<PortfolioMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // États pour le streaming futur
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
 
   // ============================================
   // Query: Charger les conversations de cette company
@@ -191,6 +195,7 @@ export function usePortfolioChat(companyId: string | undefined) {
     if (!content.trim() || !user || !companyId) return;
     
     setIsLoading(true);
+    setStreamingContent('');
     
     try {
       // 1. Créer une conversation si nécessaire
@@ -238,7 +243,7 @@ export function usePortfolioChat(companyId: string | undefined) {
           message: content,
           user_id: user.id,
           conversation_id: conversationId,
-          portfolio_company_id: companyId, // ID de la company pour le cloisonnement
+          portfolio_company_id: companyId,
         }),
       });
       
@@ -252,15 +257,15 @@ export function usePortfolioChat(companyId: string | undefined) {
       let assistantContent: string;
       
       if (Array.isArray(data) && data.length > 0) {
-        assistantContent = data[0].message || data[0].output || data[0].response;
+        assistantContent = data[0].message || data[0].output || data[0].response || '';
       } else if (data && typeof data === 'object') {
-        assistantContent = data.message || data.output || data.response;
+        assistantContent = data.message || data.output || data.response || '';
       } else {
         throw new Error('Format de réponse invalide');
       }
       
       if (!assistantContent || assistantContent.trim() === '') {
-        throw new Error('Réponse IA vide');
+        assistantContent = "Je n'ai pas pu générer de réponse. Veuillez réessayer.";
       }
       
       // 4. Sauvegarder la réponse de l'assistant
@@ -280,11 +285,18 @@ export function usePortfolioChat(companyId: string | undefined) {
       // Afficher la réponse de l'assistant
       setMessages(prev => [...prev, savedAssistantMsg as PortfolioMessage]);
       
+      // Mettre à jour le timestamp de la conversation
+      await supabase
+        .from('portfolio_conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+      
     } catch (error: any) {
       console.error('Erreur chat portfolio:', error);
       toast.error(error.message || 'Erreur de connexion');
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   }, [activeConversationId, companyId, user, queryClient]);
 
@@ -317,6 +329,10 @@ export function usePortfolioChat(companyId: string | undefined) {
     isLoading,
     isLoadingConversations,
     isLoadingMessages,
+    
+    // Streaming (préparé pour le futur)
+    isStreaming,
+    streamingContent,
     
     // Actions
     sendMessage,

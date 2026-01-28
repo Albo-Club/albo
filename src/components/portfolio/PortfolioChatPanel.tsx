@@ -10,7 +10,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  MessageSquare, 
   Send, 
   Bot, 
   ChevronDown, 
@@ -37,8 +36,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { usePortfolioChat, PortfolioMessage, PortfolioConversation } from '@/hooks/usePortfolioChat';
+import { usePortfolioChat, PortfolioMessage } from '@/hooks/usePortfolioChat';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // ============================================
 // Props
@@ -122,13 +124,13 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
       <div
         key={message.id}
         className={cn(
-          "flex gap-2 mb-3",
+          "flex gap-2 mb-4",
           isUser ? "justify-end" : "justify-start"
         )}
       >
         {/* Avatar assistant */}
         {!isUser && (
-          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
             <Bot className="h-4 w-4 text-primary" />
           </div>
         )}
@@ -136,16 +138,109 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
         {/* Bulle de message */}
         <div
           className={cn(
-            "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
+            "max-w-[90%] rounded-2xl px-4 py-3 text-sm",
             isUser
               ? "bg-primary text-primary-foreground"
-              : "bg-muted prose prose-sm dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 max-w-none"
+              : "bg-muted"
           )}
         >
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-table:my-3">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  // Headers
+                  h1: ({ children }) => (
+                    <h1 className="text-lg font-bold text-foreground border-b border-border pb-2 mb-3">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-base font-semibold text-foreground mt-4 mb-2">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-sm font-semibold text-foreground mt-3 mb-1">{children}</h3>
+                  ),
+                  // Tables
+                  table: ({ children }) => (
+                    <div className="overflow-x-auto my-3 rounded-lg border border-border">
+                      <table className="min-w-full divide-y divide-border text-xs">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-muted/50">{children}</thead>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-3 py-2 text-muted-foreground border-t border-border">
+                      {children}
+                    </td>
+                  ),
+                  // Code blocks with syntax highlighting
+                  code: ({ node, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const isInline = !match && !className;
+                    return !isInline && match ? (
+                      <SyntaxHighlighter
+                        style={oneDark}
+                        language={match[1]}
+                        PreTag="div"
+                        className="rounded-lg text-xs my-2"
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className="bg-muted-foreground/20 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  // Blockquotes for sources
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-primary/50 pl-4 py-1 my-3 bg-primary/5 rounded-r-lg italic text-muted-foreground">
+                      {children}
+                    </blockquote>
+                  ),
+                  // Links
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  // Lists
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-foreground">{children}</li>
+                  ),
+                  // Strong/Bold
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-foreground">{children}</strong>
+                  ),
+                  // Paragraphs
+                  p: ({ children }) => (
+                    <p className="my-2 leading-relaxed">{children}</p>
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
           )}
         </div>
       </div>
@@ -286,34 +381,36 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
           isExpanded ? "h-[calc(100%-140px)]" : "h-[calc(100%-140px)]"
         )}
       >
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-8">
-            <Bot className="h-10 w-10 text-muted-foreground/50 mb-3" />
-            <p className="text-sm text-muted-foreground mb-1">
-              Posez vos questions sur {companyName}
-            </p>
-            <p className="text-xs text-muted-foreground/70">
-              Ex: "Quelle est l'évolution des AUM ?" ou "Résume les derniers reports"
-            </p>
-          </div>
-        ) : (
-          messages.map(renderMessage)
-        )}
-        
-        {/* Indicateur de chargement */}
-        {isLoading && (
-          <div className="flex gap-2 mb-3">
-            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-primary" />
+        <div className="space-y-1">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-8">
+              <Bot className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <p className="text-sm text-muted-foreground mb-1">
+                Posez vos questions sur {companyName}
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Ex: "Quelle est l'évolution des AUM ?" ou "Résume les derniers reports"
+              </p>
             </div>
-            <div className="bg-muted rounded-2xl px-3 py-2">
-              <div className="flex items-center gap-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span className="text-xs text-muted-foreground">Réflexion...</span>
+          ) : (
+            messages.map(renderMessage)
+          )}
+          
+          {/* Indicateur de chargement amélioré */}
+          {isLoading && (
+            <div className="flex gap-2 mb-3">
+              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <Bot className="h-4 w-4 text-primary" />
+              </div>
+              <div className="bg-muted rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Analyse en cours...</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </ScrollArea>
       
       {/* Zone de saisie */}
