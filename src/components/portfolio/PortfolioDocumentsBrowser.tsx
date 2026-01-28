@@ -569,7 +569,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
     isUploadingFile,
     isRenaming,
     isDeleting,
-    deckProcessing,
   } = usePortfolioDocuments(companyId);
 
   // State
@@ -1078,34 +1077,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
         }}
       />
 
-      {/* Deck Processing Modal */}
-      <Dialog open={deckProcessing.isProcessing} onOpenChange={() => {}}>
-        <DialogContent 
-          className="sm:max-w-md"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <div className="flex flex-col items-center justify-center py-8 space-y-6">
-            <div className="relative">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 text-primary animate-spin" />
-              </div>
-            </div>
-            
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold">Deck en cours d'ajout...</h3>
-              {deckProcessing.fileName && (
-                <p className="text-sm text-muted-foreground font-medium">
-                  {deckProcessing.fileName}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Cela peut prendre quelques secondes
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
