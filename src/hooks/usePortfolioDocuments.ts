@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,6 +20,11 @@ export interface PortfolioDocument {
   created_at: string;
   updated_at: string;
   source_bucket?: string; // Optional: indicates the source storage bucket
+}
+
+export interface DeckProcessingState {
+  isProcessing: boolean;
+  fileName: string | null;
 }
 
 export interface DocumentTreeNode extends PortfolioDocument {
@@ -76,6 +82,12 @@ function getFileExtension(fileName: string): string {
 export function usePortfolioDocuments(companyId: string | undefined) {
   const queryClient = useQueryClient();
   const queryKey = ['portfolio-documents', companyId];
+  
+  // State for deck processing modal
+  const [deckProcessing, setDeckProcessing] = useState<DeckProcessingState>({
+    isProcessing: false,
+    fileName: null,
+  });
 
   // Fetch documents only (no virtual synthesis files)
   const {
@@ -204,6 +216,9 @@ export function usePortfolioDocuments(companyId: string | undefined) {
         if (parentFolder?.name === 'Deck') {
           console.log('📂 PDF uploaded to Deck folder. Initiating embedding process...');
           
+          // Afficher la modal de traitement
+          setDeckProcessing({ isProcessing: true, fileName: file.name });
+          
           // Récupérer l'entrée deck_embeddings créée par le trigger
           // On attend un peu pour laisser le trigger s'exécuter
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -250,19 +265,39 @@ export function usePortfolioDocuments(companyId: string | undefined) {
                 // Ne pas mettre Content-Type, le browser le gère automatiquement pour FormData
               });
               
+              // Fermer la modal de traitement
+              setDeckProcessing({ isProcessing: false, fileName: null });
+              
               if (!response.ok) {
                 console.error('❌ N8N webhook failed:', response.status, await response.text());
-                // On ne throw pas l'erreur pour ne pas bloquer l'upload
-                // L'embedding pourra être relancé manuellement si nécessaire
+                toast.error("Erreur lors de l'ajout du deck", {
+                  description: "Le traitement a échoué. Veuillez réessayer.",
+                  duration: 8000,
+                });
               } else {
                 console.log('✅ N8N webhook called successfully');
+                toast.success("Ajout réussi !", {
+                  description: "Vous pouvez dès à présent discuter avec ce document.",
+                  duration: 5000,
+                });
               }
             } catch (webhookError) {
               console.error('❌ Error calling N8N webhook:', webhookError);
-              // Idem, on ne bloque pas l'upload
+              // Fermer la modal de traitement
+              setDeckProcessing({ isProcessing: false, fileName: null });
+              toast.error("Erreur lors de l'ajout du deck", {
+                description: "Veuillez vérifier votre connexion et réessayer.",
+                duration: 8000,
+              });
             }
           } else {
             console.warn('⚠️ No deck_embedding entry found for document:', data.id);
+            // Fermer la modal de traitement
+            setDeckProcessing({ isProcessing: false, fileName: null });
+            toast.error("Erreur lors de l'ajout du deck", {
+              description: "L'enregistrement n'a pas pu être créé.",
+              duration: 8000,
+            });
           }
         }
       }
@@ -497,6 +532,9 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     // Content update
     updateContent: updateContentMutation.mutateAsync,
     isUpdatingContent: updateContentMutation.isPending,
+
+    // Deck processing state (for modal)
+    deckProcessing,
 
     // Helpers
     downloadFile,
