@@ -46,7 +46,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const parentLabel = parentPath ? routeLabels[parentPath] : null;
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset
         className={cn(

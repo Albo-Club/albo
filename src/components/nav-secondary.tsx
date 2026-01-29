@@ -1,5 +1,5 @@
+import { useState } from "react";
 import { type LucideIcon } from "lucide-react";
-import { NavLink } from "react-router-dom";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -7,6 +7,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { FeedbackModal } from "@/components/FeedbackModal";
 
 interface NavSecondaryItem {
   title: string;
@@ -19,22 +20,37 @@ interface NavSecondaryProps extends React.ComponentPropsWithoutRef<typeof Sideba
 }
 
 export function NavSecondary({ items, ...props }: NavSecondaryProps) {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const handleItemClick = (item: NavSecondaryItem) => {
+    if (item.title === "Feedback") {
+      setFeedbackOpen(true);
+    }
+  };
+
   return (
-    <SidebarGroup {...props}>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild size="sm" tooltip={item.title}>
-                <NavLink to={item.url}>
+    <>
+      <SidebarGroup {...props}>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {items.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton 
+                  size="sm" 
+                  tooltip={item.title}
+                  onClick={() => handleItemClick(item)}
+                  className="cursor-pointer"
+                >
                   <item.icon className="h-4 w-4" />
                   <span>{item.title}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      
+      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </>
   );
 }
