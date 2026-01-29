@@ -50,11 +50,11 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       <AppSidebar />
       <SidebarInset
         className={cn(
-          "transition-all duration-300 ease-in-out",
+          "transition-all duration-300 ease-in-out flex flex-col h-svh overflow-hidden",
           isOpen ? "md:mr-[400px]" : "mr-0"
         )}
       >
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -90,8 +90,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             </Button>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="max-w-7xl mx-auto w-full py-6">
+        <div className="flex-1 overflow-y-auto scrollbar-none">
+          <div className="max-w-7xl mx-auto w-full p-4 py-6">
             {children}
           </div>
         </div>

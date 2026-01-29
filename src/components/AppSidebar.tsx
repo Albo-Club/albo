@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Home, Target, Wallet, Send } from "lucide-react";
+import { Home, Target, Wallet } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -48,9 +48,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ];
 
-  const navSecondaryItems = [
-    { title: "Feedback", url: "#", icon: Send },
-  ];
+  const navSecondaryItems: { title: string; url: string; icon: typeof Home }[] = [];
 
   const handleSignOut = async () => {
     await signOut();
