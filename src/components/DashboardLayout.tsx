@@ -46,11 +46,11 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const parentLabel = parentPath ? routeLabels[parentPath] : null;
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={true} className="h-svh overflow-hidden">
       <AppSidebar />
       <SidebarInset
         className={cn(
-          "transition-all duration-300 ease-in-out flex flex-col h-svh overflow-hidden",
+          "transition-all duration-300 ease-in-out flex flex-col h-svh md:h-[calc(100svh-1rem)] overflow-hidden",
           isOpen ? "md:mr-[400px]" : "mr-0"
         )}
       >
@@ -90,8 +90,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             </Button>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto scrollbar-none">
-          <div className="max-w-7xl mx-auto w-full p-4 py-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none min-h-0">
+          <div className="max-w-7xl mx-auto w-full min-w-0 p-4 py-6">
             {children}
           </div>
         </div>
