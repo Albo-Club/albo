@@ -10,11 +10,11 @@ export interface PortfolioCompany {
   domain: string | null;
   preview: string | null;
   logo_url: string | null;
-  amount_invested_cents: number | null;
+  amount_invested_euros: number | null;
   investment_date: string | null;
   investment_type: string | null;
   ownership_percentage: number | null;
-  entry_valuation_cents: number | null;
+  entry_valuation_euros: number | null;
   last_news: string | null;
   last_news_updated_at: string | null;
   latest_metrics: Record<string, unknown> | null;

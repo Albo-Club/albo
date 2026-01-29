@@ -1,13 +1,13 @@
 import { getSectorColors, getInvestmentTypeColors } from '@/types/portfolio';
 
-// Format montant en euros depuis les centimes
-export const formatCurrency = (cents: number | null): string => {
-  if (!cents) return '-';
+// Format montant en euros (valeurs stockées directement en euros)
+export const formatCurrency = (euros: number | null): string => {
+  if (!euros) return '-';
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
-  }).format(cents / 100);
+  }).format(euros);
 };
 
 // Format pourcentage depuis décimal (0.00156 → 0.156%)

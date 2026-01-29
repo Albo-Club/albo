@@ -117,10 +117,10 @@ export function AddPortfolioCompanyModal({ open, onClose }: AddPortfolioCompanyM
 
     try {
       // Prepare data
-      const amountCents = amountInvested ? Math.round(parseFloat(amountInvested) * 100) : null;
-      const valuationCents = entryValuation ? Math.round(parseFloat(entryValuation) * 100) : null;
-      const ownershipDecimal = amountCents && valuationCents && valuationCents > 0
-        ? amountCents / valuationCents
+      const amountEuros = amountInvested ? parseFloat(amountInvested) : null;
+      const valuationEuros = entryValuation ? parseFloat(entryValuation) : null;
+      const ownershipDecimal = amountEuros && valuationEuros && valuationEuros > 0
+        ? amountEuros / valuationEuros
         : null;
       const foundersString = founders.filter(f => f.trim()).join(', ');
 
@@ -132,9 +132,9 @@ export function AddPortfolioCompanyModal({ open, onClose }: AddPortfolioCompanyM
         sectors: sectors.length > 0 ? sectors : null,
         related_people: foundersString || null,
         investment_date: investmentDate ? format(investmentDate, 'yyyy-MM-dd') : null,
-        amount_invested_cents: amountCents,
+        amount_invested_euros: amountEuros,
         investment_type: investmentType || null,
-        entry_valuation_cents: valuationCents,
+        entry_valuation_euros: valuationEuros,
         ownership_percentage: ownershipDecimal,
       });
 

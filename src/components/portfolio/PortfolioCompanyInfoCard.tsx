@@ -21,8 +21,8 @@ import { getInvestmentTypeColors } from "@/types/portfolio";
 
 interface PortfolioCompanyInfoCardProps {
   company: {
-    entry_valuation_cents: number | null;
-    amount_invested_cents: number | null;
+    entry_valuation_euros: number | null;
+    amount_invested_euros: number | null;
     ownership_percentage: number | null;
     investment_type: string | null;
     domain: string | null;
@@ -33,11 +33,6 @@ interface PortfolioCompanyInfoCardProps {
 }
 
 export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardProps) {
-  const centsToEuros = (cents: number | null): string | null => {
-    if (cents === null) return null;
-    return formatAmount(String(cents / 100));
-  };
-
   const isOlderThanOneMonth = company.last_news_updated_at
     ? differenceInMonths(new Date(), new Date(company.last_news_updated_at)) >= 1
     : false;
@@ -58,12 +53,12 @@ export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardPr
     {
       icon: DollarSign,
       label: "Valorisation d'entrée",
-      value: centsToEuros(company.entry_valuation_cents),
+      value: company.entry_valuation_euros ? formatAmount(String(company.entry_valuation_euros)) : null,
     },
     {
       icon: Wallet,
       label: "Montant investi",
-      value: centsToEuros(company.amount_invested_cents),
+      value: company.amount_invested_euros ? formatAmount(String(company.amount_invested_euros)) : null,
     },
     {
       icon: PieChart,

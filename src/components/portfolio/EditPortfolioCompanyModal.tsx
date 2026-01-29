@@ -59,14 +59,14 @@ export function EditPortfolioCompanyModal({ open, onOpenChange, company }: EditP
         company.investment_date ? parseISO(company.investment_date) : undefined
       );
       setAmountInvested(
-        company.amount_invested_cents 
-          ? (company.amount_invested_cents / 100).toString() 
+        company.amount_invested_euros 
+          ? company.amount_invested_euros.toString() 
           : ''
       );
       setInvestmentType(company.investment_type || '');
       setEntryValuation(
-        company.entry_valuation_cents 
-          ? (company.entry_valuation_cents / 100).toString() 
+        company.entry_valuation_euros 
+          ? company.entry_valuation_euros.toString() 
           : ''
       );
       setStep(1);
@@ -127,10 +127,10 @@ export function EditPortfolioCompanyModal({ open, onOpenChange, company }: EditP
     setIsSubmitting(true);
 
     try {
-      const amountCents = amountInvested ? Math.round(parseFloat(amountInvested) * 100) : null;
-      const valuationCents = entryValuation ? Math.round(parseFloat(entryValuation) * 100) : null;
-      const ownershipDecimal = amountCents && valuationCents && valuationCents > 0
-        ? amountCents / valuationCents
+      const amountEuros = amountInvested ? parseFloat(amountInvested) : null;
+      const valuationEuros = entryValuation ? parseFloat(entryValuation) : null;
+      const ownershipDecimal = amountEuros && valuationEuros && valuationEuros > 0
+        ? amountEuros / valuationEuros
         : null;
       const foundersString = founders.filter(f => f.trim()).join(', ');
 
@@ -141,9 +141,9 @@ export function EditPortfolioCompanyModal({ open, onOpenChange, company }: EditP
         sectors: sectors.length > 0 ? sectors : null,
         related_people: foundersString || null,
         investment_date: investmentDate ? format(investmentDate, 'yyyy-MM-dd') : null,
-        amount_invested_cents: amountCents,
+        amount_invested_euros: amountEuros,
         investment_type: investmentType || null,
-        entry_valuation_cents: valuationCents,
+        entry_valuation_euros: valuationEuros,
         ownership_percentage: ownershipDecimal,
       };
 

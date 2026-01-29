@@ -9,7 +9,7 @@ interface PortfolioStatsProps {
 
 export function PortfolioStats({ companies }: PortfolioStatsProps) {
   const totalInvested = companies.reduce(
-    (sum, c) => sum + (c.amount_invested_cents || 0),
+    (sum, c) => sum + (c.amount_invested_euros || 0),
     0
   );
 
