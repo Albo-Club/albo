@@ -335,8 +335,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="flex flex-col h-full w-full">
+      <div className="shrink-0 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Deals</h1>
           <p className="text-muted-foreground">
@@ -351,7 +351,7 @@ export default function Dashboard() {
       </div>
 
       {deals.length === 0 ? (
-        <Card className="text-center py-12">
+        <Card className="shrink-0 text-center py-12 mt-6">
           <CardContent>
             <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Aucun deal</h3>
@@ -364,7 +364,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable columns={columns} data={deals} />
+        <div className="flex-1 min-h-0 mt-6">
+          <DataTable columns={columns} data={deals} />
+        </div>
       )}
 
       <DealSidePanel

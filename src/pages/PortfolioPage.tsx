@@ -44,9 +44,9 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
           <p className="text-muted-foreground">
@@ -66,10 +66,14 @@ export default function PortfolioPage() {
       </div>
 
       {/* Stats Cards */}
-      <PortfolioStats companies={companies} />
+      <div className="shrink-0 mt-6">
+        <PortfolioStats companies={companies} />
+      </div>
 
-      {/* Table */}
-      <PortfolioTable data={companies} />
+      {/* Table - takes remaining space */}
+      <div className="flex-1 min-h-0 mt-6">
+        <PortfolioTable data={companies} />
+      </div>
 
       {/* Add Company Modal */}
       <AddPortfolioCompanyModal 
