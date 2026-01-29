@@ -1,85 +1,300 @@
 
-## Objectifs (problèmes constatés)
-1) Le “scroll” à droite de la sidebar est en réalité le composant **SidebarRail** (`<button data-sidebar="rail" ...>`). Vous ne le voulez pas → on le supprime.
-2) Les **coins arrondis du bas** de la zone principale ne sont pas visibles car le layout déborde verticalement (souvent lié à un combo `h-svh` + `md:m-2` + flex scroll sans `min-h-0`) → on verrouille la hauteur correctement et on force le scroll à l’intérieur.
-3) Éviter que toute la partie droite (header inclus) “glisse”/déborde : on force **overflow-x hidden** au bon niveau et on garde uniquement le tableau en scroll horizontal (déjà prévu dans `DataTable`).
+
+# Plan : Améliorations de l'interface et des performances
+
+## Résumé des demandes
+
+1. **Supprimer "Vue d'ensemble"** de la sidebar (actuellement visible pour certains users)
+2. **Opportunités : afficher tous les deals du workspace** par défaut (pas seulement ceux de l'utilisateur)
+3. **Colonne "Propriétaire"** : afficher un avatar rond avec image ou initiales (comme le profil utilisateur en bas à gauche)
+4. **Avatar utilisateur en rond** (pas carré avec radius) - garder le carré pour le logo workspace
+5. **Scroll vertical à l'intérieur des tableaux** pour garder la pagination visible
+6. **Lazy loading / virtualisation** pour gérer 70+ éléments sans problème de performance
 
 ---
 
-## 1) Supprimer le composant “rail” (et le faux “scrollbar” de la sidebar)
-### Changements
-- **Fichier**: `src/components/AppSidebar.tsx`
-  - Supprimer l’import `SidebarRail`
-  - Supprimer `<SidebarRail />` en bas du composant
+## 1. Supprimer "Vue d'ensemble" de la sidebar
 
-### Résultat attendu
-- Le bouton/rail avec `data-sidebar="rail"` disparaît complètement.
-- La sidebar reste ouvrable/fermable uniquement via:
-  - le bouton `SidebarTrigger` dans le header
-  - le raccourci clavier (Ctrl/Cmd + B)
+### Fichier : `src/components/AppSidebar.tsx`
 
----
+Supprimer le code qui ajoute conditionnellement "Vue d'ensemble" pour les FLAGGED_USERS.
 
-## 2) Fix des 4 coins arrondis visibles (haut + bas) sur `SidebarInset`
-### Pourquoi ça arrive
-Actuellement `DashboardLayout` impose `h-svh` sur `SidebarInset`, mais `SidebarInset` reçoit aussi (via `src/components/ui/sidebar.tsx`) du style “inset” avec `md:m-2`.
-- Sur desktop, `h:100svh` + marges verticales (`m-2` => 0.5rem en haut + 0.5rem en bas) = **débordement vertical**, donc on “perd” le bas (coins arrondis hors écran).
-- De plus, dans un layout flex colonne, un enfant scrollable sans `min-h-0` peut forcer le parent à grandir au lieu de scroller.
+Avant :
+```typescript
+const navMainItems = [
+  ...(canSeeDashboard ? [{
+    title: "Vue d'ensemble",
+    url: "/dashboard",
+    icon: Home,
+  }] : []),
+  ...
+];
+```
 
-### Changements (principaux)
-- **Fichier**: `src/components/DashboardLayout.tsx`
-  1) Mettre la contrainte de hauteur au bon endroit:
-     - Appliquer `h-svh overflow-hidden` au wrapper de layout (idéalement sur `SidebarProvider` via `className`, ou au minimum sur un conteneur direct).
-  2) Sur `SidebarInset`, remplacer le `h-svh` “brut” par une hauteur qui tient compte des marges en desktop:
-     - Exemple: `h-svh md:h-[calc(100svh-1rem)]` (car `m-2` => total vertical 1rem)
-  3) Rendre le conteneur scroll vertical “réellement scrollable” sans pousser le parent:
-     - Ajouter `min-h-0` sur le bloc `flex-1` qui a `overflow-y-auto`
+Après :
+```typescript
+const navMainItems = [
+  {
+    title: "Opportunités",
+    url: "/opportunities",
+    icon: Target,
+  },
+  {
+    title: "Portfolio",
+    url: "/portfolio",
+    icon: Wallet,
+  },
+];
+```
 
-### Résultat attendu
-- La zone principale “inset” tient exactement dans la hauteur visible.
-- Les 4 coins arrondis restent visibles (notamment en bas).
-- Le scroll vertical se fait **dans le contenu** (pas sur la page entière).
-
----
-
-## 3) Empêcher le scroll horizontal du layout (header + inset), garder uniquement le tableau scrollable
-### État actuel
-- `src/components/deals/data-table.tsx` est déjà correct: wrapper `overflow-x-auto` + `Table` en `minWidth: 1100px`.
-- Si malgré ça “toute la partie droite” scrolle horizontalement, c’est qu’un parent autorise un débordement X.
-
-### Changements
-- **Fichier**: `src/components/DashboardLayout.tsx`
-  - Ajouter/renforcer `overflow-x-hidden` sur:
-    - `SidebarInset` (ou le conteneur principal)
-    - le conteneur scroll vertical (`flex-1 overflow-y-auto`)
-- Optionnel (si nécessaire):
-  - Ajouter `w-full min-w-0` sur certains wrappers pour éviter qu’un enfant impose une largeur > parent (classique en flex).
-
-### Résultat attendu
-- Aucun scroll horizontal “global” sur la partie droite.
-- Seul le tableau affiche son propre scroll horizontal.
+Supprimer également les imports `Home` et la constante `FLAGGED_USERS` si elle n'est plus utilisée.
 
 ---
 
-## 4) Checklist de validation (rapide)
-1) Aller sur `/opportunities`
-2) Vérifier que l’élément `data-sidebar="rail"` n’existe plus dans le DOM
-3) Vérifier:
-   - sidebar ouverte par défaut
-   - toggle via bouton en header OK
-4) Descendre dans la page:
-   - la page ne doit pas “scroller le body”
-   - le contenu scrolle dans la zone centrale
-   - les coins arrondis bas restent visibles
-5) Vérifier le tableau:
-   - scroll horizontal uniquement dans le tableau
-   - header ne bouge pas horizontalement
+## 2. Opportunités : afficher tous les deals du workspace par défaut
+
+### Fichier : `src/pages/Dashboard.tsx`
+
+Actuellement, le code récupère les deals différemment selon `isPersonalMode`. Pour simplifier et afficher tous les deals du workspace par défaut :
+
+Modifier la logique de `fetchDeals` pour que :
+- En mode **workspace** (isPersonalMode = false), on récupère **tous les deals du workspace** via `get_workspace_deals`
+- En mode **personnel** (isPersonalMode = true), on garde le comportement actuel (deals de l'utilisateur uniquement)
+
+Le code actuel fait déjà ça mais il faut aussi inclure `avatar_url` dans la requête pour l'avatar du propriétaire.
+
+**Changement dans la requête** :
+```typescript
+owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
+```
 
 ---
 
-## Détails techniques (pour implementation)
-- Fichiers modifiés:
-  - `src/components/AppSidebar.tsx` (suppression rail)
-  - `src/components/DashboardLayout.tsx` (hauteur + overflow + min-h-0)
-- Aucun changement requis dans `src/components/ui/sidebar.tsx` pour enlever le rail (puisque c’est `AppSidebar` qui l’instancie), sauf si on veut “désactiver” l’export (pas nécessaire).
+## 3. Colonne "Propriétaire" avec avatar rond
+
+### Fichier : `src/components/deals/columns.tsx`
+
+Modifier la colonne `ownerName` pour afficher un `Avatar` avec :
+- Image si `owner.avatar_url` existe
+- Initiales sinon (comme NavUser)
+
+**Avant** :
+```tsx
+cell: ({ row }) => {
+  const ownerName = row.getValue("ownerName") as string;
+  const owner = row.original.owner;
+  return (
+    <button ... className="text-sm text-muted-foreground ...">
+      {ownerName || "—"}
+    </button>
+  );
+}
+```
+
+**Après** :
+```tsx
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+cell: ({ row }) => {
+  const owner = row.original.owner;
+  const ownerName = owner?.name || owner?.email || "Inconnu";
+  
+  const getInitials = () => {
+    if (owner?.name) {
+      return owner.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    }
+    return owner?.email?.[0]?.toUpperCase() || "?";
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button onClick={...} className="...">
+          <Avatar className="h-7 w-7">
+            {owner?.avatar_url && (
+              <AvatarImage src={owner.avatar_url} alt={ownerName} />
+            )}
+            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{ownerName}</TooltipContent>
+    </Tooltip>
+  );
+}
+```
+
+**Mise à jour de l'interface Deal** :
+```typescript
+owner?: {
+  id: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;  // Ajouter ce champ
+} | null;
+```
+
+---
+
+## 4. Avatar utilisateur rond (sidebar) vs logo workspace carré
+
+### Fichier : `src/components/nav-user.tsx`
+
+L'avatar est déjà configuré avec `rounded-lg` (carré arrondi). Le changer en `rounded-full` :
+
+```tsx
+<Avatar className="h-8 w-8">  {/* Supprimer rounded-lg */}
+  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+    {getInitials()}
+  </AvatarFallback>
+</Avatar>
+```
+
+Note : Le composant `Avatar` par défaut utilise `rounded-full` (voir `src/components/ui/avatar.tsx` ligne 13).
+
+### Fichier : `src/components/WorkspaceDropdown.tsx`
+
+Garder le logo workspace avec `rounded-md` (carré arrondi) :
+```tsx
+<div className="h-8 w-8 rounded-md bg-primary/10 ...">
+```
+(C'est déjà le cas, rien à changer)
+
+---
+
+## 5. Scroll vertical à l'intérieur des tableaux
+
+### Objectif
+Le tableau doit scroller verticalement de manière indépendante, avec la pagination toujours visible en bas.
+
+### Fichier : `src/components/deals/data-table.tsx`
+
+Restructurer le layout :
+
+```tsx
+<div className="flex flex-col h-full">
+  {/* Toolbar - fixe en haut */}
+  <DataTableToolbar table={table} />
+  
+  {/* Table avec scroll vertical */}
+  <div className="flex-1 min-h-0 mt-4 overflow-hidden rounded-md border">
+    <div className="h-full overflow-y-auto overflow-x-auto">
+      <Table style={{ minWidth: '1100px' }}>
+        {/* ... */}
+      </Table>
+    </div>
+  </div>
+  
+  {/* Pagination - fixe en bas */}
+  <div className="mt-4 shrink-0">
+    <DataTablePagination table={table} />
+  </div>
+</div>
+```
+
+### Fichiers : `src/pages/Dashboard.tsx` et `src/pages/PortfolioPage.tsx`
+
+Passer une hauteur maximale au conteneur du tableau pour qu'il puisse calculer son scroll :
+
+```tsx
+<div className="h-[calc(100vh-250px)]">
+  <DataTable columns={columns} data={deals} />
+</div>
+```
+
+### Fichier : `src/components/portfolio/PortfolioTable.tsx`
+
+Appliquer la même structure avec scroll interne.
+
+---
+
+## 6. Performance : Lazy loading avec virtualisation
+
+### Problème actuel
+TanStack Table avec pagination charge 100% des données côté client. Avec 70+ éléments, le rendu initial peut être lent.
+
+### Solution recommandée : TanStack Virtual
+
+Installer `@tanstack/react-virtual` pour virtualiser les lignes du tableau :
+
+**Package à ajouter** : `@tanstack/react-virtual`
+
+### Implémentation dans `data-table.tsx`
+
+```tsx
+import { useVirtualizer } from '@tanstack/react-virtual';
+
+// Dans le composant :
+const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+const rowVirtualizer = useVirtualizer({
+  count: table.getRowModel().rows.length,
+  estimateSize: () => 52, // hauteur estimée d'une ligne
+  getScrollElement: () => tableContainerRef.current,
+  overscan: 5, // lignes pré-rendues hors écran
+});
+
+// Dans le rendu :
+<div ref={tableContainerRef} className="h-full overflow-y-auto ...">
+  <Table>
+    <TableBody>
+      <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+        <td style={{ position: 'relative' }}>
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const row = table.getRowModel().rows[virtualRow.index];
+            return (
+              <TableRow
+                key={row.id}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  transform: `translateY(${virtualRow.start}px)`,
+                  width: '100%',
+                }}
+              >
+                {/* cells */}
+              </TableRow>
+            );
+          })}
+        </td>
+      </tr>
+    </TableBody>
+  </Table>
+</div>
+```
+
+### Filtres et recherche
+
+La virtualisation fonctionne **après** le filtrage de TanStack Table, donc :
+- Les filtres s'appliquent sur **100% des données**
+- Seules les lignes visibles (+ overscan) sont rendues dans le DOM
+- La recherche reste instantanée car TanStack Table filtre en mémoire
+
+---
+
+## Récapitulatif des fichiers à modifier
+
+| Fichier | Modifications |
+|---------|---------------|
+| `src/components/AppSidebar.tsx` | Supprimer "Vue d'ensemble" et FLAGGED_USERS |
+| `src/pages/Dashboard.tsx` | Ajouter `avatar_url` dans la requête profiles |
+| `src/components/deals/columns.tsx` | Remplacer texte par Avatar rond avec tooltip |
+| `src/components/nav-user.tsx` | Avatar rond (supprimer `rounded-lg`) |
+| `src/components/deals/data-table.tsx` | Restructurer layout + ajouter virtualisation |
+| `src/components/portfolio/PortfolioTable.tsx` | Même structure de scroll + virtualisation |
+| `package.json` | Ajouter `@tanstack/react-virtual` |
+
+---
+
+## Ordre d'implémentation suggéré
+
+1. Supprimer "Vue d'ensemble" de la sidebar
+2. Modifier les requêtes pour inclure `avatar_url`
+3. Mettre à jour la colonne Propriétaire avec Avatar
+4. Corriger les avatars (rond pour user, carré pour workspace)
+5. Restructurer les tableaux pour le scroll interne
+6. Ajouter la virtualisation pour les performances
 
