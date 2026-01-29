@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Home, Target, Wallet, Plus, LifeBuoy, Send } from "lucide-react";
+import { Home, Target, Wallet, Send } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -46,15 +46,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/portfolio",
       icon: Wallet,
     },
-    {
-      title: "Soumettre un deal",
-      url: "/submit",
-      icon: Plus,
-    },
   ];
 
   const navSecondaryItems = [
-    { title: "Support", url: "#", icon: LifeBuoy },
     { title: "Feedback", url: "#", icon: Send },
   ];
 
