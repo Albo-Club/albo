@@ -7,7 +7,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -24,13 +23,6 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PortfolioCompany } from "@/hooks/usePortfolioCompanies";
@@ -63,15 +55,9 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
   });
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -106,9 +92,9 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
   const isFiltered = columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="shrink-0 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -151,7 +137,7 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
 
       {/* Active filters */}
       {isFiltered && (
-        <div className="flex flex-wrap gap-2">
+        <div className="shrink-0 flex flex-wrap gap-2 mt-4">
           {globalFilter && (
             <Badge variant="secondary" className="gap-1">
               Recherche: {globalFilter}
@@ -165,11 +151,10 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
       )}
 
       {/* Table */}
-      <div className="flex-1 min-h-0 rounded-md border overflow-hidden">
+      <div className="flex-1 min-h-0 mt-4 rounded-md border overflow-hidden">
         <div
           ref={tableContainerRef}
-          className="h-full overflow-y-auto overflow-x-auto"
-          style={{ maxHeight: "calc(100vh - 400px)" }}
+          className="h-full overflow-y-auto overflow-x-auto scrollbar-none"
         >
           <Table style={{ minWidth: "900px" }}>
             <TableHeader className="sticky top-0 bg-background z-10">
@@ -235,59 +220,9 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="shrink-0 flex items-center justify-between px-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>
-            {table.getFilteredRowModel().rows.length} entreprise(s)
-          </span>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Lignes par page</span>
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value));
-              }}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={table.getState().pagination.pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 25, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Page {table.getState().pagination.pageIndex + 1} sur{" "}
-              {table.getPageCount()}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Précédent
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Suivant
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Counter */}
+      <div className="shrink-0 py-2 px-2 text-xs text-muted-foreground">
+        {table.getFilteredRowModel().rows.length} entreprise(s)
       </div>
     </div>
   );

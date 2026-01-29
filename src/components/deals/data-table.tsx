@@ -10,7 +10,6 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -25,7 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 
 interface DataTableProps<TData, TValue> {
@@ -59,7 +57,6 @@ export function DataTable<TData, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
@@ -86,13 +83,14 @@ export function DataTable<TData, TValue>({
       : 0;
 
   return (
-    <div className="flex flex-col h-full w-full space-y-4">
-      <DataTableToolbar table={table} />
-      <div className="flex-1 min-h-0 overflow-hidden rounded-md border">
+    <div className="flex flex-col h-full w-full">
+      <div className="shrink-0">
+        <DataTableToolbar table={table} />
+      </div>
+      <div className="flex-1 min-h-0 mt-4 overflow-hidden rounded-md border">
         <div
           ref={tableContainerRef}
-          className="h-full overflow-y-auto overflow-x-auto"
-          style={{ maxHeight: "calc(100vh - 320px)" }}
+          className="h-full overflow-y-auto overflow-x-auto scrollbar-none"
         >
           <Table style={{ minWidth: "1100px" }}>
             <TableHeader className="sticky top-0 bg-background z-10">
@@ -162,8 +160,8 @@ export function DataTable<TData, TValue>({
           </Table>
         </div>
       </div>
-      <div className="shrink-0">
-        <DataTablePagination table={table} />
+      <div className="shrink-0 py-2 px-2 text-xs text-muted-foreground">
+        {table.getFilteredRowModel().rows.length} résultat(s)
       </div>
     </div>
   );
