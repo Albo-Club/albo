@@ -81,50 +81,45 @@ export function ReportsTimeline({ reports, companyId, companyName }: ReportsTime
 
   return (
     <>
-      <div className="space-y-0">
-        {sortedReports.map((report, index) => {
-          const isLast = index === sortedReports.length - 1;
+      <div className="space-y-4">
+        {sortedReports.map((report) => {
           const relativeTime = getRelativeTime(report.report_date);
 
           return (
             <div key={report.id} className="flex gap-4">
-              {/* Colonne Timeline à gauche - SANS point */}
+              {/* Colonne Timeline à gauche */}
               <div className="flex flex-col items-center w-28 shrink-0">
-                {/* Période en petit */}
-                <span className="text-[11px] font-medium text-muted-foreground text-center leading-tight mb-2 px-1">
+                <span className="text-[11px] font-medium text-muted-foreground text-center leading-tight px-1">
                   {formatPeriodShort(report.report_period)}
                 </span>
-                {/* Trait vertical fin gris (pas de point) */}
-                {!isLast && (
-                  <div className="w-px flex-1 bg-border" />
-                )}
               </div>
 
-              {/* Card du report - SIMPLIFIÉE */}
-              <div className="flex-1 pb-4 min-w-0">
+              {/* Colonne droite : temps + card */}
+              <div className="flex-1 min-w-0">
+                {/* Temps écoulé EN DEHORS de la card, en haut à droite */}
+                {relativeTime && (
+                  <div className="flex justify-end mb-1">
+                    <span className="text-[10px] text-muted-foreground/60">
+                      {relativeTime}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Card du report */}
                 <div 
                   className={cn(
-                    "rounded-lg border bg-card p-3 cursor-pointer transition-colors",
+                    "rounded-lg border bg-card p-4 cursor-pointer transition-colors",
                     "hover:bg-accent/50"
                   )}
                   onClick={() => handleCardClick(report)}
                 >
-                  {/* Temps écoulé en haut à droite - discret */}
-                  {relativeTime && (
-                    <div className="flex justify-end mb-1">
-                      <span className="text-[10px] text-muted-foreground/60">
-                        {relativeTime}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Headline uniquement - pas de bandeau d'actions */}
+                  {/* Headline centré et en gras */}
                   {report.headline ? (
-                    <p className="text-sm text-foreground leading-relaxed">
+                    <p className="text-sm font-medium text-foreground leading-relaxed text-center">
                       {report.headline}
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground italic">
+                    <p className="text-sm text-muted-foreground italic text-center">
                       Aucun résumé disponible
                     </p>
                   )}
