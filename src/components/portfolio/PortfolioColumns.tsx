@@ -74,7 +74,7 @@ export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
     },
   },
   {
-    accessorKey: "amount_invested_cents",
+    accessorKey: "amount_invested_euros",
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -86,7 +86,7 @@ export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      const amount = row.getValue("amount_invested_cents") as number | null;
+      const amount = row.getValue("amount_invested_euros") as number | null;
       return (
         <span className="font-medium tabular-nums">
           {formatCurrency(amount)}

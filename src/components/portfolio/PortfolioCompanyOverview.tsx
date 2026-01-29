@@ -99,9 +99,8 @@ const METRIC_ICONS: Record<string, React.ElementType> = {
   employees: Users,
 };
 
-function formatCurrency(cents: number | null): string {
-  if (cents === null) return '-';
-  const euros = cents / 100;
+function formatCurrency(euros: number | null): string {
+  if (euros === null) return '-';
   if (euros >= 1_000_000) {
     return `${(euros / 1_000_000).toFixed(1).replace('.', ',')}M€`;
   }
@@ -258,7 +257,7 @@ export function PortfolioCompanyOverview({
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground">Valorisation d'entrée</p>
               <p className="text-xs font-medium truncate">
-                {formatCurrency(company.entry_valuation_cents)}
+                {formatCurrency(company.entry_valuation_euros)}
               </p>
             </div>
           </div>
@@ -268,7 +267,7 @@ export function PortfolioCompanyOverview({
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground">Montant investi</p>
               <p className="text-xs font-medium truncate">
-                {formatCurrency(company.amount_invested_cents)}
+                {formatCurrency(company.amount_invested_euros)}
               </p>
             </div>
           </div>
