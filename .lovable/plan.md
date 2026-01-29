@@ -1,300 +1,259 @@
 
 
-# Plan : Améliorations de l'interface et des performances
+# Plan : Améliorations UX, Performance et Design
 
-## Résumé des demandes
+## Resume des demandes
 
-1. **Supprimer "Vue d'ensemble"** de la sidebar (actuellement visible pour certains users)
-2. **Opportunités : afficher tous les deals du workspace** par défaut (pas seulement ceux de l'utilisateur)
-3. **Colonne "Propriétaire"** : afficher un avatar rond avec image ou initiales (comme le profil utilisateur en bas à gauche)
-4. **Avatar utilisateur en rond** (pas carré avec radius) - garder le carré pour le logo workspace
-5. **Scroll vertical à l'intérieur des tableaux** pour garder la pagination visible
-6. **Lazy loading / virtualisation** pour gérer 70+ éléments sans problème de performance
+1. **Fix scroll Portfolio** : Le scroll vertical n'est pas visible/fonctionnel dans PortfolioTable
+2. **Supprimer la pagination** : Afficher toutes les lignes en scroll continu (style Airtable/Excel) avec virtualisation pour la performance
+3. **Illustrations gradient** : Ajouter les images gradient avec effet `backdrop-blur-xl` dans certaines cards
+4. **Reduire les fonts de 1px** : Ajuster la taille de base des polices
 
 ---
 
-## 1. Supprimer "Vue d'ensemble" de la sidebar
+## 1. Fix scroll Portfolio et suppression pagination
 
-### Fichier : `src/components/AppSidebar.tsx`
+### Probleme identifie
+Dans `PortfolioTable.tsx` :
+- Le `maxHeight: "calc(100vh - 400px)"` est fixe dans un style inline
+- La pagination est presente mais avec virtualisation, elle est redondante
+- Le probleme de scroll vient probablement du fait que le conteneur parent ne passe pas la hauteur correctement
 
-Supprimer le code qui ajoute conditionnellement "Vue d'ensemble" pour les FLAGGED_USERS.
+### Solution : Scroll continu sans pagination
 
-Avant :
+Supprimer `getPaginationRowModel` et la section pagination dans les deux tableaux. Utiliser uniquement la virtualisation pour afficher toutes les lignes avec scroll interne.
+
+**Fichier : `src/components/deals/data-table.tsx`**
+
 ```typescript
-const navMainItems = [
-  ...(canSeeDashboard ? [{
-    title: "Vue d'ensemble",
-    url: "/dashboard",
-    icon: Home,
-  }] : []),
-  ...
-];
+// Supprimer
+import { DataTablePagination } from "./data-table-pagination";
+getPaginationRowModel: getPaginationRowModel(),
+
+// Garder uniquement
+getCoreRowModel: getCoreRowModel(),
+getFilteredRowModel: getFilteredRowModel(),
+getSortedRowModel: getSortedRowModel(),
+getFacetedRowModel: getFacetedRowModel(),
+getFacetedUniqueValues: getFacetedUniqueValues(),
+
+// Utiliser table.getRowModel().rows pour toutes les lignes filtrees
+const { rows } = table.getRowModel();
 ```
 
-Après :
-```typescript
-const navMainItems = [
-  {
-    title: "Opportunités",
-    url: "/opportunities",
-    icon: Target,
-  },
-  {
-    title: "Portfolio",
-    url: "/portfolio",
-    icon: Wallet,
-  },
-];
-```
+**Fichier : `src/components/portfolio/PortfolioTable.tsx`**
 
-Supprimer également les imports `Home` et la constante `FLAGGED_USERS` si elle n'est plus utilisée.
+Meme modification + retirer tout le bloc pagination (lignes 238-291).
 
----
+### Ajout d'un compteur de resultats
 
-## 2. Opportunités : afficher tous les deals du workspace par défaut
-
-### Fichier : `src/pages/Dashboard.tsx`
-
-Actuellement, le code récupère les deals différemment selon `isPersonalMode`. Pour simplifier et afficher tous les deals du workspace par défaut :
-
-Modifier la logique de `fetchDeals` pour que :
-- En mode **workspace** (isPersonalMode = false), on récupère **tous les deals du workspace** via `get_workspace_deals`
-- En mode **personnel** (isPersonalMode = true), on garde le comportement actuel (deals de l'utilisateur uniquement)
-
-Le code actuel fait déjà ça mais il faut aussi inclure `avatar_url` dans la requête pour l'avatar du propriétaire.
-
-**Changement dans la requête** :
-```typescript
-owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
-```
-
----
-
-## 3. Colonne "Propriétaire" avec avatar rond
-
-### Fichier : `src/components/deals/columns.tsx`
-
-Modifier la colonne `ownerName` pour afficher un `Avatar` avec :
-- Image si `owner.avatar_url` existe
-- Initiales sinon (comme NavUser)
-
-**Avant** :
+A la place de la pagination, afficher un simple compteur :
 ```tsx
-cell: ({ row }) => {
-  const ownerName = row.getValue("ownerName") as string;
-  const owner = row.original.owner;
-  return (
-    <button ... className="text-sm text-muted-foreground ...">
-      {ownerName || "—"}
-    </button>
-  );
-}
-```
-
-**Après** :
-```tsx
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-cell: ({ row }) => {
-  const owner = row.original.owner;
-  const ownerName = owner?.name || owner?.email || "Inconnu";
-  
-  const getInitials = () => {
-    if (owner?.name) {
-      return owner.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-    }
-    return owner?.email?.[0]?.toUpperCase() || "?";
-  };
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button onClick={...} className="...">
-          <Avatar className="h-7 w-7">
-            {owner?.avatar_url && (
-              <AvatarImage src={owner.avatar_url} alt={ownerName} />
-            )}
-            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-              {getInitials()}
-            </AvatarFallback>
-          </Avatar>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{ownerName}</TooltipContent>
-    </Tooltip>
-  );
-}
-```
-
-**Mise à jour de l'interface Deal** :
-```typescript
-owner?: {
-  id: string;
-  name: string | null;
-  email: string | null;
-  avatar_url: string | null;  // Ajouter ce champ
-} | null;
-```
-
----
-
-## 4. Avatar utilisateur rond (sidebar) vs logo workspace carré
-
-### Fichier : `src/components/nav-user.tsx`
-
-L'avatar est déjà configuré avec `rounded-lg` (carré arrondi). Le changer en `rounded-full` :
-
-```tsx
-<Avatar className="h-8 w-8">  {/* Supprimer rounded-lg */}
-  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-    {getInitials()}
-  </AvatarFallback>
-</Avatar>
-```
-
-Note : Le composant `Avatar` par défaut utilise `rounded-full` (voir `src/components/ui/avatar.tsx` ligne 13).
-
-### Fichier : `src/components/WorkspaceDropdown.tsx`
-
-Garder le logo workspace avec `rounded-md` (carré arrondi) :
-```tsx
-<div className="h-8 w-8 rounded-md bg-primary/10 ...">
-```
-(C'est déjà le cas, rien à changer)
-
----
-
-## 5. Scroll vertical à l'intérieur des tableaux
-
-### Objectif
-Le tableau doit scroller verticalement de manière indépendante, avec la pagination toujours visible en bas.
-
-### Fichier : `src/components/deals/data-table.tsx`
-
-Restructurer le layout :
-
-```tsx
-<div className="flex flex-col h-full">
-  {/* Toolbar - fixe en haut */}
-  <DataTableToolbar table={table} />
-  
-  {/* Table avec scroll vertical */}
-  <div className="flex-1 min-h-0 mt-4 overflow-hidden rounded-md border">
-    <div className="h-full overflow-y-auto overflow-x-auto">
-      <Table style={{ minWidth: '1100px' }}>
-        {/* ... */}
-      </Table>
-    </div>
-  </div>
-  
-  {/* Pagination - fixe en bas */}
-  <div className="mt-4 shrink-0">
-    <DataTablePagination table={table} />
-  </div>
+<div className="shrink-0 flex items-center justify-between px-2 py-2 text-xs text-muted-foreground">
+  <span>{table.getFilteredRowModel().rows.length} resultat(s)</span>
 </div>
 ```
 
-### Fichiers : `src/pages/Dashboard.tsx` et `src/pages/PortfolioPage.tsx`
+---
 
-Passer une hauteur maximale au conteneur du tableau pour qu'il puisse calculer son scroll :
+## 2. Structure de layout pour scroll interne optimal
 
+### Probleme
+Le conteneur du tableau doit avoir une hauteur definie pour que le scroll fonctionne. Actuellement, les valeurs `calc(100vh - Xpx)` sont hardcodees et ne s'adaptent pas.
+
+### Solution : Hauteur flexible avec `h-full` et `flex-1`
+
+**Fichier : `src/pages/Dashboard.tsx`**
+
+Wrapper le DataTable dans un conteneur avec hauteur calculee :
 ```tsx
-<div className="h-[calc(100vh-250px)]">
+<div className="flex-1 min-h-0">
   <DataTable columns={columns} data={deals} />
 </div>
 ```
 
-### Fichier : `src/components/portfolio/PortfolioTable.tsx`
+**Fichier : `src/pages/PortfolioPage.tsx`**
 
-Appliquer la même structure avec scroll interne.
-
----
-
-## 6. Performance : Lazy loading avec virtualisation
-
-### Problème actuel
-TanStack Table avec pagination charge 100% des données côté client. Avec 70+ éléments, le rendu initial peut être lent.
-
-### Solution recommandée : TanStack Virtual
-
-Installer `@tanstack/react-virtual` pour virtualiser les lignes du tableau :
-
-**Package à ajouter** : `@tanstack/react-virtual`
-
-### Implémentation dans `data-table.tsx`
-
+Changer le layout global pour utiliser flex column :
 ```tsx
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-// Dans le composant :
-const tableContainerRef = React.useRef<HTMLDivElement>(null);
-
-const rowVirtualizer = useVirtualizer({
-  count: table.getRowModel().rows.length,
-  estimateSize: () => 52, // hauteur estimée d'une ligne
-  getScrollElement: () => tableContainerRef.current,
-  overscan: 5, // lignes pré-rendues hors écran
-});
-
-// Dans le rendu :
-<div ref={tableContainerRef} className="h-full overflow-y-auto ...">
-  <Table>
-    <TableBody>
-      <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-        <td style={{ position: 'relative' }}>
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const row = table.getRowModel().rows[virtualRow.index];
-            return (
-              <TableRow
-                key={row.id}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
-                  width: '100%',
-                }}
-              >
-                {/* cells */}
-              </TableRow>
-            );
-          })}
-        </td>
-      </tr>
-    </TableBody>
-  </Table>
+<div className="flex flex-col h-full space-y-6">
+  {/* Header */}
+  <div className="shrink-0">...</div>
+  
+  {/* Stats */}
+  <div className="shrink-0">
+    <PortfolioStats companies={companies} />
+  </div>
+  
+  {/* Table - prend tout l'espace restant */}
+  <div className="flex-1 min-h-0">
+    <PortfolioTable data={companies} />
+  </div>
 </div>
 ```
 
-### Filtres et recherche
+**Fichier : `src/components/deals/data-table.tsx` et `src/components/portfolio/PortfolioTable.tsx`**
 
-La virtualisation fonctionne **après** le filtrage de TanStack Table, donc :
-- Les filtres s'appliquent sur **100% des données**
-- Seules les lignes visibles (+ overscan) sont rendues dans le DOM
-- La recherche reste instantanée car TanStack Table filtre en mémoire
+Remplacer le `maxHeight` inline par une structure flex :
+```tsx
+<div className="flex flex-col h-full">
+  {/* Toolbar - fixe */}
+  <div className="shrink-0">
+    <DataTableToolbar table={table} />
+  </div>
+  
+  {/* Table scroll */}
+  <div className="flex-1 min-h-0 mt-4 overflow-hidden rounded-md border">
+    <div
+      ref={tableContainerRef}
+      className="h-full overflow-y-auto overflow-x-auto scrollbar-none"
+    >
+      <Table style={{ minWidth: "1100px" }}>
+        ...
+      </Table>
+    </div>
+  </div>
+  
+  {/* Compteur - fixe */}
+  <div className="shrink-0 py-2 text-xs text-muted-foreground">
+    {table.getFilteredRowModel().rows.length} resultat(s)
+  </div>
+</div>
+```
 
 ---
 
-## Récapitulatif des fichiers à modifier
+## 3. Illustrations gradient avec backdrop-blur
+
+### Approche
+Les images gradient seront utilisees comme fond decoratif dans certaines cards (stats, headers, etc.) avec un overlay `backdrop-blur-xl` pour garder la lisibilite.
+
+### Fichiers a creer
+
+Copier les images dans `src/assets/gradients/` :
+- `gradient-orange.png`
+- `gradient-purple.png`
+- `gradient-green.png`
+- `gradient-polar.jpeg`
+- `gradient-warm.jpeg`
+
+### Composant reutilisable : `GradientCard`
+
+**Fichier : `src/components/ui/gradient-card.tsx`**
+
+```tsx
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader } from "./card";
+
+type GradientVariant = "orange" | "purple" | "green" | "polar" | "warm";
+
+const gradientImages: Record<GradientVariant, string> = {
+  orange: "/assets/gradients/gradient-orange.png",
+  purple: "/assets/gradients/gradient-purple.png",
+  green: "/assets/gradients/gradient-green.png",
+  polar: "/assets/gradients/gradient-polar.jpeg",
+  warm: "/assets/gradients/gradient-warm.jpeg",
+};
+
+interface GradientCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: GradientVariant;
+  children: React.ReactNode;
+}
+
+export function GradientCard({ 
+  variant = "orange", 
+  children, 
+  className,
+  ...props 
+}: GradientCardProps) {
+  return (
+    <Card className={cn("relative overflow-hidden", className)} {...props}>
+      {/* Background image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-30"
+        style={{ backgroundImage: `url(${gradientImages[variant]})` }}
+      />
+      
+      {/* Blur overlay */}
+      <div className="absolute inset-0 backdrop-blur-xl bg-background/60" />
+      
+      {/* Content */}
+      <div className="relative z-10">
+        {children}
+      </div>
+    </Card>
+  );
+}
+```
+
+### Integration dans PortfolioStats
+
+**Fichier : `src/components/portfolio/PortfolioStats.tsx`**
+
+Utiliser differentes variantes pour chaque stat card :
+```tsx
+const statVariants: GradientVariant[] = ["orange", "purple", "green", "polar"];
+
+{stats.map((stat, index) => (
+  <GradientCard key={stat.label} variant={statVariants[index % 4]}>
+    <CardContent className="p-6">
+      ...
+    </CardContent>
+  </GradientCard>
+))}
+```
+
+---
+
+## 4. Reduire les fonts de 1px
+
+### Approche
+Modifier la taille de base dans `index.css` de `16px` a `15px`. Cela impactera toutes les tailles relatives (`rem`, `text-sm`, etc.).
+
+**Fichier : `src/index.css`**
+
+```css
+html {
+  font-size: 15px;  /* Etait 16px */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+```
+
+### Impact
+- `text-sm` (0.875rem) : 14px -> 13.125px
+- `text-base` (1rem) : 16px -> 15px
+- `text-lg` (1.125rem) : 18px -> 16.875px
+- `text-xl` (1.25rem) : 20px -> 18.75px
+- `text-2xl` (1.5rem) : 24px -> 22.5px
+- `text-3xl` (1.875rem) : 30px -> 28.125px
+
+---
+
+## Recapitulatif des fichiers
 
 | Fichier | Modifications |
 |---------|---------------|
-| `src/components/AppSidebar.tsx` | Supprimer "Vue d'ensemble" et FLAGGED_USERS |
-| `src/pages/Dashboard.tsx` | Ajouter `avatar_url` dans la requête profiles |
-| `src/components/deals/columns.tsx` | Remplacer texte par Avatar rond avec tooltip |
-| `src/components/nav-user.tsx` | Avatar rond (supprimer `rounded-lg`) |
-| `src/components/deals/data-table.tsx` | Restructurer layout + ajouter virtualisation |
-| `src/components/portfolio/PortfolioTable.tsx` | Même structure de scroll + virtualisation |
-| `package.json` | Ajouter `@tanstack/react-virtual` |
+| `src/components/deals/data-table.tsx` | Supprimer pagination, ajuster layout flex |
+| `src/components/portfolio/PortfolioTable.tsx` | Supprimer pagination, ajuster layout flex |
+| `src/pages/PortfolioPage.tsx` | Layout flex pour hauteur dynamique |
+| `src/pages/Dashboard.tsx` | Wrapper flex pour DataTable |
+| `src/index.css` | font-size: 15px |
+| `src/components/ui/gradient-card.tsx` | Nouveau composant |
+| `src/components/portfolio/PortfolioStats.tsx` | Utiliser GradientCard |
+| `src/assets/gradients/*` | Copier les 5 images |
 
 ---
 
-## Ordre d'implémentation suggéré
+## Performance : Pourquoi cette approche fonctionne
 
-1. Supprimer "Vue d'ensemble" de la sidebar
-2. Modifier les requêtes pour inclure `avatar_url`
-3. Mettre à jour la colonne Propriétaire avec Avatar
-4. Corriger les avatars (rond pour user, carré pour workspace)
-5. Restructurer les tableaux pour le scroll interne
-6. Ajouter la virtualisation pour les performances
+1. **Virtualisation (deja en place)** : `@tanstack/react-virtual` ne rend que les lignes visibles + overscan (5 lignes)
+2. **Filtrage cote client** : TanStack Table filtre les 100% des donnees en memoire, tres rapide
+3. **Pas de pagination** : Toutes les lignes "existent" mais seules ~15-20 sont dans le DOM
+4. **Recherche instantanee** : Le filtre `globalFilter` de TanStack Table est optimise
+
+Avec 70+ elements :
+- Sans virtualisation : 70+ TableRow dans le DOM = lent
+- Avec virtualisation : ~15-20 TableRow dans le DOM = rapide
+- La recherche et les filtres fonctionnent sur les 100% des donnees
 
