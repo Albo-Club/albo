@@ -51,12 +51,39 @@ export const INVESTMENT_TYPES_LIST = [
   'SPV SAFE',
 ];
 
+// Function to generate a deterministic color based on a string
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+// Color palette for custom sectors
+const CUSTOM_SECTOR_PALETTES = [
+  { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-800 dark:text-rose-400', border: 'border-rose-300 dark:border-rose-700' },
+  { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-800 dark:text-cyan-400', border: 'border-cyan-300 dark:border-cyan-700' },
+  { bg: 'bg-lime-100 dark:bg-lime-900/30', text: 'text-lime-800 dark:text-lime-400', border: 'border-lime-300 dark:border-lime-700' },
+  { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-400', border: 'border-amber-300 dark:border-amber-700' },
+  { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-800 dark:text-violet-400', border: 'border-violet-300 dark:border-violet-700' },
+  { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-800 dark:text-emerald-400', border: 'border-emerald-300 dark:border-emerald-700' },
+  { bg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', text: 'text-fuchsia-800 dark:text-fuchsia-400', border: 'border-fuchsia-300 dark:border-fuchsia-700' },
+  { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-800 dark:text-sky-400', border: 'border-sky-300 dark:border-sky-700' },
+];
+
 export const getSectorColors = (sector: string) => {
-  return SECTOR_COLORS[sector] || { 
-    bg: 'bg-muted', 
-    text: 'text-muted-foreground', 
-    border: 'border-muted' 
-  };
+  // If it's a predefined sector, use its color
+  if (SECTOR_COLORS[sector]) {
+    return SECTOR_COLORS[sector];
+  }
+  
+  // Otherwise, generate a consistent color based on the name
+  const hash = hashString(sector);
+  const paletteIndex = hash % CUSTOM_SECTOR_PALETTES.length;
+  return CUSTOM_SECTOR_PALETTES[paletteIndex];
 };
 
 export const getInvestmentTypeColors = (type: string) => {
