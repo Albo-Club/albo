@@ -1,236 +1,85 @@
 
-# Plan : Mise à jour de la Sidebar et du Layout Principal - Style sidebar-08
+## Objectifs (problèmes constatés)
+1) Le “scroll” à droite de la sidebar est en réalité le composant **SidebarRail** (`<button data-sidebar="rail" ...>`). Vous ne le voulez pas → on le supprime.
+2) Les **coins arrondis du bas** de la zone principale ne sont pas visibles car le layout déborde verticalement (souvent lié à un combo `h-svh` + `md:m-2` + flex scroll sans `min-h-0`) → on verrouille la hauteur correctement et on force le scroll à l’intérieur.
+3) Éviter que toute la partie droite (header inclus) “glisse”/déborde : on force **overflow-x hidden** au bon niveau et on garde uniquement le tableau en scroll horizontal (déjà prévu dans `DataTable`).
 
-## Objectif
-Adopter le design "sidebar-08" de shadcn/ui qui propose :
-- Une sidebar avec navigation principale collapsible (sous-menus)
-- Un conteneur principal `SidebarInset` avec coins arrondis et ombre
-- Un header avec breadcrumb et SidebarTrigger
-- Une navigation secondaire (Support, Feedback) en bas de la sidebar
-- Un profil utilisateur en footer de la sidebar
+---
 
-## Architecture actuelle vs. cible
+## 1) Supprimer le composant “rail” (et le faux “scrollbar” de la sidebar)
+### Changements
+- **Fichier**: `src/components/AppSidebar.tsx`
+  - Supprimer l’import `SidebarRail`
+  - Supprimer `<SidebarRail />` en bas du composant
 
-```text
-ACTUELLE:
-+------------------+---------------------------+
-|     Sidebar      |   Header (h-14, sticky)   |
-|  (collapsible)   +---------------------------+
-|                  |   Main content            |
-|  - Logo/WS       |   (max-w-7xl mx-auto)     |
-|  - NavItems      |                           |
-|  - UserFooter    |                           |
-+------------------+---------------------------+
+### Résultat attendu
+- Le bouton/rail avec `data-sidebar="rail"` disparaît complètement.
+- La sidebar reste ouvrable/fermable uniquement via:
+  - le bouton `SidebarTrigger` dans le header
+  - le raccourci clavier (Ctrl/Cmd + B)
 
-CIBLE (sidebar-08):
-+------------------+----------------------------------+
-|     Sidebar      | +------------------------------+ |
-|  (collapsible)   | | Header (breadcrumb + trigger)| |
-|                  | +------------------------------+ |
-|  - TeamSwitcher  | |                              | |
-|  - NavMain       | |   SidebarInset               | |
-|  - NavProjects   | |   (rounded, shadow)          | |
-|  - NavSecondary  | |                              | |
-|  - NavUser       | +------------------------------+ |
-+------------------+----------------------------------+
-```
+---
 
-## Fichiers impactés
+## 2) Fix des 4 coins arrondis visibles (haut + bas) sur `SidebarInset`
+### Pourquoi ça arrive
+Actuellement `DashboardLayout` impose `h-svh` sur `SidebarInset`, mais `SidebarInset` reçoit aussi (via `src/components/ui/sidebar.tsx`) du style “inset” avec `md:m-2`.
+- Sur desktop, `h:100svh` + marges verticales (`m-2` => 0.5rem en haut + 0.5rem en bas) = **débordement vertical**, donc on “perd” le bas (coins arrondis hors écran).
+- De plus, dans un layout flex colonne, un enfant scrollable sans `min-h-0` peut forcer le parent à grandir au lieu de scroller.
 
-### 1. Fichiers à créer
+### Changements (principaux)
+- **Fichier**: `src/components/DashboardLayout.tsx`
+  1) Mettre la contrainte de hauteur au bon endroit:
+     - Appliquer `h-svh overflow-hidden` au wrapper de layout (idéalement sur `SidebarProvider` via `className`, ou au minimum sur un conteneur direct).
+  2) Sur `SidebarInset`, remplacer le `h-svh` “brut” par une hauteur qui tient compte des marges en desktop:
+     - Exemple: `h-svh md:h-[calc(100svh-1rem)]` (car `m-2` => total vertical 1rem)
+  3) Rendre le conteneur scroll vertical “réellement scrollable” sans pousser le parent:
+     - Ajouter `min-h-0` sur le bloc `flex-1` qui a `overflow-y-auto`
 
-| Fichier | Description |
-|---------|-------------|
-| `src/components/nav-secondary.tsx` | Navigation secondaire (Support, Feedback) en bas de la sidebar |
+### Résultat attendu
+- La zone principale “inset” tient exactement dans la hauteur visible.
+- Les 4 coins arrondis restent visibles (notamment en bas).
+- Le scroll vertical se fait **dans le contenu** (pas sur la page entière).
 
-### 2. Fichiers à modifier
+---
 
-| Fichier | Modifications |
-|---------|---------------|
-| `src/components/DashboardLayout.tsx` | Utiliser `SidebarInset` pour le conteneur principal avec coins arrondis |
-| `src/components/AppSidebar.tsx` | Restructurer avec NavMain, NavSecondary, NavUser |
-| `src/components/nav-main.tsx` | Adapter pour les items avec sous-menus collapsibles |
-| `src/components/nav-user.tsx` | Utiliser le pattern shadcn avec dropdown et chevron |
+## 3) Empêcher le scroll horizontal du layout (header + inset), garder uniquement le tableau scrollable
+### État actuel
+- `src/components/deals/data-table.tsx` est déjà correct: wrapper `overflow-x-auto` + `Table` en `minWidth: 1100px`.
+- Si malgré ça “toute la partie droite” scrolle horizontalement, c’est qu’un parent autorise un débordement X.
 
-## Plan d'implementation
+### Changements
+- **Fichier**: `src/components/DashboardLayout.tsx`
+  - Ajouter/renforcer `overflow-x-hidden` sur:
+    - `SidebarInset` (ou le conteneur principal)
+    - le conteneur scroll vertical (`flex-1 overflow-y-auto`)
+- Optionnel (si nécessaire):
+  - Ajouter `w-full min-w-0` sur certains wrappers pour éviter qu’un enfant impose une largeur > parent (classique en flex).
 
-### Etape 1 : Creer nav-secondary.tsx
+### Résultat attendu
+- Aucun scroll horizontal “global” sur la partie droite.
+- Seul le tableau affiche son propre scroll horizontal.
 
-Composant simple pour la navigation secondaire (Support, Feedback) :
+---
 
-```typescript
-// src/components/nav-secondary.tsx
-import { type LucideIcon } from "lucide-react"
-import { NavLink } from "react-router-dom"
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
+## 4) Checklist de validation (rapide)
+1) Aller sur `/opportunities`
+2) Vérifier que l’élément `data-sidebar="rail"` n’existe plus dans le DOM
+3) Vérifier:
+   - sidebar ouverte par défaut
+   - toggle via bouton en header OK
+4) Descendre dans la page:
+   - la page ne doit pas “scroller le body”
+   - le contenu scrolle dans la zone centrale
+   - les coins arrondis bas restent visibles
+5) Vérifier le tableau:
+   - scroll horizontal uniquement dans le tableau
+   - header ne bouge pas horizontalement
 
-interface NavSecondaryProps {
-  items: {
-    title: string
-    url: string
-    icon: LucideIcon
-  }[]
-}
+---
 
-export function NavSecondary({ items, ...props }: NavSecondaryProps) {
-  return (
-    <SidebarGroup {...props}>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild size="sm">
-                <NavLink to={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  )
-}
-```
+## Détails techniques (pour implementation)
+- Fichiers modifiés:
+  - `src/components/AppSidebar.tsx` (suppression rail)
+  - `src/components/DashboardLayout.tsx` (hauteur + overflow + min-h-0)
+- Aucun changement requis dans `src/components/ui/sidebar.tsx` pour enlever le rail (puisque c’est `AppSidebar` qui l’instancie), sauf si on veut “désactiver” l’export (pas nécessaire).
 
-### Etape 2 : Modifier nav-main.tsx
-
-Ajouter le support des sous-menus collapsibles avec chevron :
-
-```typescript
-// Structure des items avec sous-menus optionnels
-interface NavItem {
-  title: string
-  url: string
-  icon?: LucideIcon
-  isActive?: boolean
-  items?: {
-    title: string
-    url: string
-  }[]
-}
-```
-
-Le composant utilisera `Collapsible` pour les items avec sous-menus, avec un chevron qui tourne.
-
-### Etape 3 : Modifier nav-user.tsx
-
-Adapter le NavUser existant pour :
-- Utiliser `ChevronsUpDown` au lieu de juste afficher les infos
-- Ajouter un dropdown avec options (Profile, Log out)
-- Conserver la logique d'authentification existante
-
-### Etape 4 : Modifier AppSidebar.tsx
-
-Restructurer la sidebar pour utiliser :
-- `SidebarHeader` avec le WorkspaceDropdown (team switcher)
-- `SidebarContent` avec NavMain et NavSecondary
-- `SidebarFooter` avec NavUser
-
-Structure finale :
-
-```typescript
-<Sidebar variant="inset" collapsible="icon">
-  <SidebarHeader>
-    <WorkspaceDropdown />
-  </SidebarHeader>
-  
-  <SidebarContent>
-    <NavMain items={navMainItems} />
-    <NavSecondary items={navSecondaryItems} className="mt-auto" />
-  </SidebarContent>
-  
-  <SidebarFooter>
-    <NavUser user={userData} onSignOut={handleSignOut} />
-  </SidebarFooter>
-</Sidebar>
-```
-
-### Etape 5 : Modifier DashboardLayout.tsx
-
-Remplacer le `<main>` actuel par `SidebarInset` :
-
-```typescript
-<SidebarProvider defaultOpen={false}>
-  <AppSidebar />
-  <SidebarInset>
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
-        {/* Breadcrumb dynamique basee sur la route */}
-      </Breadcrumb>
-      <div className="ml-auto">
-        <AskAIButton />
-      </div>
-    </header>
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      {children}
-    </div>
-  </SidebarInset>
-  <AskAISidePanel />
-</SidebarProvider>
-```
-
-Le `SidebarInset` applique automatiquement les coins arrondis et l'ombre quand la sidebar est en mode "inset".
-
-## Details techniques
-
-### Navigation items
-
-```typescript
-const navMainItems = [
-  {
-    title: "Opportunites",
-    url: "/opportunities",
-    icon: Target,
-    items: [
-      { title: "Toutes", url: "/opportunities" },
-      { title: "En cours", url: "/opportunities?status=active" },
-    ],
-  },
-  {
-    title: "Portfolio",
-    url: "/portfolio",
-    icon: Wallet,
-  },
-  {
-    title: "Soumettre un deal",
-    url: "/submit",
-    icon: Plus,
-  },
-]
-
-const navSecondaryItems = [
-  { title: "Support", url: "#", icon: LifeBuoy },
-  { title: "Feedback", url: "#", icon: Send },
-]
-```
-
-### Gestion du collapse
-
-Le mode `collapsible="icon"` est conserve. Quand collapsed :
-- Les items affichent uniquement les icones
-- Les tooltips s'affichent au hover
-- Le rail cliquable permet de re-ouvrir
-
-### Responsive
-
-Sur mobile, la sidebar utilise le mode `Sheet` (drawer) integre au composant `Sidebar` de shadcn/ui.
-
-## Resume des changements
-
-| Action | Fichier | Description |
-|--------|---------|-------------|
-| Creer | `nav-secondary.tsx` | Navigation secondaire en bas |
-| Modifier | `nav-main.tsx` | Ajouter sous-menus collapsibles |
-| Modifier | `nav-user.tsx` | Ajouter chevron et dropdown |
-| Modifier | `AppSidebar.tsx` | Restructurer avec NavMain/NavSecondary/NavUser |
-| Modifier | `DashboardLayout.tsx` | Utiliser SidebarInset + header avec breadcrumb |
