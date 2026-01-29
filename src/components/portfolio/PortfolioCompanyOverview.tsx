@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,8 @@ import {
   BarChart3,
   PiggyBank,
   Activity,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -26,6 +28,8 @@ import { SectorBadges } from "./SectorBadges";
 import { formatOwnership, formatMetricLabel } from "@/lib/portfolioFormatters";
 import type { CompanyReport } from "@/hooks/useCompanyReports";
 import { PortfolioChatPanel } from "./PortfolioChatPanel";
+import { EditPortfolioCompanyModal } from "./EditPortfolioCompanyModal";
+import { DeletePortfolioCompanyDialog } from "./DeletePortfolioCompanyDialog";
 
 // Metric priority for sorting
 const METRIC_PRIORITY: Record<string, number> = {
@@ -189,6 +193,8 @@ export function PortfolioCompanyOverview({
   company, 
   latestReport,
 }: PortfolioCompanyOverviewProps) {
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   // Metrics from the latest report
   const reportMetrics = useMemo<ReportMetricItem[]>(() => {
@@ -222,7 +228,25 @@ export function PortfolioCompanyOverview({
   <>
     <Card className="h-full">
       <CardHeader className="pb-3">
-        <h3 className="text-sm font-semibold">Informations</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Informations</h3>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setEditModalOpen(true)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Modifier"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setDeleteDialogOpen(true)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Supprimer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -424,6 +448,20 @@ export function PortfolioCompanyOverview({
     <PortfolioChatPanel 
       companyId={company.id} 
       companyName={company.company_name} 
+    />
+
+    {/* Edit Modal */}
+    <EditPortfolioCompanyModal
+      open={editModalOpen}
+      onOpenChange={setEditModalOpen}
+      company={company}
+    />
+
+    {/* Delete Dialog */}
+    <DeletePortfolioCompanyDialog
+      open={deleteDialogOpen}
+      onOpenChange={setDeleteDialogOpen}
+      company={company}
     />
   </>
   );
