@@ -49,7 +49,7 @@ export default function PortfolioCompanyDetail() {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Colonne gauche - Scrollable */}
       <div className="lg:col-span-3 min-h-0">
-        <ReportsTimeline reports={sortedReports} companyId={company.id} />
+        <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} />
       </div>
       
       {/* Colonne droite - Sticky */}
