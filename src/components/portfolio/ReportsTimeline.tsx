@@ -113,13 +113,13 @@ export function ReportsTimeline({ reports, companyId, companyName }: ReportsTime
                   )}
                   onClick={() => handleCardClick(report)}
                 >
-                  {/* Headline centré et en gras */}
+                  {/* Headline en gras */}
                   {report.headline ? (
-                    <p className="text-sm font-medium text-foreground leading-relaxed text-center">
+                    <p className="text-sm font-medium text-foreground leading-relaxed">
                       {report.headline}
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground italic text-center">
+                    <p className="text-sm text-muted-foreground italic">
                       Aucun résumé disponible
                     </p>
                   )}
