@@ -4,18 +4,27 @@ import { Button } from "@/components/ui/button";
 import { FileText, Sparkles, ChevronDown, ChevronUp, Newspaper } from "lucide-react";
 import { CompanyReport } from "@/hooks/useCompanyReports";
 import { ReportSynthesisModal } from "./ReportSynthesisModal";
+import { OriginalReportModal } from "./OriginalReportModal";
 
 interface ReportsTimelineProps {
   reports: CompanyReport[];
   companyId: string;
+  companyName?: string;
 }
 
-export function ReportsTimeline({ reports, companyId }: ReportsTimelineProps) {
+export function ReportsTimeline({ reports, companyId, companyName }: ReportsTimelineProps) {
   // State pour gérer quelles cartes sont expandées (plusieurs possibles)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   
   // State pour la modal synthèse
   const [selectedReport, setSelectedReport] = useState<CompanyReport | null>(null);
+  
+  // State pour la modal original (original_text_report)
+  const [originalReportData, setOriginalReportData] = useState<{
+    content: string | null;
+    period: string | null;
+    originalFileName: string | null;
+  } | null>(null);
 
   const toggleExpand = (reportId: string) => {
     setExpandedIds(prev => {
@@ -27,6 +36,23 @@ export function ReportsTimeline({ reports, companyId }: ReportsTimelineProps) {
       }
       return next;
     });
+  };
+
+  // Fonction pour ouvrir le modal original
+  const handleHeadlineClick = (report: CompanyReport) => {
+    // Chercher le fichier texte avec original_text_report
+    const textFile = report.files.find(f => f.file_type === 'text' && f.original_text_report);
+    
+    if (textFile?.original_text_report) {
+      setOriginalReportData({
+        content: textFile.original_text_report,
+        period: report.report_period,
+        originalFileName: textFile.original_file_name || null,
+      });
+    } else {
+      // Fallback : ouvrir la synthèse si pas de rapport original
+      setSelectedReport(report);
+    }
   };
 
   // Si aucun report
@@ -47,6 +73,8 @@ export function ReportsTimeline({ reports, companyId }: ReportsTimelineProps) {
         {reports.map((report) => {
           const isExpanded = expandedIds.has(report.id);
           const hasHighlights = report.key_highlights && report.key_highlights.length > 0;
+          const hasOriginalText = report.files.some(f => f.file_type === 'text' && f.original_text_report);
+          const hasHeadline = !!report.headline;
           
           return (
             <Card key={report.id} className="transition-shadow hover:shadow-md">
@@ -58,15 +86,34 @@ export function ReportsTimeline({ reports, companyId }: ReportsTimelineProps) {
                   </span>
                 </div>
                 
-                {/* Headline en gras */}
-                {report.headline && (
-                  <p className="text-sm font-medium leading-relaxed text-foreground">
+                {/* Headline cliquable */}
+                {hasHeadline && (
+                  <p 
+                    className="text-sm font-medium leading-relaxed text-foreground cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handleHeadlineClick(report)}
+                    title={hasOriginalText 
+                      ? "Cliquer pour voir le rapport original" 
+                      : "Cliquer pour voir la synthèse"}
+                  >
                     {report.headline}
                   </p>
                 )}
                 
                 {/* Actions: boutons alignés à droite */}
                 <div className="flex items-center justify-end gap-2">
+                  {/* Bouton Rapport Original */}
+                  {hasOriginalText && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleHeadlineClick(report)}
+                      title="Voir le rapport original"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  
                   {/* Bouton Synthèse - FileText + Sparkles dans le même bouton */}
                   <Button
                     variant="ghost"
@@ -130,6 +177,16 @@ export function ReportsTimeline({ reports, companyId }: ReportsTimelineProps) {
         onOpenChange={(open) => !open && setSelectedReport(null)}
         reportPeriod={selectedReport?.report_period || null}
         content={selectedReport?.cleaned_content || null}
+      />
+      
+      {/* Modal Rapport Original */}
+      <OriginalReportModal
+        open={!!originalReportData}
+        onOpenChange={(open) => !open && setOriginalReportData(null)}
+        reportPeriod={originalReportData?.period || null}
+        content={originalReportData?.content || null}
+        companyName={companyName}
+        originalFileName={originalReportData?.originalFileName}
       />
     </>
   );

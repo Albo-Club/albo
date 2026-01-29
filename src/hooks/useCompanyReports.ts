@@ -4,9 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 export interface ReportFile {
   id: string;
   file_name: string;
+  original_file_name: string | null;
   storage_path: string;
   mime_type: string;
   file_type: string;
+  original_text_report: string | null;
 }
 
 export interface CompanyReport {
@@ -56,9 +58,11 @@ export function useCompanyReports(companyId: string | undefined) {
         reportFiles.push({
           id: file.id,
           file_name: file.file_name,
+          original_file_name: file.original_file_name || null,
           storage_path: file.storage_path,
           mime_type: file.mime_type || 'application/pdf',
           file_type: file.file_type || 'report',
+          original_text_report: file.original_text_report || null,
         });
         filesMap.set(file.report_id, reportFiles);
       });
