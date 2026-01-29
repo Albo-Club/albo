@@ -23,6 +23,7 @@ import {
   Sparkles,
   Square,
   User,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ const MAX_PANEL_HEIGHT = 700;
 export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPanelProps) {
   // État local pour l'interface
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [panelWidth, setPanelWidth] = useState(380);
@@ -442,8 +444,58 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
   );
 
   // ============================================
+  // Rendu: Bandeau minimisé (style LinkedIn)
+  // ============================================
+
+  const renderMinimizedBar = () => (
+    <div
+      onClick={() => setIsMinimized(false)}
+      className="fixed z-50 flex items-center justify-between px-3 py-2 bg-card border rounded-xl shadow-lg cursor-pointer hover:bg-accent/50 transition-colors"
+      style={{
+        bottom: '24px',
+        right: '24px',
+        width: `${panelWidth}px`,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {/* Avatar IA avec point vert */}
+        <div className="relative">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary-foreground" />
+          </div>
+          {/* Point vert "en ligne" */}
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-background" />
+        </div>
+        
+        {/* Nom de l'agent */}
+        <div className="flex flex-col">
+          <span className="font-medium text-sm leading-tight">Agent IA</span>
+          <span className="text-[10px] text-muted-foreground leading-tight">{companyName}</span>
+        </div>
+      </div>
+      
+      {/* Bouton fermer */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={(e) => {
+          e.stopPropagation();
+          // Optionnel: pourrait cacher complètement le chat
+        }}
+      >
+        <ChevronUp className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  // ============================================
   // Rendu principal
   // ============================================
+
+  if (isMinimized) {
+    return renderMinimizedBar();
+  }
   
   return (
     <div
@@ -476,14 +528,28 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
         onMouseDown={(e) => handleResizeMouseDown(e, 'both')}
         className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize hover:bg-primary/30 transition-colors z-10"
       />
+      
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50 shrink-0">
+      <div 
+        className="flex items-center justify-between px-3 py-2 border-b bg-muted/50 shrink-0 cursor-pointer"
+        onClick={() => setIsMinimized(true)}
+      >
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Assistant IA</span>
-          <span className="text-xs text-muted-foreground">• {companyName}</span>
+          {/* Avatar IA avec point vert */}
+          <div className="relative">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
+          </div>
+          
+          <div className="flex flex-col">
+            <span className="font-medium text-sm leading-tight">Agent IA</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">{companyName}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -497,6 +563,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
             </TooltipTrigger>
             <TooltipContent>Nouvelle conversation</TooltipContent>
           </Tooltip>
+          
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -515,6 +582,23 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
             <TooltipContent>
               {isExpanded ? "Réduire" : "Agrandir"}
             </TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMinimized(true);
+                }}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Minimiser</TooltipContent>
           </Tooltip>
         </div>
       </div>
