@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { SECTOR_COLORS, getSectorColors } from '@/types/portfolio';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { getSectorColors } from '@/types/portfolio';
 import { cn } from '@/lib/utils';
 
 interface SectorBadgesProps {
@@ -9,6 +10,8 @@ interface SectorBadgesProps {
 }
 
 export function SectorBadges({ sectors, maxDisplay = 2 }: SectorBadgesProps) {
+  const [open, setOpen] = useState(false);
+
   if (!sectors || sectors.length === 0) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -32,20 +35,33 @@ export function SectorBadges({ sectors, maxDisplay = 2 }: SectorBadgesProps) {
         );
       })}
       {remainingCount > 0 && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="secondary" className="text-xs cursor-help">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Badge 
+              variant="secondary" 
+              className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors"
+              onClick={() => setOpen(true)}
+            >
               +{remainingCount}
             </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <div className="flex flex-col gap-1">
-              {remainingSectors.map((sector) => (
-                <span key={sector}>{sector}</span>
-              ))}
+          </PopoverTrigger>
+          <PopoverContent side="bottom" align="start" className="w-auto max-w-[250px] p-2">
+            <div className="flex flex-wrap gap-1">
+              {remainingSectors.map((sector) => {
+                const colors = getSectorColors(sector);
+                return (
+                  <Badge
+                    key={sector}
+                    variant="outline"
+                    className={cn(colors.bg, colors.text, colors.border, 'text-xs')}
+                  >
+                    {sector}
+                  </Badge>
+                );
+              })}
             </div>
-          </TooltipContent>
-        </Tooltip>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   );
