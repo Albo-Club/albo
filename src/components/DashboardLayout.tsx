@@ -1,77 +1,84 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AIPanelProvider, useAIPanel } from "@/contexts/AIPanelContext";
 import { AskAISidePanel } from "@/components/AskAISidePanel";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-function SidebarAutoClose() {
-  const { open, setOpen } = useSidebar();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      
-      // Ne rien faire si la sidebar est déjà fermée
-      if (!open) return;
-
-      // Liste des sélecteurs à exclure (éléments qui appartiennent à la sidebar ou ses interactions)
-      const excludedSelectors = [
-        '[data-sidebar]',                      // Tous les éléments sidebar
-        '[data-radix-popper-content-wrapper]', // Tous les popovers Radix (dropdowns, selects, tooltips)
-        '[data-radix-menu-content]',           // Menus Radix
-        '[role="dialog"]',                     // Dialogs et modals
-        '[role="alertdialog"]',                // Alert dialogs
-        '[role="menu"]',                       // Menus contextuels
-        '[role="menubar"]',                    // Barres de menu
-        '[role="listbox"]',                    // Listes déroulantes
-        '[role="tooltip"]',                    // Tooltips
-        '[data-state="open"]',                 // Tout élément Radix actuellement ouvert
-      ];
-
-      // Vérifier si le clic est sur un élément exclu ou à l'intérieur d'un élément exclu
-      const isExcludedElement = excludedSelectors.some(selector => {
-        if (target.matches?.(selector)) return true;
-        if (target.closest?.(selector)) return true;
-        return false;
-      });
-
-      // Si le clic est sur un élément exclu, ne pas fermer
-      if (isExcludedElement) return;
-
-      // Sinon, fermer la sidebar
-      setOpen(false);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open, setOpen]);
-
-  return null;
-}
+const routeLabels: Record<string, string> = {
+  "/dashboard": "Vue d'ensemble",
+  "/opportunities": "Opportunités",
+  "/portfolio": "Portfolio",
+  "/submit": "Soumettre un deal",
+  "/profile": "Profil",
+  "/admin": "Administration",
+  "/workspace-settings": "Paramètres du workspace",
+};
 
 function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const { isOpen, togglePanel } = useAIPanel();
+  const location = useLocation();
+
+  // Get current page label
+  const currentPath = location.pathname;
+  const pageLabel = routeLabels[currentPath] || "Page";
+
+  // Check if we're on a detail page (e.g., /portfolio/123)
+  const pathParts = currentPath.split("/").filter(Boolean);
+  const isDetailPage = pathParts.length > 1;
+  const parentPath = isDetailPage ? `/${pathParts[0]}` : null;
+  const parentLabel = parentPath ? routeLabels[parentPath] : null;
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full">
-        <SidebarAutoClose />
-        <AppSidebar />
-        <div
-          className={cn(
-            "flex flex-col flex-1 transition-all duration-300 ease-in-out",
-            isOpen ? "md:mr-[400px]" : "mr-0"
-          )}
-        >
-          <header className="h-14 flex items-center justify-between border-b px-4 sticky top-0 bg-background z-10">
-            <SidebarTrigger />
+      <AppSidebar />
+      <SidebarInset
+        className={cn(
+          "transition-all duration-300 ease-in-out",
+          isOpen ? "md:mr-[400px]" : "mr-0"
+        )}
+      >
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              {isDetailPage && parentLabel ? (
+                <>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink href={parentPath!}>
+                      {parentLabel}
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Détail</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              ) : (
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+                </BreadcrumbItem>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="ml-auto">
             <Button
               variant="outline"
               size="sm"
@@ -81,15 +88,15 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">Ask AI</span>
             </Button>
-          </header>
-          <main className="flex-1 overflow-auto">
-            <div className="max-w-7xl mx-auto p-6 w-full">
-              {children}
-            </div>
-          </main>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="max-w-7xl mx-auto w-full py-6">
+            {children}
+          </div>
         </div>
-        <AskAISidePanel />
-      </div>
+      </SidebarInset>
+      <AskAISidePanel />
     </SidebarProvider>
   );
 }
