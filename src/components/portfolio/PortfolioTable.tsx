@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ColumnFiltersState,
@@ -13,6 +13,7 @@ import {
   getFacetedUniqueValues,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Table,
   TableBody,
@@ -73,6 +74,26 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
     },
   });
 
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const { rows } = table.getRowModel();
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    estimateSize: () => 56,
+    getScrollElement: () => tableContainerRef.current,
+    overscan: 5,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)
+      : 0;
+
   // Extract unique options for filters from sectors array
   const sectorOptions = Array.from(
     new Set(data.flatMap((c) => c.sectors || []).filter(Boolean))
@@ -85,7 +106,7 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
   const isFiltered = columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
@@ -144,10 +165,14 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
       )}
 
       {/* Table */}
-      <div className="rounded-md border">
-        <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 rounded-md border overflow-hidden">
+        <div
+          ref={tableContainerRef}
+          className="h-full overflow-y-auto overflow-x-auto"
+          style={{ maxHeight: "calc(100vh - 400px)" }}
+        >
           <Table style={{ minWidth: "900px" }}>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -164,24 +189,32 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/50 cursor-pointer"
-                    onClick={() => navigate(`/portfolio/${row.original.id}`)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+              {paddingTop > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingTop}px` }} />
+                </tr>
+              )}
+              {virtualRows.length > 0 ? (
+                virtualRows.map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => navigate(`/portfolio/${row.original.id}`)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell
@@ -192,13 +225,18 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
                   </TableCell>
                 </TableRow>
               )}
+              {paddingBottom > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingBottom}px` }} />
+                </tr>
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
+      <div className="shrink-0 flex items-center justify-between px-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>
             {table.getFilteredRowModel().rows.length} entreprise(s)

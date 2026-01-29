@@ -1,5 +1,4 @@
-import { useNavigate } from "react-router-dom";
-import { Home, Target, Wallet } from "lucide-react";
+import { Target, Wallet } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -12,29 +11,13 @@ import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 
-const FLAGGED_USERS = [
-  'test@albo.app',
-  'mael@alboteam.com',
-  'benjamin@alboteam.com',
-  'raphaelle@alboteam.com'
-];
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
 
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "Utilisateur";
   const userEmail = user?.email || "";
 
-  // Filter nav items based on feature flags
-  const canSeeDashboard = FLAGGED_USERS.includes(userEmail.toLowerCase());
-
   const navMainItems = [
-    ...(canSeeDashboard ? [{
-      title: "Vue d'ensemble",
-      url: "/dashboard",
-      icon: Home,
-    }] : []),
     {
       title: "Opportunités",
       url: "/opportunities",
@@ -47,7 +30,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ];
 
-  const navSecondaryItems: { title: string; url: string; icon: typeof Home }[] = [];
+  const navSecondaryItems: { title: string; url: string; icon: typeof Target }[] = [];
 
   const handleSignOut = async () => {
     await signOut();

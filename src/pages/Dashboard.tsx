@@ -54,7 +54,7 @@ export default function Dashboard() {
         .from("deals")
         .select(`
           *,
-          owner:profiles!deals_user_id_fkey(id, name, email)
+          owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
         `)
         .eq("user_id", user.id)
         .neq("is_hidden", true)
@@ -77,7 +77,7 @@ export default function Dashboard() {
           .from("deals")
           .select(`
             *,
-            owner:profiles!deals_user_id_fkey(id, name, email)
+            owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
           `)
           .in("id", dealIds)
           .neq("is_hidden", true)
@@ -91,7 +91,7 @@ export default function Dashboard() {
         .from("deals")
         .select(`
           *,
-          owner:profiles!deals_user_id_fkey(id, name, email)
+          owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
         `)
         .or(`user_id.eq.${user.id},sender_email.ilike.${user.email}`)
         .neq("is_hidden", true)
