@@ -82,15 +82,26 @@ export function DataTable<TData, TValue>({
       ? totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)
       : 0;
 
+  // Calculate a height that cuts rows to indicate scrollable content
+  // Row height ~56px, header ~44px, showing partial row = header + N rows + half row
+  const ROW_HEIGHT = 56;
+  const HEADER_HEIGHT = 44;
+  const VISIBLE_ROWS = 8;
+  const PARTIAL_ROW = ROW_HEIGHT * 0.6; // Show 60% of next row
+  const tableHeight = HEADER_HEIGHT + (VISIBLE_ROWS * ROW_HEIGHT) + PARTIAL_ROW;
+
   return (
     <div className="flex flex-col h-full w-full">
       <div className="shrink-0">
         <DataTableToolbar table={table} />
       </div>
-      <div className="flex-1 min-h-0 mt-4 overflow-hidden rounded-md border">
+      <div 
+        className="mt-4 rounded-md border"
+        style={{ height: `${tableHeight}px`, maxHeight: "calc(100vh - 280px)" }}
+      >
         <div
           ref={tableContainerRef}
-          className="h-full overflow-y-auto overflow-x-auto scrollbar-none"
+          className="h-full overflow-y-auto overflow-x-auto"
         >
           <Table style={{ minWidth: "1100px" }}>
             <TableHeader className="sticky top-0 bg-background z-10">

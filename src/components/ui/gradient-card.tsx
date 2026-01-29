@@ -32,12 +32,12 @@ export function GradientCard({
     <Card className={cn("relative overflow-hidden", className)} {...props}>
       {/* Background image */}
       <div 
-        className="absolute inset-0 bg-cover bg-center opacity-40"
+        className="absolute inset-0 bg-cover bg-center opacity-50"
         style={{ backgroundImage: `url(${gradientImages[variant]})` }}
       />
       
-      {/* Blur overlay */}
-      <div className="absolute inset-0 backdrop-blur-xl bg-background/60" />
+      {/* Blur overlay - reduced blur for more visibility */}
+      <div className="absolute inset-0 backdrop-blur-md bg-background/40" />
       
       {/* Content */}
       <div className="relative z-10">
