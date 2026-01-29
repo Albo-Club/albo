@@ -5,6 +5,12 @@ import { displayCompanyName } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   InlineSelectEditor,
   InlineAmountEditor,
@@ -41,6 +47,7 @@ export interface Deal {
     id: string;
     name: string | null;
     email: string | null;
+    avatar_url: string | null;
   } | null;
   ownerName?: string;
 }
@@ -210,24 +217,44 @@ export const columns: ColumnDef<Deal>[] = [
       <DataTableColumnHeader column={column} title="Propriétaire" />
     ),
     cell: ({ row }) => {
-      const ownerName = row.getValue("ownerName") as string;
       const owner = row.original.owner;
+      const ownerName = owner?.name || owner?.email || "Inconnu";
+      
+      const getInitials = () => {
+        if (owner?.name) {
+          return owner.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+        }
+        return owner?.email?.[0]?.toUpperCase() || "?";
+      };
+
       return (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            window.dispatchEvent(new CustomEvent('view-profile', { 
-              detail: { 
-                userId: owner?.id,
-                name: owner?.name,
-                email: owner?.email
-              } 
-            }));
-          }}
-          className="text-sm text-muted-foreground whitespace-nowrap hover:text-primary hover:underline transition-colors"
-        >
-          {ownerName || "—"}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('view-profile', { 
+                  detail: { 
+                    userId: owner?.id,
+                    name: owner?.name,
+                    email: owner?.email
+                  } 
+                }));
+              }}
+              className="flex items-center justify-center"
+            >
+              <Avatar className="h-7 w-7">
+                {owner?.avatar_url && (
+                  <AvatarImage src={owner.avatar_url} alt={ownerName} />
+                )}
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{ownerName}</TooltipContent>
+        </Tooltip>
       );
     },
     filterFn: (row, id, value) => {

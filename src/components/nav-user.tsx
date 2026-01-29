@@ -53,8 +53,8 @@ export function NavUser({ user, onSignOut }: NavUserProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
@@ -73,8 +73,8 @@ export function NavUser({ user, onSignOut }: NavUserProps) {
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
                     {getInitials()}
                   </AvatarFallback>
                 </Avatar>

@@ -14,6 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import {
   Table,
@@ -64,13 +65,37 @@ export function DataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const { rows } = table.getRowModel();
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    estimateSize: () => 56,
+    getScrollElement: () => tableContainerRef.current,
+    overscan: 5,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)
+      : 0;
+
   return (
-    <div className="space-y-4 w-full">
+    <div className="flex flex-col h-full w-full space-y-4">
       <DataTableToolbar table={table} />
-      <div className="w-full overflow-hidden rounded-md border">
-        <div className="overflow-x-auto w-full">
-          <Table style={{ minWidth: '1100px' }}>
-            <TableHeader>
+      <div className="flex-1 min-h-0 overflow-hidden rounded-md border">
+        <div
+          ref={tableContainerRef}
+          className="h-full overflow-y-auto overflow-x-auto"
+          style={{ maxHeight: "calc(100vh - 320px)" }}
+        >
+          <Table style={{ minWidth: "1100px" }}>
+            <TableHeader className="sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -89,27 +114,35 @@ export function DataTable<TData, TValue>({
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => {
-                      const deal = row.original as any;
-                      navigate(`/deal/${deal.id}`);
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+              {paddingTop > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingTop}px` }} />
+                </tr>
+              )}
+              {virtualRows.length > 0 ? (
+                virtualRows.map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        const deal = row.original as any;
+                        navigate(`/deal/${deal.id}`);
+                      }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell
@@ -120,11 +153,18 @@ export function DataTable<TData, TValue>({
                   </TableCell>
                 </TableRow>
               )}
+              {paddingBottom > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingBottom}px` }} />
+                </tr>
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
-      <DataTablePagination table={table} />
+      <div className="shrink-0">
+        <DataTablePagination table={table} />
+      </div>
     </div>
   );
 }
