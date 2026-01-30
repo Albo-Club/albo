@@ -40,13 +40,20 @@ export function useDealDocuments(dealId: string | undefined) {
   } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!dealId) return [];
+      if (!dealId) {
+        console.log('🔍 useDealDocuments - No dealId provided');
+        return [];
+      }
 
+      console.log('🔍 Fetching deck_files for deal:', dealId);
+      
       const { data, error } = await supabase
         .from('deck_files')
         .select('*')
         .eq('deal_id', dealId)
         .order('uploaded_at', { ascending: false });
+
+      console.log('🔍 deck_files results:', { data, error, count: data?.length });
 
       if (error) throw error;
       return data as DealDocument[];
