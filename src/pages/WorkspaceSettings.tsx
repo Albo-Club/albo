@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -29,11 +29,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw, ImageIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ImageUploader } from '@/components/onboarding/ImageUploader';
 
 const roleIcons: Record<WorkspaceRole, typeof Crown> = {
   owner: Crown,
@@ -345,6 +346,47 @@ export default function WorkspaceSettings() {
         )}
       </Card>
 
+      {/* Logo du Workspace */}
+      {isOwner && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Logo du workspace
+            </CardTitle>
+            <CardDescription>
+              Ce logo sera visible par tous les membres du workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImageUploader
+              currentImage={workspace.logo_url || null}
+              onImageChange={async (url) => {
+                try {
+                  const { error } = await supabase
+                    .from('workspaces')
+                    .update({ logo_url: url })
+                    .eq('id', workspace.id);
+                  
+                  if (error) throw error;
+                  
+                  // Refresh workspace data
+                  await refetch();
+                } catch (error: any) {
+                  console.error('Error saving logo:', error);
+                  toast.error('Erreur lors de la sauvegarde du logo');
+                }
+              }}
+              bucket="workspace-logos"
+              userId={workspace.id}
+              fallbackInitial={workspace.name}
+              size="lg"
+              shape="square"
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Members List */}
       <Card>
         <CardHeader>
@@ -371,6 +413,12 @@ export default function WorkspaceSettings() {
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
+                      {member.profile?.avatar_url && (
+                        <AvatarImage 
+                          src={member.profile.avatar_url} 
+                          alt={member.profile?.name || 'Avatar'} 
+                        />
+                      )}
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {member.profile?.name?.charAt(0).toUpperCase() || '?'}
                       </AvatarFallback>

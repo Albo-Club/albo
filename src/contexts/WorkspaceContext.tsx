@@ -10,6 +10,7 @@ export interface Workspace {
   name: string;
   owner_id: string;
   created_at: string;
+  logo_url?: string | null;
 }
 
 export interface WorkspaceMember {
@@ -22,6 +23,7 @@ export interface WorkspaceMember {
     id: string;
     name: string;
     email: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -116,7 +118,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             id,
             name,
             owner_id,
-            created_at
+            created_at,
+            logo_url
           )
         `)
         .eq('user_id', user.id);
@@ -178,7 +181,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           (membersData || []).map(async (member) => {
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, name, email')
+              .select('id, name, email, avatar_url')
               .eq('id', member.user_id)
               .single();
             
