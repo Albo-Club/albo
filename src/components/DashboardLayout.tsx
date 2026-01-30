@@ -2,11 +2,6 @@ import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { AIPanelProvider, useAIPanel } from "@/contexts/AIPanelContext";
-import { AskAISidePanel } from "@/components/AskAISidePanel";
-import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
@@ -31,8 +26,7 @@ const routeLabels: Record<string, string> = {
   "/workspace-settings": "Paramètres du workspace",
 };
 
-function DashboardLayoutInner({ children }: DashboardLayoutProps) {
-  const { isOpen, togglePanel } = useAIPanel();
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
 
   // Get current page label
@@ -48,12 +42,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   return (
     <SidebarProvider defaultOpen={true} className="h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset
-        className={cn(
-          "transition-all duration-300 ease-in-out flex flex-col h-svh md:h-[calc(100svh-1rem)] overflow-hidden",
-          isOpen ? "md:mr-[400px]" : "mr-0"
-        )}
-      >
+      <SidebarInset className="transition-all duration-300 ease-in-out flex flex-col h-svh md:h-[calc(100svh-1rem)] overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -78,17 +67,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
               )}
             </BreadcrumbList>
           </Breadcrumb>
-          <div className="ml-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={togglePanel}
-              className="gap-2 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 text-violet-700 hover:bg-violet-500/20 hover:border-violet-500/50 dark:text-violet-300 dark:border-violet-400/30"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Ask AI</span>
-            </Button>
-          </div>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none min-h-0">
           <div className="max-w-7xl mx-auto w-full min-w-0 p-4 py-6">
@@ -96,15 +74,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           </div>
         </div>
       </SidebarInset>
-      <AskAISidePanel />
     </SidebarProvider>
-  );
-}
-
-export function DashboardLayout({ children }: DashboardLayoutProps) {
-  return (
-    <AIPanelProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
-    </AIPanelProvider>
   );
 }

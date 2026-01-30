@@ -9,8 +9,8 @@ import { DealHeader } from '@/components/deals/DealHeader';
 import { DealTabs } from '@/components/deals/DealTabs';
 import { MemoWidget } from '@/components/deals/MemoWidget';
 import { DealInfoCard } from '@/components/deals/DealInfoCard';
+import { DealChatPanel } from '@/components/deals/DealChatPanel';
 import { displayCompanyName } from '@/lib/utils';
-
 interface Deal {
   id: string;
   user_id: string | null;
@@ -239,20 +239,28 @@ export default function DealDetail() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <DealHeader
-        dealId={deal.id}
-        companyName={companyName}
-        status={deal.status}
-        oneLiner={deal.one_liner || undefined}
-        createdAt={deal.created_at}
-        domain={deal.domain}
-        onStatusChange={handleStatusChange}
-      />
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <DealHeader
+          dealId={deal.id}
+          companyName={companyName}
+          status={deal.status}
+          oneLiner={deal.one_liner || undefined}
+          createdAt={deal.created_at}
+          domain={deal.domain}
+          onStatusChange={handleStatusChange}
+        />
 
-      {/* Tabs */}
-      <DealTabs overviewContent={overviewContent} />
-    </div>
+        {/* Tabs */}
+        <DealTabs overviewContent={overviewContent} />
+      </div>
+
+      {/* Chat IA pour ce deal */}
+      <DealChatPanel 
+        dealId={deal.id} 
+        companyName={companyName} 
+      />
+    </>
   );
 }
