@@ -152,9 +152,17 @@ export function WorkspaceDropdown() {
             variant="ghost"
             className={`w-full justify-start gap-2 px-2 h-auto py-2 hover:bg-sidebar-accent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isCollapsed ? 'justify-center' : ''}`}
           >
-            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-              {workspaceInitial}
-            </div>
+            {!isPersonalMode && workspace?.logo_url ? (
+              <img 
+                src={workspace.logo_url}
+                alt={workspace.name}
+                className="h-8 w-8 rounded-md object-cover shrink-0"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+                {workspaceInitial}
+              </div>
+            )}
             {!isCollapsed && (
               <>
                 <span className="font-medium truncate flex-1 text-left">
@@ -193,9 +201,17 @@ export function WorkspaceDropdown() {
                     className="flex items-center justify-between cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
-                        {workspace.name.charAt(0).toUpperCase()}
-                      </div>
+                      {workspace.logo_url ? (
+                        <img 
+                          src={workspace.logo_url}
+                          alt={workspace.name}
+                          className="h-6 w-6 rounded-md object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
+                          {workspace.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <span className="font-medium">{workspace.name}</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -249,9 +265,17 @@ export function WorkspaceDropdown() {
                   onClick={() => switchWorkspace(ws.id)}
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
-                    {ws.name.charAt(0).toUpperCase()}
-                  </div>
+                  {ws.logo_url ? (
+                    <img 
+                      src={ws.logo_url}
+                      alt={ws.name}
+                      className="h-6 w-6 rounded-md object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
+                      {ws.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <span className="flex-1 truncate">{ws.name}</span>
                 </DropdownMenuItem>
               ))}
