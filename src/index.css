@@ -329,4 +329,74 @@
   }
 }
 
+/* Report Content Viewer - Custom styling for report content */
+.report-content {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.report-content h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground));
+}
+
+.report-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.report-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+.report-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.report-content th,
+.report-content td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.report-content th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.report-content blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.report-content ul,
+.report-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.report-content li {
+  margin: 0.25rem 0;
+}
+
+/* Dark mode support for report content */
+.dark .report-content {
+  color: hsl(var(--foreground));
+}
+
 /* Note: Google Fonts are loaded via index.html */

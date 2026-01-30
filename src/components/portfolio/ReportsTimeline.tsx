@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { Newspaper } from "lucide-react";
+import { Newspaper, ChevronRight } from "lucide-react";
 import { CompanyReport } from "@/hooks/useCompanyReports";
-import { ReportSynthesisModal } from "./ReportSynthesisModal";
+import { ReportContentViewer } from "./ReportContentViewer";
 import { cn } from "@/lib/utils";
 
 interface ReportsTimelineProps {
@@ -105,24 +105,31 @@ export function ReportsTimeline({ reports, companyId, companyName }: ReportsTime
                   </div>
                 )}
                 
-                {/* Card du report */}
+                {/* Card du report - cliquable avec indicateur */}
                 <div 
                   className={cn(
-                    "rounded-lg border bg-card p-4 cursor-pointer transition-colors",
-                    "hover:bg-accent/50"
+                    "group rounded-lg border bg-card p-4 cursor-pointer transition-all",
+                    "hover:bg-accent/50 hover:shadow-sm hover:border-primary/20"
                   )}
                   onClick={() => handleCardClick(report)}
                 >
-                  {/* Headline en gras */}
-                  {report.headline ? (
-                    <p className="text-sm font-medium text-foreground leading-relaxed">
-                      {report.headline}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      Aucun résumé disponible
-                    </p>
-                  )}
+                  <div className="flex items-start justify-between gap-3">
+                    {/* Headline */}
+                    <div className="flex-1 min-w-0">
+                      {report.headline ? (
+                        <p className="text-sm font-medium text-foreground leading-relaxed">
+                          {report.headline}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          Aucun résumé disponible
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Chevron indicator */}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -130,12 +137,13 @@ export function ReportsTimeline({ reports, companyId, companyName }: ReportsTime
         })}
       </div>
 
-      {/* Modal pour afficher le cleaned_content en markdown */}
-      <ReportSynthesisModal
-        open={!!selectedReport}
-        onOpenChange={(open) => !open && setSelectedReport(null)}
-        reportPeriod={selectedReport?.report_period || null}
+      {/* Sheet pour afficher le cleaned_content (HTML ou Markdown) */}
+      <ReportContentViewer
+        isOpen={!!selectedReport}
+        onClose={() => setSelectedReport(null)}
         content={selectedReport?.cleaned_content || null}
+        title={selectedReport?.report_period || "Synthèse"}
+        period={selectedReport?.report_period}
       />
     </>
   );
