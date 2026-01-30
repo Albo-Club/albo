@@ -42,15 +42,9 @@ export function DealTabs({
         
         <TabsTrigger
           value="folders"
-          className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
-          disabled={!foldersContent}
+          className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
         >
           Documents
-          {!foldersContent && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted-foreground/20 text-muted-foreground">
-              Soon
-            </Badge>
-          )}
         </TabsTrigger>
         
         <TabsTrigger

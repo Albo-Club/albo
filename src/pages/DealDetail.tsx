@@ -10,6 +10,7 @@ import { DealTabs } from '@/components/deals/DealTabs';
 import { MemoWidget } from '@/components/deals/MemoWidget';
 import { DealInfoCard } from '@/components/deals/DealInfoCard';
 import { DealChatPanel } from '@/components/deals/DealChatPanel';
+import { DealDocumentsList } from '@/components/deals/DealDocumentsList';
 import { displayCompanyName } from '@/lib/utils';
 interface Deal {
   id: string;
@@ -253,7 +254,10 @@ export default function DealDetail() {
         />
 
         {/* Tabs */}
-        <DealTabs overviewContent={overviewContent} />
+        <DealTabs 
+          overviewContent={overviewContent} 
+          foldersContent={<DealDocumentsList dealId={deal.id} />}
+        />
       </div>
 
       {/* Chat IA pour ce deal */}
