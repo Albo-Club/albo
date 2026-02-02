@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+import { Mail } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MemoHtmlFrame } from "@/components/MemoHtmlFrame";
@@ -43,21 +43,21 @@ export function ReportContentViewer({
   }, [content]);
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-2xl lg:max-w-3xl p-0 flex flex-col"
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()} modal={false}>
+      <DialogContent 
+        className="max-w-3xl max-h-[85vh] p-0 flex flex-col shadow-2xl border bg-background"
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <SheetHeader className="px-6 py-4 border-b shrink-0">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
-                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-muted">
+                <Mail className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <SheetTitle className="text-base font-semibold">
+                <DialogTitle className="text-base font-semibold">
                   {title || "Report"}
-                </SheetTitle>
+                </DialogTitle>
                 {period && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {period}
@@ -65,14 +65,11 @@ export function ReportContentViewer({
                 )}
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
-            >
-              Synthèse IA
+            <Badge variant="secondary" className="text-[10px]">
+              Report mail
             </Badge>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {content ? (
@@ -101,7 +98,7 @@ export function ReportContentViewer({
             </div>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

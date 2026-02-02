@@ -247,18 +247,13 @@ function ListViewItem({
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
   const canPreview = isPreviewable(item);
 
-  const handleDoubleClick = () => {
-    if (isFolder) return;
-    if (canPreview) {
-      onPreview(item);
-    } else {
-      onDownload(item);
-    }
-  };
-
   const handleClick = () => {
     if (isFolder) {
       onNavigate(item.id);
+    } else if (canPreview) {
+      onPreview(item);
+    } else {
+      onDownload(item);
     }
   };
 
@@ -268,7 +263,6 @@ function ListViewItem({
         "group flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md cursor-pointer transition-all duration-200 hover:scale-[1.01] animate-fade-in"
       )}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
       {/* Icon or Thumbnail */}
       {isFolder ? (
@@ -309,20 +303,6 @@ function ListViewItem({
         </p>
       </div>
 
-      {/* Preview icon on hover */}
-      {canPreview && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview(item);
-          }}
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </Button>
-      )}
 
       {/* Actions */}
       <DropdownMenu>
@@ -406,18 +386,13 @@ function GridViewItem({
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
   const canPreview = isPreviewable(item);
 
-  const handleDoubleClick = () => {
-    if (isFolder) return;
-    if (canPreview) {
-      onPreview(item);
-    } else {
-      onDownload(item);
-    }
-  };
-
   const handleClick = () => {
     if (isFolder) {
       onNavigate(item.id);
+    } else if (canPreview) {
+      onPreview(item);
+    } else {
+      onDownload(item);
     }
   };
 
@@ -427,7 +402,6 @@ function GridViewItem({
         "group relative p-3 hover:bg-accent/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] animate-fade-in"
       )}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
       {/* Actions menu */}
       <DropdownMenu>
