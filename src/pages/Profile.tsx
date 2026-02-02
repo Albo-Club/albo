@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, User, Briefcase, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle } from 'lucide-react';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
 
 // ============================================================
@@ -43,12 +44,26 @@ interface Profile {
   check_size_max: number | null;
 }
 
+interface ConnectedAccount {
+  id: string;
+  channel_type: string;
+  provider: 'GOOGLE' | 'MICROSOFT' | 'IMAP';
+  provider_account_id: string;
+  email: string | null;
+  display_name: string | null;
+  status: 'pending' | 'active' | 'needs_reconnect' | 'disconnected' | 'syncing';
+  connected_at: string;
+  last_synced_at: string | null;
+  disconnected_at: string | null;
+}
+
 // ============================================================
 // COMPOSANT PRINCIPAL
 // ============================================================
 
 export default function Profile() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,11 +83,37 @@ export default function Profile() {
     check_size_max: '',
   });
 
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [connectingEmail, setConnectingEmail] = useState(false);
+
   useEffect(() => {
     if (user) {
       loadProfile();
+      loadConnectedAccounts();
     }
   }, [user]);
+
+  // Gérer le retour depuis Unipile (query params ?connection=success ou ?connection=failed)
+  useEffect(() => {
+    const connectionStatus = searchParams.get('connection');
+    if (connectionStatus === 'success') {
+      toast.success('Compte email connecté avec succès !', {
+        description: 'Votre boîte mail est maintenant liée à Albo.',
+      });
+      // Recharger les comptes après un court délai (le webhook peut prendre 1-2s)
+      setTimeout(() => loadConnectedAccounts(), 2000);
+      // Nettoyer le query param de l'URL
+      searchParams.delete('connection');
+      setSearchParams(searchParams, { replace: true });
+    } else if (connectionStatus === 'failed') {
+      toast.error('Échec de la connexion email', {
+        description: 'Veuillez réessayer ou utiliser un autre fournisseur.',
+      });
+      searchParams.delete('connection');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadProfile = async () => {
     try {
@@ -105,6 +146,26 @@ export default function Profile() {
       toast.error('Erreur lors du chargement du profil');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadConnectedAccounts = async () => {
+    if (!user) return;
+    setLoadingAccounts(true);
+    try {
+      const { data, error } = await supabase
+        .from('connected_accounts')
+        .select('*')
+        .eq('user_id', user.id)
+        .neq('status', 'disconnected')
+        .order('connected_at', { ascending: false });
+
+      if (error) throw error;
+      setConnectedAccounts((data || []) as ConnectedAccount[]);
+    } catch (error: any) {
+      console.error('Error loading connected accounts:', error);
+    } finally {
+      setLoadingAccounts(false);
     }
   };
 
@@ -191,6 +252,84 @@ export default function Profile() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConnectEmail = async () => {
+    setConnectingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-unipile-link');
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Aucun lien reçu');
+      }
+    } catch (error: any) {
+      console.error('Error generating Unipile link:', error);
+      toast.error('Erreur lors de la connexion email', {
+        description: error.message || 'Veuillez réessayer.',
+      });
+      setConnectingEmail(false);
+    }
+  };
+
+  const handleDisconnectAccount = async (accountId: string) => {
+    try {
+      const { error } = await supabase
+        .from('connected_accounts')
+        .update({
+          status: 'disconnected',
+          disconnected_at: new Date().toISOString(),
+        })
+        .eq('id', accountId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast.success('Compte déconnecté');
+      await loadConnectedAccounts();
+    } catch (error: any) {
+      console.error('Error disconnecting account:', error);
+      toast.error('Erreur lors de la déconnexion');
+    }
+  };
+
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'GOOGLE':
+      case 'MICROSOFT':
+        return <Mail className="h-4 w-4" />;
+      case 'IMAP':
+        return <Server className="h-4 w-4" />;
+      default:
+        return <Mail className="h-4 w-4" />;
+    }
+  };
+
+  const getProviderLabel = (provider: string) => {
+    switch (provider) {
+      case 'GOOGLE': return 'Gmail';
+      case 'MICROSOFT': return 'Outlook';
+      case 'IMAP': return 'IMAP';
+      default: return provider;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">Connecté</Badge>;
+      case 'syncing':
+        return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Synchronisation</Badge>;
+      case 'needs_reconnect':
+        return <Badge variant="destructive" className="bg-amber-100 text-amber-700 hover:bg-amber-100"><AlertCircle className="h-3 w-3 mr-1" />Reconnexion requise</Badge>;
+      case 'pending':
+        return <Badge variant="secondary"><Loader2 className="h-3 w-3 mr-1 animate-spin" />En attente...</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -374,6 +513,90 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 4 : Comptes connectés (email) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plug className="h-5 w-5" />
+              Comptes connectés
+            </CardTitle>
+            <CardDescription>
+              Connectez votre boîte email pour recevoir et envoyer des messages depuis Albo
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Liste des comptes connectés */}
+            {loadingAccounts ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Chargement des comptes...
+              </div>
+            ) : connectedAccounts.length > 0 ? (
+              <div className="space-y-3">
+                {connectedAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center h-9 w-9 rounded-full bg-muted">
+                        {getProviderIcon(account.provider)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {account.email || account.display_name || 'Compte email'}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-muted-foreground">
+                            {getProviderLabel(account.provider)}
+                          </span>
+                          {getStatusBadge(account.status)}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDisconnectAccount(account.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Unplug className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Aucun compte email connecté</p>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Bouton pour connecter un nouveau compte */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleConnectEmail}
+              disabled={connectingEmail}
+              className="w-full"
+            >
+              {connectingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Redirection vers le fournisseur...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Connecter un compte email
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
