@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatEmailDateFull, getInitials, getDisplayName } from '@/lib/emailFormatters';
 import { useEmailDetail } from '@/hooks/useEmailDetail';
+import { EmailBodyFrame } from './EmailBodyFrame';
 import type { UnipileEmail } from '@/hooks/useInboxEmails';
 
 interface EmailReadingViewProps {
@@ -32,85 +33,82 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background">
-      {/* Top bar with back button */}
-      <div className="p-3 border-b shrink-0 flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Retour
+      {/* Sticky header: back button + subject */}
+      <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
+        <h1 className="text-base font-semibold truncate">
+          {email.subject || '(Sans sujet)'}
+        </h1>
       </div>
 
-      {/* Email content */}
+      {/* Scrollable content */}
       <ScrollArea className="flex-1">
-        <div className="p-6 max-w-4xl mx-auto">
-          {/* Subject */}
-          <h1 className="text-xl font-semibold mb-4">
-            {email.subject || '(Sans sujet)'}
-          </h1>
-          
+        <div className="p-5">
+          {/* Email metadata header */}
+          <div className="flex items-start gap-3 mb-1">
+            <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                {getInitials(senderName)}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-semibold text-sm truncate">{senderName}</span>
+                  <span className="text-xs text-muted-foreground truncate hidden sm:inline">
+                    &lt;{senderEmail}&gt;
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {formatEmailDateFull(email.date)}
+                </span>
+              </div>
+
+              <div className="text-xs text-muted-foreground mt-0.5">
+                to {recipients}
+                {ccRecipients && <span className="ml-1">· Cc: {ccRecipients}</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Folders badges */}
           {email.folders && email.folders.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-4">
+            <div className="flex flex-wrap gap-1 mt-2 ml-12">
               {email.folders.map((folder, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
+                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
                   {folder}
                 </Badge>
               ))}
             </div>
           )}
 
-          {/* Sender info */}
-          <div className="flex items-start gap-3 mb-4">
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                {getInitials(senderName)}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm">{senderName}</span>
-                <span className="text-muted-foreground text-sm">&lt;{senderEmail}&gt;</span>
-              </div>
-              
-              <div className="text-xs text-muted-foreground mt-1">
-                À : {recipients}
-                {ccRecipients && (
-                  <span> · Cc : {ccRecipients}</span>
-                )}
-              </div>
-              
-              <div className="text-xs text-muted-foreground mt-1">
-                {formatEmailDateFull(email.date)}
-              </div>
-            </div>
-          </div>
-
           <Separator className="my-4" />
 
-          {/* Pending banner */}
+          {/* Pending / Loading / Error states */}
           {isPending && (
-            <Alert className="mb-4 border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
-              <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
-              <AlertDescription className="text-yellow-700 dark:text-yellow-400">
-                Le contenu de cet email est en cours de téléchargement, veuillez patienter...
+            <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+              <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
+                Contenu en cours de téléchargement…
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Loading state */}
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Chargement du contenu...</p>
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Chargement…</p>
             </div>
           )}
 
-          {/* Error state */}
           {error && !isLoading && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
-                <span>Erreur lors du chargement : {error.message}</span>
+                <span className="text-sm">Erreur : {error.message}</span>
                 <Button variant="outline" size="sm" onClick={() => retry()}>
                   Réessayer
                 </Button>
@@ -118,47 +116,41 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
             </Alert>
           )}
 
-          {/* Body content */}
+          {/* Email body — SANDBOXED IFRAME */}
           {!isLoading && !error && detail && (
             <>
               {detail.body_html ? (
-                <div 
-                  className="prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: detail.body_html }}
-                />
+                <EmailBodyFrame html={detail.body_html} />
               ) : detail.body_plain ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                   {detail.body_plain}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm">Aucun contenu</p>
+                <p className="text-muted-foreground text-sm italic">
+                  Aucun contenu disponible
+                </p>
               )}
 
-              {/* Attachments section */}
+              {/* Attachments */}
               {detail.attachments && detail.attachments.length > 0 && (
                 <>
-                  <Separator className="my-6" />
+                  <Separator className="my-5" />
                   <div>
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <Paperclip className="h-4 w-4" />
-                      Pièces jointes ({detail.attachments.length})
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" />
+                      {detail.attachments.length} pièce{detail.attachments.length > 1 ? 's' : ''} jointe{detail.attachments.length > 1 ? 's' : ''}
                     </h3>
-                    <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
                       {detail.attachments.map((attachment) => (
                         <div
                           key={attachment.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors text-sm"
                         >
-                          <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{attachment.filename}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatFileSize(attachment.size)}
-                            </p>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            Télécharger
-                          </Button>
+                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate max-w-[200px]">{attachment.filename}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {formatFileSize(attachment.size)}
+                          </span>
                         </div>
                       ))}
                     </div>
