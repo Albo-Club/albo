@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mail,
@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Search,
   X,
-  Archive,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +18,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useInboxEmails, UnipileEmail, ConnectedEmailAccount, fetchEmailDetail, EmailAttachment } from '@/hooks/useInboxEmails';
+import { useInboxEmails, UnipileEmail, ConnectedEmailAccount } from '@/hooks/useInboxEmails';
 import { EmailListItem } from '@/components/inbox/EmailListItem';
-import { EmailNavSidebar } from '@/components/inbox/EmailNavSidebar';
 import { EmailReadingView } from '@/components/inbox/EmailReadingView';
 import { EmailListSkeleton } from '@/components/inbox/EmailListSkeleton';
 
-type FolderType = 'INBOX' | 'SENT' | 'DRAFTS' | 'SPAM' | 'TRASH' | 'ARCHIVE';
+type FolderType = 'INBOX' | 'SENT' | 'DRAFTS' | 'SPAM' | 'TRASH';
 
 interface FolderItem {
   id: FolderType;
@@ -36,31 +35,19 @@ const folders: FolderItem[] = [
   { id: 'INBOX', label: 'Boîte de réception', icon: InboxIcon },
   { id: 'SENT', label: 'Envoyés', icon: Send },
   { id: 'DRAFTS', label: 'Brouillons', icon: FileEdit },
-  { id: 'ARCHIVE', label: 'Archives', icon: Archive },
   { id: 'SPAM', label: 'Spam', icon: AlertTriangle },
   { id: 'TRASH', label: 'Corbeille', icon: Trash2 },
 ];
-
-interface EmailDetail {
-  body: string;
-  body_plain: string;
-  attachments: EmailAttachment[];
-}
 
 export default function Inbox() {
   const navigate = useNavigate();
   const [selectedFolder, setSelectedFolder] = useState<FolderType>('INBOX');
   const [selectedEmail, setSelectedEmail] = useState<UnipileEmail | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isForceRefreshing, setIsForceRefreshing] = useState(false);
-  
-  // Email detail loading state
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [emailDetail, setEmailDetail] = useState<EmailDetail | null>(null);
 
-  const { emails, accounts, isLoading, error, refetch, forceRefresh, isFetching } = useInboxEmails({
-    folder: selectedFolder === 'ARCHIVE' ? 'INBOX' : selectedFolder,
-    limit: 100,
+  const { emails, accounts, isLoading, error, refetch, isFetching } = useInboxEmails({
+    folder: selectedFolder,
+    limit: 50,
   });
 
   // Gmail-style search filtering
@@ -122,85 +109,23 @@ export default function Inbox() {
     });
   }, [emails, searchQuery]);
 
-  // Filter by archive status
-  const displayedEmails = useMemo(() => {
-    let base = filteredEmails;
-
-    if (selectedFolder === 'ARCHIVE') {
-      // Show only archived emails
-      base = base.filter(e => e.is_archived === true);
-    } else if (selectedFolder === 'INBOX') {
-      // In inbox, exclude archived emails
-      base = base.filter(e => e.is_archived !== true);
-    }
-    // For other folders (SENT, DRAFTS, etc.), show all emails in that folder
-
-    return base;
-  }, [filteredEmails, selectedFolder]);
-
   const currentFolderItem = folders.find(f => f.id === selectedFolder) || folders[0];
 
-  // Handle email click with on-demand detail loading
-  const handleEmailClick = useCallback(async (email: UnipileEmail) => {
-    // Select immediately
+  const handleEmailClick = (email: UnipileEmail) => {
     setSelectedEmail(email);
-    setEmailDetail(null);
-    setLoadingDetail(true);
-
-    try {
-      const result = await fetchEmailDetail(email.id, email.account_id);
-
-      if (result.success) {
-        setEmailDetail({
-          body: result.email.body || '',
-          body_plain: result.email.body_plain || '',
-          attachments: result.email.attachments || [],
-        });
-      } else {
-        console.error('Fetch detail error:', result.error);
-        // Fallback: show snippet
-        setEmailDetail({
-          body: '',
-          body_plain: email.snippet || 'Impossible de charger le contenu de cet email.',
-          attachments: [],
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch email detail:', error);
-      setEmailDetail({
-        body: '',
-        body_plain: email.snippet || 'Erreur de chargement.',
-        attachments: [],
-      });
-    } finally {
-      setLoadingDetail(false);
-    }
-  }, []);
+  };
 
   const handleBackToList = () => {
     setSelectedEmail(null);
-    setEmailDetail(null);
   };
 
   const handleFolderChange = (folder: FolderType) => {
     setSelectedFolder(folder);
     setSelectedEmail(null);
-    setEmailDetail(null);
     setSearchQuery('');
   };
 
-  const handleForceRefresh = async () => {
-    setIsForceRefreshing(true);
-    try {
-      await forceRefresh();
-    } catch (error) {
-      console.error('Force refresh failed:', error);
-    } finally {
-      setIsForceRefreshing(false);
-    }
-  };
-
-  // Sidebar component (accounts + folders)
+  // Sidebar component (shared between desktop and mobile)
   const renderSidebar = () => (
     <div className="w-56 border-r flex flex-col shrink-0 bg-background">
       <ScrollArea className="flex-1">
@@ -276,7 +201,7 @@ export default function Inbox() {
     </div>
   );
 
-  // Email list with search bar (full width when no email selected)
+  // Email list with search bar
   const renderEmailList = () => (
     <div className="flex-1 flex flex-col min-w-0">
       {/* List header */}
@@ -284,7 +209,7 @@ export default function Inbox() {
         <div>
           <h2 className="font-medium text-sm">{currentFolderItem.label}</h2>
           <p className="text-xs text-muted-foreground">
-            {displayedEmails.length} email{displayedEmails.length !== 1 ? 's' : ''}
+            {filteredEmails.length} email{filteredEmails.length !== 1 ? 's' : ''}
           </p>
         </div>
         <Tooltip>
@@ -293,13 +218,13 @@ export default function Inbox() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={handleForceRefresh}
-              disabled={isFetching || isForceRefreshing}
+              onClick={() => refetch()}
+              disabled={isFetching}
             >
-              <RefreshCw className={cn('h-4 w-4', (isFetching || isForceRefreshing) && 'animate-spin')} />
+              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Synchroniser avec le serveur</TooltipContent>
+          <TooltipContent>Actualiser</TooltipContent>
         </Tooltip>
       </div>
 
@@ -327,7 +252,7 @@ export default function Inbox() {
         </div>
         {searchQuery && (
           <p className="text-xs text-muted-foreground mt-2">
-            {displayedEmails.length} résultat{displayedEmails.length !== 1 ? 's' : ''} pour "{searchQuery}"
+            {filteredEmails.length} résultat{filteredEmails.length !== 1 ? 's' : ''} pour "{searchQuery}"
           </p>
         )}
       </div>
@@ -345,7 +270,7 @@ export default function Inbox() {
               Réessayer
             </Button>
           </div>
-        ) : displayedEmails.length === 0 ? (
+        ) : filteredEmails.length === 0 ? (
           <div className="p-8 text-center">
             <Mail className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
             <p className="text-sm text-muted-foreground">
@@ -359,11 +284,11 @@ export default function Inbox() {
           </div>
         ) : (
           <div className="divide-y">
-            {displayedEmails.map((email) => (
+            {filteredEmails.map((email) => (
               <EmailListItem
                 key={email.id}
                 email={email}
-                isSelected={selectedEmail?.id === email.id}
+                isSelected={false}
                 onClick={() => handleEmailClick(email)}
               />
             ))}
@@ -373,35 +298,17 @@ export default function Inbox() {
     </div>
   );
 
-  // Desktop layout - 2 or 3 columns depending on selection
+  // Desktop layout - 2 columns (sidebar + email list/reading view)
   const desktopLayout = (
     <div className="hidden md:flex h-full">
-      {/* Column 1: Accounts + Folders sidebar (always visible) */}
       {renderSidebar()}
       
-      {/* When email is selected: show nav sidebar + reading view */}
       {selectedEmail ? (
-        <>
-          {/* Column 2: Navigation sidebar with email list */}
-          <EmailNavSidebar
-            emails={displayedEmails}
-            selectedEmail={selectedEmail}
-            onSelectEmail={handleEmailClick}
-            onClose={handleBackToList}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
-          
-          {/* Column 3: Reading view */}
-          <EmailReadingView 
-            email={selectedEmail}
-            emailDetail={emailDetail}
-            isLoadingDetail={loadingDetail}
-            onBack={handleBackToList}
-          />
-        </>
+        <EmailReadingView 
+          email={selectedEmail} 
+          onBack={handleBackToList}
+        />
       ) : (
-        /* Full width email list when no email selected */
         renderEmailList()
       )}
     </div>
@@ -412,9 +319,7 @@ export default function Inbox() {
     <div className="md:hidden flex flex-col h-full">
       {selectedEmail ? (
         <EmailReadingView 
-          email={selectedEmail}
-          emailDetail={emailDetail}
-          isLoadingDetail={loadingDetail}
+          email={selectedEmail} 
           onBack={handleBackToList}
         />
       ) : (
@@ -434,17 +339,17 @@ export default function Inbox() {
                 ))}
               </select>
               <span className="text-xs text-muted-foreground">
-                ({displayedEmails.length})
+                ({filteredEmails.length})
               </span>
             </div>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={handleForceRefresh}
-              disabled={isFetching || isForceRefreshing}
+              onClick={() => refetch()}
+              disabled={isFetching}
             >
-              <RefreshCw className={cn('h-4 w-4', (isFetching || isForceRefreshing) && 'animate-spin')} />
+              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
             </Button>
           </div>
 
@@ -483,7 +388,7 @@ export default function Inbox() {
                   Réessayer
                 </Button>
               </div>
-            ) : displayedEmails.length === 0 ? (
+            ) : filteredEmails.length === 0 ? (
               <div className="p-8 text-center">
                 <Mail className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                 <p className="text-sm text-muted-foreground">
@@ -502,7 +407,7 @@ export default function Inbox() {
               </div>
             ) : (
               <div className="divide-y">
-                {displayedEmails.map((email) => (
+                {filteredEmails.map((email) => (
                   <EmailListItem
                     key={email.id}
                     email={email}

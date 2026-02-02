@@ -1,17 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface EmailAttendee {
   display_name: string;
   identifier: string;
-}
-
-export interface EmailAttachment {
-  id: string;
-  name: string;
-  extension: string;
-  size: number;
-  mime: string;
 }
 
 export interface UnipileEmail {
@@ -20,14 +12,12 @@ export interface UnipileEmail {
   from: EmailAttendee;
   to: EmailAttendee[];
   cc: EmailAttendee[];
-  bcc: EmailAttendee[];
   date: string;
   read: boolean;
   read_date: string | null;
   has_attachments: boolean;
   folders: string[];
   role: string | null;
-  is_archived: boolean;
   body: string;
   body_plain: string;
   snippet: string;
@@ -36,19 +26,6 @@ export interface UnipileEmail {
   provider: string;
   in_reply_to: any | null;
   message_id: string | null;
-  has_cached_detail: boolean;
-}
-
-export interface EmailDetailResponse {
-  success: boolean;
-  source: "cache" | "unipile";
-  email: {
-    id: string;
-    body: string;
-    body_plain: string;
-    attachments: EmailAttachment[];
-  };
-  error?: string;
 }
 
 export interface ConnectedEmailAccount {
@@ -73,7 +50,6 @@ interface FetchEmailsResponse {
 
 export function useInboxEmails(params: FetchEmailsParams = {}) {
   const { limit = 50, folder = 'INBOX' } = params;
-  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['inbox-emails', limit, folder],
@@ -104,56 +80,12 @@ export function useInboxEmails(params: FetchEmailsParams = {}) {
     refetchOnWindowFocus: false,
   });
 
-  // Force refresh function that bypasses cache
-  const forceRefresh = async () => {
-    const { data, error } = await supabase.functions.invoke<FetchEmailsResponse>(
-      'fetch-unipile-emails',
-      {
-        body: { limit, folder, force_refresh: true },
-      }
-    );
-
-    if (error) {
-      console.error('Error force refreshing emails:', error);
-      throw new Error(error.message || 'Failed to refresh emails');
-    }
-
-    if (data?.success) {
-      // Update the query cache with fresh data
-      queryClient.setQueryData(['inbox-emails', limit, folder], data);
-    }
-
-    return data;
-  };
-
   return {
     emails: query.data?.emails || [],
     accounts: query.data?.accounts || [],
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
-    forceRefresh,
     isFetching: query.isFetching,
   };
-}
-
-// Hook to fetch email detail on demand
-export async function fetchEmailDetail(emailId: string, accountId: string): Promise<EmailDetailResponse> {
-  const { data, error } = await supabase.functions.invoke<EmailDetailResponse>(
-    'fetch-email-detail',
-    {
-      body: { email_id: emailId, account_id: accountId },
-    }
-  );
-
-  if (error) {
-    console.error('Error fetching email detail:', error);
-    throw new Error(error.message || 'Failed to fetch email detail');
-  }
-
-  if (!data) {
-    throw new Error('No data received');
-  }
-
-  return data;
 }
