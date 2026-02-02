@@ -1,26 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface UnipileEmailContact {
+export interface EmailAttendee {
   display_name: string;
   identifier: string;
 }
 
 export interface UnipileEmail {
   id: string;
-  account_id: string;
   subject: string;
-  from: UnipileEmailContact;
-  to: UnipileEmailContact[];
-  cc?: UnipileEmailContact[];
+  from: EmailAttendee;
+  to: EmailAttendee[];
+  cc: EmailAttendee[];
   date: string;
   read: boolean;
+  read_date: string | null;
   has_attachments: boolean;
   folders: string[];
-  body?: string;
-  body_plain?: string;
-  _account_id?: string;
-  _account_email?: string;
+  role: string | null;
+  body: string;
+  body_plain: string;
+  snippet: string;
+  account_id: string;
+  account_display_name: string;
+  provider: string;
+  in_reply_to: any | null;
+  message_id: string | null;
 }
 
 export interface ConnectedEmailAccount {
