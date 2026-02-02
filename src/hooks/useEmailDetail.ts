@@ -62,10 +62,18 @@ export function useEmailDetail(emailId: string | undefined) {
       const emailData = data.email;
       const isPending = data.source === 'pending' || emailData?.is_pending === true;
 
+      // Map API response fields to our interface (name→filename, mime→content_type)
+      const mappedAttachments: EmailAttachment[] = (emailData?.attachments || []).map((att: any) => ({
+        id: att.id,
+        filename: att.name || att.filename || 'unknown',
+        content_type: att.mime || att.content_type || 'application/octet-stream',
+        size: att.size || 0,
+      }));
+
       return {
         body_html: emailData?.body || null,
         body_plain: emailData?.body_plain || null,
-        attachments: emailData?.attachments || [],
+        attachments: mappedAttachments,
         is_pending: isPending,
       };
     },
