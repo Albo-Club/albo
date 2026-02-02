@@ -33,7 +33,8 @@ export function PdfPreviewModal({
       loadPdf();
     }
     return () => {
-      if (pdfUrl) {
+      // Only revoke blob URLs (signed URLs don't need revoking)
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
         URL.revokeObjectURL(pdfUrl);
         setPdfUrl(null);
       }
@@ -47,12 +48,12 @@ export function PdfPreviewModal({
     try {
       const { data, error } = await supabase.storage
         .from('report-files')
-        .download(storagePath);
+        .createSignedUrl(storagePath, 3600); // 1 hour
 
       if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Failed to create signed URL');
 
-      const url = URL.createObjectURL(data);
-      setPdfUrl(url);
+      setPdfUrl(data.signedUrl);
     } catch (err) {
       console.error('Error loading PDF:', err);
       toast.error('Erreur lors du chargement du PDF');
@@ -112,19 +113,12 @@ export function PdfPreviewModal({
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : pdfUrl ? (
-            <object
-              data={pdfUrl}
-              type="application/pdf"
+            <iframe
+              src={pdfUrl}
               className="w-full h-full"
-            >
-              <div className="flex flex-col items-center justify-center h-full gap-4">
-                <p className="text-muted-foreground">Impossible d'afficher le PDF dans le navigateur</p>
-                <Button onClick={handleOpenInNewTab}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Ouvrir dans un nouvel onglet
-                </Button>
-              </div>
-            </object>
+              style={{ border: 'none' }}
+              title={fileName || reportPeriod || "Document PDF"}
+            />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Impossible de charger le PDF

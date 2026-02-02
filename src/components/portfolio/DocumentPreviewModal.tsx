@@ -106,42 +106,62 @@ export function DocumentPreviewModal({
       setError(null);
 
       try {
-        let data: Blob | null = null;
-
         // Use source_bucket if provided, otherwise try buckets in order
         const buckets = document.source_bucket
           ? [document.source_bucket, 'portfolio-documents', 'report-files', 'deck-files']
           : ['portfolio-documents', 'report-files', 'deck-files'];
 
-        for (const bucket of buckets) {
-          const result = await supabase.storage
-            .from(bucket)
-            .download(document.storage_path!);
-
-          if (!result.error && result.data) {
-            data = result.data;
-            console.log(`File loaded from bucket: ${bucket}`);
-            break;
-          }
-        }
-
-        if (!data) throw new Error('No data received');
-
-        setFileBlob(data);
         const fileType = getFileType(document);
 
-        // Process based on file type
-        if (fileType === 'word') {
-          await processWordFile(data);
-        } else if (fileType === 'excel') {
-          await processExcelFile(data, document.name);
-        } else if (fileType === 'text') {
-          const text = await data.text();
-          setTextContent(text);
+        if (fileType === 'pdf') {
+          // For PDFs: use signed URL (more reliable than blob for PDF rendering)
+          let signedUrl: string | null = null;
+          for (const bucket of buckets) {
+            const result = await supabase.storage
+              .from(bucket)
+              .createSignedUrl(document.storage_path!, 3600); // 1 hour
+
+            if (!result.error && result.data?.signedUrl) {
+              signedUrl = result.data.signedUrl;
+              console.log(`PDF signed URL created from bucket: ${bucket}`);
+              break;
+            }
+          }
+
+          if (!signedUrl) throw new Error('Could not create signed URL for PDF');
+          setFileUrl(signedUrl);
         } else {
-          // For PDF and images, create object URL
-          const url = URL.createObjectURL(data);
-          setFileUrl(url);
+          // For non-PDFs (Word, Excel, images, text): download as blob
+          let data: Blob | null = null;
+          for (const bucket of buckets) {
+            const result = await supabase.storage
+              .from(bucket)
+              .download(document.storage_path!);
+
+            if (!result.error && result.data) {
+              data = result.data;
+              console.log(`File loaded from bucket: ${bucket}`);
+              break;
+            }
+          }
+
+          if (!data) throw new Error('No data received');
+
+          setFileBlob(data);
+
+          // Process based on file type
+          if (fileType === 'word') {
+            await processWordFile(data);
+          } else if (fileType === 'excel') {
+            await processExcelFile(data, document.name);
+          } else if (fileType === 'text') {
+            const text = await data.text();
+            setTextContent(text);
+          } else {
+            // For images, create object URL
+            const url = URL.createObjectURL(data);
+            setFileUrl(url);
+          }
         }
       } catch (err) {
         console.error('Error loading file for preview:', err);
@@ -153,9 +173,9 @@ export function DocumentPreviewModal({
 
     loadFile();
 
-    // Cleanup URL on unmount or document change
+    // Cleanup URL on unmount or document change - only revoke blob URLs
     return () => {
-      if (fileUrl) {
+      if (fileUrl && fileUrl.startsWith('blob:')) {
         URL.revokeObjectURL(fileUrl);
       }
     };
@@ -304,36 +324,16 @@ export function DocumentPreviewModal({
       );
     }
 
-    // PDF - use object with fallback for better compatibility
+    // PDF - use iframe with signed URL for reliable rendering
     if (fileType === 'pdf' && fileUrl) {
       return (
         <div className="flex-1 flex flex-col overflow-hidden p-4">
-          <object
-            data={fileUrl}
-            type="application/pdf"
+          <iframe
+            src={fileUrl}
             className="flex-1 w-full rounded-lg border bg-white"
-            style={{
-              minHeight: '100%',
-            }}
-          >
-            {/* Fallback if object doesn't work */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-              <FileText className="h-16 w-16 text-muted-foreground" />
-              <p className="text-muted-foreground text-center">
-                La prévisualisation PDF n'est pas disponible dans votre navigateur.
-              </p>
-              <Button onClick={() => onDownload(document)}>
-                <Download className="h-4 w-4 mr-2" />
-                Télécharger le PDF
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => window.open(fileUrl, '_blank')}
-              >
-                Ouvrir dans un nouvel onglet
-              </Button>
-            </div>
-          </object>
+            style={{ minHeight: '100%', border: 'none' }}
+            title={document.name}
+          />
         </div>
       );
     }
