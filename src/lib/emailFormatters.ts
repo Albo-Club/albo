@@ -1,22 +1,28 @@
 export function formatEmailDate(dateString: string): string {
+  if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
   
+  const isToday = date.toDateString() === now.toDateString();
   if (isToday) {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
-  
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Hier';
+  }
+
   const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-  
   if (diffDays < 7) {
     return date.toLocaleDateString('fr-FR', { weekday: 'short' });
   }
-  
+
   if (date.getFullYear() === now.getFullYear()) {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   }
-  
+
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
