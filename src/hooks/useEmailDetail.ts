@@ -18,10 +18,14 @@ export interface EmailDetail {
 
 interface FetchEmailDetailResponse {
   success: boolean;
-  is_pending?: boolean;
-  body_html?: string | null;
-  body_plain?: string | null;
-  attachments?: EmailAttachment[];
+  source?: 'cache' | 'unipile' | 'pending';
+  email?: {
+    id?: string;
+    body?: string;
+    body_plain?: string;
+    attachments?: EmailAttachment[];
+    is_pending?: boolean;
+  };
   error?: string;
 }
 
@@ -55,11 +59,14 @@ export function useEmailDetail(emailId: string | undefined) {
         throw new Error(data.error || 'Failed to fetch email detail');
       }
 
+      const emailData = data.email;
+      const isPending = data.source === 'pending' || emailData?.is_pending === true;
+
       return {
-        body_html: data.body_html || null,
-        body_plain: data.body_plain || null,
-        attachments: data.attachments || [],
-        is_pending: data.is_pending,
+        body_html: emailData?.body || null,
+        body_plain: emailData?.body_plain || null,
+        attachments: emailData?.attachments || [],
+        is_pending: isPending,
       };
     },
     enabled: !!emailId,
