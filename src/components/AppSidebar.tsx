@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Target, Wallet } from "lucide-react";
+import { Target, Wallet, Mail } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Opportunités",
       url: "/opportunities",
       icon: Target,
+    },
+    {
+      title: "Inbox",
+      url: "/inbox",
+      icon: Mail,
     },
     {
       title: "Portfolio",
