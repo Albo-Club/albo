@@ -25,6 +25,9 @@ export enum OnboardingStatus {
   // 🏢 Workspace créé/rejoint, peut inviter l'équipe (optionnel)
   INVITE_TEAM = 'invite_team',
   
+  // 📧 Équipe invitée, peut connecter un email (optionnel)
+  CONNECT_EMAIL = 'connect_email',
+  
   // ✅ Onboarding terminé, accès complet à l'app
   COMPLETED = 'completed',
 }
@@ -90,12 +93,21 @@ export const ONBOARDING_STEPS: Record<OnboardingStatus, OnboardingStep> = {
     skippable: true,
     icon: 'Users',
   },
+  [OnboardingStatus.CONNECT_EMAIL]: {
+    id: OnboardingStatus.CONNECT_EMAIL,
+    title: 'Connect your email',
+    description: 'Link your inbox to manage communications',
+    path: '/onboarding/connect-email',
+    stepNumber: 4,
+    skippable: true,
+    icon: 'Mail',
+  },
   [OnboardingStatus.COMPLETED]: {
     id: OnboardingStatus.COMPLETED,
     title: 'Welcome to Albo!',
     description: 'You are ready to manage your deals.',
     path: '/dashboard',
-    stepNumber: 4,
+    stepNumber: 5,
     skippable: false,
     icon: 'CheckCircle',
   },
@@ -136,6 +148,7 @@ export function getNextOnboardingStatus(
     OnboardingStatus.PROFILE_PENDING,
     OnboardingStatus.WORKSPACE_PENDING,
     OnboardingStatus.INVITE_TEAM,
+    OnboardingStatus.CONNECT_EMAIL,
     OnboardingStatus.COMPLETED,
   ];
   
@@ -158,6 +171,7 @@ export function getPreviousOnboardingStatus(
     OnboardingStatus.PROFILE_PENDING,
     OnboardingStatus.WORKSPACE_PENDING,
     OnboardingStatus.INVITE_TEAM,
+    OnboardingStatus.CONNECT_EMAIL,
     OnboardingStatus.COMPLETED,
   ];
   
