@@ -39,6 +39,7 @@ const ONBOARDING_ROUTES = [
   '/onboarding/workspace',
   '/onboarding/profile',
   '/onboarding/invite',
+  '/onboarding/connect-email',
 ];
 
 // ============================================================

@@ -17,6 +17,7 @@ import SetupPassword from "./pages/SetupPassword";
 import CreateWorkspaceNew from "./pages/onboarding/CreateWorkspaceNew";
 import CreateProfile from "./pages/onboarding/CreateProfile";
 import InviteTeamNew from "./pages/onboarding/InviteTeamNew";
+import ConnectEmailOnboarding from "./pages/onboarding/ConnectEmailOnboarding";
 import Dashboard from "./pages/Dashboard";
 import PortfolioPage from "./pages/PortfolioPage";
 import PortfolioCompanyDetail from "./pages/PortfolioCompanyDetail";
@@ -65,6 +66,11 @@ const App = () => (
               <Route path="/onboarding/invite" element={
                 <ProtectedRoute>
                   <InviteTeamNew />
+                </ProtectedRoute>
+              } />
+              <Route path="/onboarding/connect-email" element={
+                <ProtectedRoute>
+                  <ConnectEmailOnboarding />
                 </ProtectedRoute>
               } />
               

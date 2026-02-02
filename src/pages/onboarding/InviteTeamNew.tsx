@@ -188,16 +188,15 @@ export default function InviteTeamNew() {
         errors.forEach(err => toast.error(err));
       }
 
-      // Marquer l'onboarding comme terminé
+      // Passer à l'étape suivante : connect-email
       await supabase
         .from('profiles')
         .update({ 
-          onboarding_status: 'completed',
-          onboarding_completed_at: new Date().toISOString(),
+          onboarding_status: 'connect_email',
         })
         .eq('id', user.id);
 
-      navigate('/dashboard');
+      navigate('/onboarding/connect-email');
     } catch (error: any) {
       console.error('Error finishing onboarding:', error);
       toast.error(error.message || 'Une erreur est survenue');
@@ -216,15 +215,14 @@ export default function InviteTeamNew() {
       await supabase
         .from('profiles')
         .update({ 
-          onboarding_status: 'completed',
-          onboarding_completed_at: new Date().toISOString(),
+          onboarding_status: 'connect_email',
         })
         .eq('id', user.id);
 
-      navigate('/dashboard');
+      navigate('/onboarding/connect-email');
     } catch (error: any) {
       console.error('Error skipping:', error);
-      navigate('/dashboard');
+      navigate('/onboarding/connect-email');
     }
   };
 
