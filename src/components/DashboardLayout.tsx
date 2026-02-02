@@ -19,6 +19,7 @@ interface DashboardLayoutProps {
 const routeLabels: Record<string, string> = {
   "/dashboard": "Vue d'ensemble",
   "/opportunities": "Opportunités",
+  "/inbox": "Inbox",
   "/portfolio": "Portfolio",
   "/submit": "Soumettre un deal",
   "/profile": "Profil",

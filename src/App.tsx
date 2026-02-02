@@ -27,6 +27,7 @@ import AcceptInvite from "./pages/AcceptInvite";
 import DealDetail from "./pages/DealDetail";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import Inbox from "./pages/Inbox";
 import NotFound from "./pages/NotFound";
 import '@/i18n/config';
 
@@ -75,6 +76,18 @@ const App = () => (
                     <ProfileGuard>
                       <DashboardLayout>
                         <Dashboard />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/inbox"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <Inbox />
                       </DashboardLayout>
                     </ProfileGuard>
                   </ProtectedRoute>
