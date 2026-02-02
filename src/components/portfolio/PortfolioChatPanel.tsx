@@ -67,7 +67,7 @@ const MAX_PANEL_HEIGHT = 700;
 export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPanelProps) {
   // État local pour l'interface
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [panelWidth, setPanelWidth] = useState(380);
