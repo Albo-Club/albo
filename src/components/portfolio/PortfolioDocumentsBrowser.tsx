@@ -241,6 +241,7 @@ function ListViewItem({
   countItems: (folderId: string) => number;
 }) {
   const isFolder = item.type === 'folder';
+  const isVirtualReportFile = item.id.startsWith('rf-');
   const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name);
   const isImage = isImageFile(item.mime_type);
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
@@ -354,24 +355,28 @@ function ListViewItem({
               Télécharger
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={(e) => {
-            e.stopPropagation();
-            onRename(item);
-          }}>
-            <Pencil className="h-3.5 w-3.5 mr-2" />
-            Renommer
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={(e) => {
+          {!isVirtualReportFile && (
+            <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
-              onDelete(item);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-2" />
-            Supprimer
-          </DropdownMenuItem>
+              onRename(item);
+            }}>
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Renommer
+            </DropdownMenuItem>
+          )}
+          {!isVirtualReportFile && <DropdownMenuSeparator />}
+          {!isVirtualReportFile && (
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(item);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-2" />
+              Supprimer
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -395,6 +400,7 @@ function GridViewItem({
   onPreview: (doc: PortfolioDocument) => void;
 }) {
   const isFolder = item.type === 'folder';
+  const isVirtualReportFile = item.id.startsWith('rf-');
   const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name);
   const isImage = isImageFile(item.mime_type);
   const thumbnailUrl = isImage ? getThumbnailUrl(item.storage_path) : null;
@@ -454,24 +460,28 @@ function GridViewItem({
               Télécharger
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={(e) => {
-            e.stopPropagation();
-            onRename(item);
-          }}>
-            <Pencil className="h-3.5 w-3.5 mr-2" />
-            Renommer
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={(e) => {
+          {!isVirtualReportFile && (
+            <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
-              onDelete(item);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-2" />
-            Supprimer
-          </DropdownMenuItem>
+              onRename(item);
+            }}>
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Renommer
+            </DropdownMenuItem>
+          )}
+          {!isVirtualReportFile && <DropdownMenuSeparator />}
+          {!isVirtualReportFile && (
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(item);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-2" />
+              Supprimer
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

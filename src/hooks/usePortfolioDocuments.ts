@@ -78,7 +78,7 @@ export function usePortfolioDocuments(companyId: string | undefined) {
   const queryClient = useQueryClient();
   const queryKey = ['portfolio-documents', companyId];
 
-  // Fetch documents only (no virtual synthesis files)
+  // Fetch documents and inject report_files into the Reporting folder
   const {
     data: documents = [],
     isLoading,
@@ -88,7 +88,7 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     queryFn: async () => {
       if (!companyId) return [];
 
-      // Fetch documents only
+      // 1. Fetch existing portfolio_documents
       const { data: docs, error: docsError } = await supabase
         .from('portfolio_documents')
         .select('*')
@@ -97,7 +97,75 @@ export function usePortfolioDocuments(companyId: string | undefined) {
         .order('name', { ascending: true });
 
       if (docsError) throw docsError;
-      return docs as PortfolioDocument[];
+      const allDocs = (docs || []) as PortfolioDocument[];
+
+      // 2. Find the "Reporting" folder for this company
+      const reportingFolder = allDocs.find(
+        d => d.type === 'folder' && d.name === 'Reporting' && d.parent_id === null
+      );
+
+      // If no Reporting folder exists, return docs as-is
+      if (!reportingFolder) return allDocs;
+
+      // 3. Get IDs of report_files already linked in portfolio_documents
+      const linkedReportFileIds = allDocs
+        .filter(d => d.report_file_id !== null)
+        .map(d => d.report_file_id!);
+
+      // 4. Fetch report_files for this company that are NOT already linked
+      const { data: reportFiles, error: rfError } = await supabase
+        .from('report_files')
+        .select(`
+          id,
+          file_name,
+          original_file_name,
+          storage_path,
+          mime_type,
+          file_size_bytes,
+          file_type,
+          created_at,
+          report_id,
+          company_reports!inner (
+            company_id,
+            report_period,
+            report_date
+          )
+        `)
+        .eq('company_reports.company_id', companyId);
+
+      if (rfError) {
+        console.error('Error fetching report_files:', rfError);
+        return allDocs; // Fallback: return docs without report files
+      }
+
+      // 5. Filter out already-linked files and transform into PortfolioDocument shape
+      const unlinkedReportFiles = (reportFiles || [])
+        .filter(rf => !linkedReportFileIds.includes(rf.id))
+        .map(rf => {
+          const displayName = rf.original_file_name || rf.file_name || 'Report';
+
+          return {
+            id: `rf-${rf.id}`, // Prefix to distinguish from real portfolio_documents
+            company_id: companyId,
+            type: 'file' as const,
+            name: displayName,
+            parent_id: reportingFolder.id, // Place inside Reporting folder
+            storage_path: rf.storage_path,
+            mime_type: rf.mime_type || 'application/pdf',
+            file_size_bytes: rf.file_size_bytes,
+            original_file_name: rf.original_file_name || rf.file_name,
+            report_file_id: rf.id,
+            text_content: null,
+            source_report_id: rf.report_id,
+            source_bucket: 'report-files', // IMPORTANT: tells download/preview to use this bucket
+            created_by: null,
+            created_at: rf.created_at,
+            updated_at: rf.created_at,
+          } as PortfolioDocument;
+        });
+
+      // 6. Merge and return
+      return [...allDocs, ...unlinkedReportFiles];
     },
     enabled: !!companyId,
   });
