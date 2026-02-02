@@ -27,7 +27,6 @@ export function ReportContentViewer({
   title,
   period,
 }: ReportContentViewerProps) {
-  // Detect if content is HTML (starts with <style>, <div>, <article>, <!doctype>, or <html)
   const isHtml = useMemo(() => {
     if (!content) return false;
     const trimmed = content.trim().toLowerCase();
@@ -43,11 +42,8 @@ export function ReportContentViewer({
   }, [content]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()} modal={false}>
-      <DialogContent 
-        className="max-w-3xl max-h-[85vh] p-0 flex flex-col shadow-2xl border bg-background"
-        onInteractOutside={(e) => e.preventDefault()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 gap-0 flex flex-col">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -65,7 +61,7 @@ export function ReportContentViewer({
                 )}
               </div>
             </div>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="outline" className="text-[10px]">
               Report mail
             </Badge>
           </div>
@@ -74,14 +70,12 @@ export function ReportContentViewer({
         <div className="flex-1 min-h-0 overflow-hidden">
           {content ? (
             isHtml ? (
-              // Render HTML content in an iframe for proper style isolation
               <MemoHtmlFrame
                 html={content}
                 title={title || "Report Content"}
                 className="h-full w-full"
               />
             ) : (
-              // Render Markdown content
               <ScrollArea className="h-full">
                 <div className="px-6 py-4">
                   <div className="report-content prose prose-sm dark:prose-invert max-w-none">
