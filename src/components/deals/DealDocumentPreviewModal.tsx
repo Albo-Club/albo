@@ -67,29 +67,29 @@ export function DealDocumentPreviewModal({
       setError(null);
 
       try {
-        let blob: Blob;
-
         if (document.storage_path) {
-          const { data, error: downloadError } = await supabase.storage
+          // Use signed URL directly — no download/blob needed
+          const { data, error: signedUrlError } = await supabase.storage
             .from('deck-files')
-            .download(document.storage_path);
+            .createSignedUrl(document.storage_path, 3600); // 1 hour
 
-          if (downloadError) throw downloadError;
-          if (!data) throw new Error('No data received');
-          blob = data;
+          if (signedUrlError) throw signedUrlError;
+          if (!data?.signedUrl) throw new Error('Failed to create signed URL');
+
+          setFileUrl(data.signedUrl);
         } else if (document.base64_content) {
+          // Fallback for legacy base64-stored files
           const binaryString = atob(document.base64_content);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
-          blob = new Blob([bytes], { type: document.mime_type || 'application/pdf' });
+          const blob = new Blob([bytes], { type: document.mime_type || 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          setFileUrl(url);
         } else {
           throw new Error('No file content available');
         }
-
-        const url = URL.createObjectURL(blob);
-        setFileUrl(url);
       } catch (err) {
         console.error('Error loading file for preview:', err);
         setError('Impossible de charger le fichier');
@@ -101,7 +101,8 @@ export function DealDocumentPreviewModal({
     loadFile();
 
     return () => {
-      if (fileUrl) {
+      // Only revoke blob URLs (signed URLs don't need revoking)
+      if (fileUrl && fileUrl.startsWith('blob:')) {
         URL.revokeObjectURL(fileUrl);
       }
     };
@@ -141,27 +142,12 @@ export function DealDocumentPreviewModal({
     if (fileType === 'pdf' && fileUrl) {
       return (
         <div className="flex-1 flex flex-col overflow-hidden p-4">
-          <object
-            data={fileUrl}
-            type="application/pdf"
+          <iframe
+            src={fileUrl}
             className="flex-1 w-full rounded-lg border bg-white"
-            style={{ minHeight: '100%' }}
-          >
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-              <FileText className="h-16 w-16 text-muted-foreground" />
-              <p className="text-muted-foreground text-center">
-                La prévisualisation PDF n'est pas disponible dans votre navigateur.
-              </p>
-              <Button onClick={() => onDownload(document)}>
-                <Download className="h-4 w-4 mr-2" />
-                Télécharger le PDF
-              </Button>
-              <Button variant="outline" onClick={() => onOpenInNewTab(document)}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Ouvrir dans un nouvel onglet
-              </Button>
-            </div>
-          </object>
+            style={{ minHeight: '100%', border: 'none' }}
+            title={document.file_name}
+          />
         </div>
       );
     }
