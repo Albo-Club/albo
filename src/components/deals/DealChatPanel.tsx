@@ -68,7 +68,7 @@ const MAX_PANEL_HEIGHT = 700;
 
 export function DealChatPanel({ dealId, companyName }: DealChatPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [panelWidth, setPanelWidth] = useState(380);

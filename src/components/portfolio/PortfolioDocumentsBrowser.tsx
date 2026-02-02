@@ -50,7 +50,6 @@ import {
   LayoutList,
   LayoutGrid,
   Eye,
-  Edit3,
   CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -59,7 +58,6 @@ import { cn } from "@/lib/utils";
 import { usePortfolioDocuments, PortfolioDocument, DocumentTreeNode } from "@/hooks/usePortfolioDocuments";
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
-import { MarkdownEditorModal } from "./MarkdownEditorModal";
 
 interface PortfolioDocumentsBrowserProps {
   companyId: string;
@@ -72,11 +70,6 @@ function getFileIconInfo(mimeType: string | null, fileName: string): {
 } {
   const name = fileName.toLowerCase();
   const mime = mimeType?.toLowerCase() || '';
-
-  // Markdown synthesis files (real files with AI-generated content)
-  if (name.startsWith('synthèse') && name.endsWith('.md')) {
-    return { icon: FileText, badge: { text: 'MD', color: 'bg-purple-500' } };
-  }
   // PDF
   if (name.endsWith('.pdf') || mime.includes('pdf')) {
     return { icon: FileText, badge: { text: 'PDF', color: 'bg-red-500' } };
@@ -237,7 +230,6 @@ function ListViewItem({
   onRename,
   onDelete,
   onPreview,
-  onEdit,
   countItems,
 }: {
   item: PortfolioDocument;
@@ -246,7 +238,6 @@ function ListViewItem({
   onRename: (doc: PortfolioDocument) => void;
   onDelete: (doc: PortfolioDocument) => void;
   onPreview: (doc: PortfolioDocument) => void;
-  onEdit: (doc: PortfolioDocument) => void;
   countItems: (folderId: string) => number;
 }) {
   const isFolder = item.type === 'folder';
@@ -354,16 +345,6 @@ function ListViewItem({
               Prévisualiser
             </DropdownMenuItem>
           )}
-          {/* Edit option for markdown files */}
-          {!isFolder && item.name.toLowerCase().endsWith('.md') && (
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onEdit(item);
-            }}>
-              <Edit3 className="h-3.5 w-3.5 mr-2" />
-              Éditer
-            </DropdownMenuItem>
-          )}
           {!isFolder && (
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
@@ -405,7 +386,6 @@ function GridViewItem({
   onRename,
   onDelete,
   onPreview,
-  onEdit,
 }: {
   item: PortfolioDocument;
   onNavigate: (id: string) => void;
@@ -413,7 +393,6 @@ function GridViewItem({
   onRename: (doc: PortfolioDocument) => void;
   onDelete: (doc: PortfolioDocument) => void;
   onPreview: (doc: PortfolioDocument) => void;
-  onEdit: (doc: PortfolioDocument) => void;
 }) {
   const isFolder = item.type === 'folder';
   const { icon: FileIcon, badge: fileBadge } = getFileIconInfo(item.mime_type, item.name);
@@ -464,16 +443,6 @@ function GridViewItem({
             }}>
               <Eye className="h-3.5 w-3.5 mr-2" />
               Prévisualiser
-            </DropdownMenuItem>
-          )}
-          {/* Edit option for markdown files */}
-          {!isFolder && item.name.toLowerCase().endsWith('.md') && (
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onEdit(item);
-            }}>
-              <Edit3 className="h-3.5 w-3.5 mr-2" />
-              Éditer
             </DropdownMenuItem>
           )}
           {!isFolder && (
@@ -585,8 +554,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
   const [isDragging, setIsDragging] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<PortfolioDocument | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [editDocument, setEditDocument] = useState<PortfolioDocument | null>(null);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
@@ -731,11 +698,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
     setPreviewOpen(true);
   };
 
-  // Open edit modal for markdown files
-  const handleEditMarkdown = (doc: PortfolioDocument) => {
-    setEditDocument(doc);
-    setEditModalOpen(true);
-  };
 
   if (isLoading) {
     return (
@@ -899,7 +861,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                             onRename={openRenameDialog}
                             onDelete={openDeleteDialog}
                             onPreview={openPreview}
-                            onEdit={handleEditMarkdown}
                             countItems={countFolderItems}
                           />
                         ))}
@@ -923,7 +884,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                             onRename={openRenameDialog}
                             onDelete={openDeleteDialog}
                             onPreview={openPreview}
-                            onEdit={handleEditMarkdown}
                             countItems={countFolderItems}
                           />
                         ))}
@@ -943,7 +903,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                       onRename={openRenameDialog}
                       onDelete={openDeleteDialog}
                       onPreview={openPreview}
-                      onEdit={handleEditMarkdown}
                     />
                   ))}
                   {files.map(file => (
@@ -955,7 +914,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
                       onRename={openRenameDialog}
                       onDelete={openDeleteDialog}
                       onPreview={openPreview}
-                      onEdit={handleEditMarkdown}
                     />
                   ))}
                 </div>
@@ -1067,15 +1025,6 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
         onDownload={downloadFile}
       />
 
-      {/* Markdown Editor Modal */}
-      <MarkdownEditorModal
-        document={editDocument}
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        onSave={() => {
-          queryClient.invalidateQueries({ queryKey: ['portfolio-documents', companyId] });
-        }}
-      />
 
     </>
   );
