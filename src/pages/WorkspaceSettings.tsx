@@ -29,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw, ImageIcon } from 'lucide-react';
+import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw, ImageIcon, LogOut } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,6 +64,7 @@ export default function WorkspaceSettings() {
     userRole,
     loading,
     isOwner,
+    isAdmin,
     canManageMembers,
     createWorkspace,
     inviteMember,
@@ -71,6 +72,7 @@ export default function WorkspaceSettings() {
     updateMemberRole,
     cancelInvitation,
     migrateDeals,
+    leaveWorkspace,
     deleteWorkspace,
     refetch,
   } = useWorkspace();
@@ -89,6 +91,7 @@ export default function WorkspaceSettings() {
   const [migrating, setMigrating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resending, setResending] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {
@@ -243,7 +246,21 @@ export default function WorkspaceSettings() {
       console.error('Error deleting workspace:', error);
       toast.error(error.message || 'Erreur lors de la suppression');
     } finally {
-      setDeleting(false);
+    setDeleting(false);
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    setLeaving(true);
+    try {
+      await leaveWorkspace();
+      toast.success('Vous avez quitté le workspace');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Error leaving workspace:', error);
+      toast.error(error.message || 'Erreur lors de la sortie du workspace');
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -609,6 +626,69 @@ export default function WorkspaceSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Leave Workspace - For non-owners */}
+      {!isOwner && workspace && (
+        <Card className="border-orange-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <LogOut className="h-5 w-5" />
+              Quitter le workspace
+            </CardTitle>
+            <CardDescription>
+              Vous ne serez plus membre de ce workspace et n'aurez plus accès aux deals partagés.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-orange-50">
+              <div>
+                <p className="font-medium">Quitter "{workspace.name}"</p>
+                <p className="text-sm text-muted-foreground">
+                  Vous pouvez rejoindre à nouveau ce workspace si vous recevez une nouvelle invitation.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-100">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Quitter
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Quitter ce workspace ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vous allez quitter le workspace "{workspace.name}". 
+                      Vous n'aurez plus accès aux deals partagés avec ce workspace.
+                      Vous pourrez rejoindre à nouveau si vous recevez une nouvelle invitation.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLeaveWorkspace}
+                      disabled={leaving}
+                      className="bg-orange-600 text-white hover:bg-orange-700"
+                    >
+                      {leaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sortie en cours...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Quitter le workspace
+                        </>
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Danger Zone - Only for owner */}
       {isOwner && (
