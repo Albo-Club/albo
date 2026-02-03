@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useInboxEmails, UnipileEmail, ConnectedEmailAccount } from '@/hooks/useInboxEmails';
+import { useEmailRealtime } from '@/hooks/useEmailRealtime';
 import { EmailListItem } from '@/components/inbox/EmailListItem';
 import { EmailReadingView } from '@/components/inbox/EmailReadingView';
 import { EmailListSkeleton } from '@/components/inbox/EmailListSkeleton';
@@ -49,6 +50,9 @@ export default function Inbox() {
     folder: selectedFolder,
     limit: 50,
   });
+
+  // Activer la mise à jour en temps réel des emails
+  useEmailRealtime();
 
   // Gmail-style search filtering
   const filteredEmails = useMemo(() => {
