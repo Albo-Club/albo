@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export interface EmailAttachment {
   id: string;
@@ -29,8 +29,19 @@ interface FetchEmailDetailResponse {
   error?: string;
 }
 
+const MAX_PENDING_RETRIES = 3;
+const RETRY_INTERVAL_MS = 3000;
+
 export function useEmailDetail(emailId: string | undefined) {
   const queryClient = useQueryClient();
+  const retryCountRef = useRef(0);
+  const [gaveUp, setGaveUp] = useState(false);
+
+  // Reset quand on change d'email
+  useEffect(() => {
+    retryCountRef.current = 0;
+    setGaveUp(false);
+  }, [emailId]);
 
   const query = useQuery({
     queryKey: ['email-detail', emailId],
@@ -62,7 +73,6 @@ export function useEmailDetail(emailId: string | undefined) {
       const emailData = data.email;
       const isPending = data.source === 'pending' || emailData?.is_pending === true;
 
-      // Map API response fields to our interface (name→filename, mime→content_type)
       const mappedAttachments: EmailAttachment[] = (emailData?.attachments || []).map((att: any) => ({
         id: att.id,
         filename: att.name || att.filename || 'unknown',
@@ -78,25 +88,65 @@ export function useEmailDetail(emailId: string | undefined) {
       };
     },
     enabled: !!emailId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  // Auto-retry if pending
+  // Auto-retry si pending, max 3 fois
   useEffect(() => {
-    if (query.data?.is_pending && !query.isFetching) {
+    if (query.data?.is_pending && !query.isFetching && !gaveUp) {
+      if (retryCountRef.current >= MAX_PENDING_RETRIES) {
+        console.log(`[useEmailDetail] Max retries (${MAX_PENDING_RETRIES}) reached for ${emailId}, giving up`);
+        setGaveUp(true);
+        return;
+      }
+
       const timer = setTimeout(() => {
+        retryCountRef.current += 1;
+        console.log(`[useEmailDetail] Retry ${retryCountRef.current}/${MAX_PENDING_RETRIES} for ${emailId}`);
         queryClient.invalidateQueries({ queryKey: ['email-detail', emailId] });
-      }, 5000);
+      }, RETRY_INTERVAL_MS);
+
       return () => clearTimeout(timer);
     }
-  }, [query.data?.is_pending, query.isFetching, emailId, queryClient]);
+  }, [query.data?.is_pending, query.isFetching, emailId, queryClient, gaveUp]);
 
   return {
     detail: query.data,
     isLoading: query.isLoading,
     error: query.error,
-    isPending: query.data?.is_pending ?? false,
-    retry: () => query.refetch(),
+    // isPending est false quand on a abandonné
+    isPending: (query.data?.is_pending ?? false) && !gaveUp,
+    gaveUp,
+    retry: () => {
+      retryCountRef.current = 0;
+      setGaveUp(false);
+      query.refetch();
+    },
+  };
+}
+
+// Export pour le prefetch
+export async function fetchEmailDetailFn(emailId: string): Promise<EmailDetail | null> {
+  const { data } = await supabase.functions.invoke<FetchEmailDetailResponse>(
+    'fetch-email-detail',
+    { body: { email_id: emailId } }
+  );
+  
+  if (!data?.success || !data.email) return null;
+  
+  const emailData = data.email;
+  const mappedAttachments: EmailAttachment[] = (emailData?.attachments || []).map((att: any) => ({
+    id: att.id,
+    filename: att.name || att.filename || 'unknown',
+    content_type: att.mime || att.content_type || 'application/octet-stream',
+    size: att.size || 0,
+  }));
+
+  return {
+    body_html: emailData?.body || null,
+    body_plain: emailData?.body_plain || null,
+    attachments: mappedAttachments,
+    is_pending: data.source === 'pending' || emailData?.is_pending === true,
   };
 }

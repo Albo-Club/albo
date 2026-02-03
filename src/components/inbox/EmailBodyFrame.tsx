@@ -10,7 +10,7 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(400);
 
-  // Wrap the HTML in a complete document with clean base styles
+  // Wrapper le HTML dans un document complet avec styles de base
   const srcDoc = useMemo(() => {
     const raw = (html ?? '').trim();
     if (!raw) return '';
@@ -18,18 +18,19 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
     const lower = raw.trimStart().toLowerCase();
     const isFullDoc = lower.startsWith('<!doctype') || lower.includes('<html');
 
-    // If it's already a full HTML doc, inject a small style reset
     if (isFullDoc) {
+      // Injecter un style reset dans le doc existant
       return raw.replace(
         '</head>',
         `<style>
-          body { overflow: hidden !important; margin: 0; }
+          body { margin: 0; overflow-x: hidden; }
           img { max-width: 100% !important; height: auto !important; }
+          * { box-sizing: border-box; }
         </style></head>`
       );
     }
 
-    // Otherwise, wrap in a minimal clean document
+    // Wrapper dans un document minimal propre
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -39,12 +40,13 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
     * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
       line-height: 1.6;
       color: #1a1a1a;
       padding: 0;
       margin: 0;
       background: white;
-      overflow: hidden;
+      overflow-x: hidden;
       word-break: break-word;
     }
     img { max-width: 100% !important; height: auto !important; }
@@ -57,7 +59,7 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
 </html>`;
   }, [html]);
 
-  // Auto-resize iframe based on content
+  // Auto-resize l'iframe selon le contenu
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -69,16 +71,16 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
           const updateHeight = () => {
             const contentHeight = doc.body.scrollHeight;
             if (contentHeight > 0) {
-              setHeight(contentHeight + 16);
+              setHeight(Math.max(contentHeight + 24, 200));
             }
           };
           updateHeight();
-          // Re-check after delays for images
-          setTimeout(updateHeight, 500);
-          setTimeout(updateHeight, 1500);
+          // Re-check après délai (images qui chargent)
+          setTimeout(updateHeight, 300);
+          setTimeout(updateHeight, 1000);
         }
       } catch (e) {
-        // Silently fail if cross-origin
+        // Silently fail si cross-origin
       }
     };
 
@@ -92,14 +94,9 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
     <iframe
       ref={iframeRef}
       srcDoc={srcDoc}
-      sandbox="allow-same-origin allow-popups"
-      className={cn('block border-0', className)}
-      style={{
-        width: '100%',
-        height: `${height}px`,
-        background: 'white',
-        borderRadius: '8px',
-      }}
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      className={cn('w-full border-0 block bg-white rounded-lg', className)}
+      style={{ height: `${height}px`, minHeight: '200px' }}
       title="Contenu de l'email"
     />
   );

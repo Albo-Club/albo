@@ -1,4 +1,4 @@
-import { ArrowLeft, Paperclip, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Paperclip, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,11 +29,11 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
   const recipients = email.to?.map(r => getDisplayName(r)).join(', ') || '';
   const ccRecipients = email.cc?.length > 0 ? email.cc.map(r => getDisplayName(r)).join(', ') : null;
 
-  const { detail, isLoading, error, isPending, retry } = useEmailDetail(email.id);
+  const { detail, isLoading, error, isPending, gaveUp, retry } = useEmailDetail(email.id);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background">
-      {/* Sticky header: back button + subject */}
+      {/* Header sticky : bouton retour + sujet */}
       <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
@@ -43,10 +43,10 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
         </h1>
       </div>
 
-      {/* Scrollable content */}
+      {/* Contenu scrollable */}
       <ScrollArea className="flex-1">
         <div className="p-5">
-          {/* Email metadata header */}
+          {/* Header email : from, to, date */}
           <div className="flex items-start gap-3 mb-1">
             <Avatar className="h-9 w-9 shrink-0 mt-0.5">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
@@ -74,7 +74,7 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
             </div>
           </div>
 
-          {/* Folders badges */}
+          {/* Badges folders */}
           {email.folders && email.folders.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2 ml-12">
               {email.folders.map((folder, idx) => (
@@ -87,7 +87,7 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
 
           <Separator className="my-4" />
 
-          {/* Pending / Loading / Error states */}
+          {/* Banner : contenu en cours de téléchargement */}
           {isPending && (
             <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
               <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
@@ -97,6 +97,21 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
             </Alert>
           )}
 
+          {/* Banner : contenu HTML non disponible (après timeout) */}
+          {gaveUp && detail?.body_plain && (
+            <Alert className="mb-4 border-muted bg-muted/30">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <AlertDescription className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Le contenu HTML n'est pas disponible pour cet email.</span>
+                <Button variant="ghost" size="sm" onClick={retry} className="gap-1.5 h-7">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Réessayer
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* État chargement initial */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -104,34 +119,36 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
             </div>
           )}
 
+          {/* État erreur */}
           {error && !isLoading && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span className="text-sm">Erreur : {error.message}</span>
-                <Button variant="outline" size="sm" onClick={() => retry()}>
+                <Button variant="outline" size="sm" onClick={retry}>
                   Réessayer
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Email body — SANDBOXED IFRAME */}
+          {/* Contenu email */}
           {!isLoading && !error && detail && (
             <>
-              {detail.body_html ? (
+              {/* Priorité : body_html si dispo ET pas abandonné, sinon body_plain */}
+              {detail.body_html && !gaveUp ? (
                 <EmailBodyFrame html={detail.body_html} />
               ) : detail.body_plain ? (
                 <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                   {detail.body_plain}
                 </div>
-              ) : (
+              ) : !isPending ? (
                 <p className="text-muted-foreground text-sm italic">
                   Aucun contenu disponible
                 </p>
-              )}
+              ) : null}
 
-              {/* Attachments */}
+              {/* Pièces jointes */}
               {detail.attachments && detail.attachments.length > 0 && (
                 <>
                   <Separator className="my-5" />
