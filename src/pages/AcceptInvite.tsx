@@ -163,10 +163,10 @@ export default function AcceptInvite() {
       localStorage.setItem('currentWorkspaceId', workspaceId);
     }
     
-    // Si profil incomplet, rediriger vers complete-profile
+    // Si profil incomplet, rediriger vers onboarding/profile (PAS complete-profile)
     if (profileComplete === false) {
       localStorage.setItem('pending_invitation', token!);
-      navigate('/complete-profile', { 
+      navigate('/onboarding/profile', { 
         state: { from: `/invite/${token}` }
       });
     } else {
@@ -174,13 +174,13 @@ export default function AcceptInvite() {
     }
   };
 
-  // Rediriger vers complete-profile avec contexte
+  // Rediriger vers onboarding/profile avec contexte
   const goToCompleteProfile = () => {
     if (workspaceId) {
       localStorage.setItem('currentWorkspaceId', workspaceId);
     }
     localStorage.setItem('pending_invitation', token!);
-    navigate('/complete-profile', { 
+    navigate('/onboarding/profile', { 
       state: { from: `/invite/${token}` }
     });
   };
