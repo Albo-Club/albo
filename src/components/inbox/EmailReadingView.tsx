@@ -16,6 +16,7 @@ import type { UnipileEmail } from '@/hooks/useInboxEmails';
 interface EmailReadingViewProps {
   email: UnipileEmail;
   onBack: () => void;
+  accountId?: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -26,7 +27,7 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
+export function EmailReadingView({ email, onBack, accountId }: EmailReadingViewProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
   const senderName = getDisplayName(email.from);
@@ -34,7 +35,10 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
   const recipients = email.to?.map(r => getDisplayName(r)).join(', ') || '';
   const ccRecipients = email.cc?.length > 0 ? email.cc.map(r => getDisplayName(r)).join(', ') : null;
 
-  const { detail, isLoading, error, isPending, gaveUp, retry } = useEmailDetail(email.id);
+  const { detail, isLoading, error, isPending, gaveUp, retry } = useEmailDetail(
+    email.id,
+    accountId || email.account_id
+  );
 
   // Fonction pour télécharger une pièce jointe
   const handleDownloadAttachment = async (attachmentId: string, filename: string) => {
