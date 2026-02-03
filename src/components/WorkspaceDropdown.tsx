@@ -54,6 +54,7 @@ export function WorkspaceDropdown() {
     invitations,
     canManageMembers,
     isOwner,
+    isAdmin,
     isPersonalMode,
     switchWorkspace,
     switchToPersonal,
@@ -297,7 +298,7 @@ export function WorkspaceDropdown() {
             Account settings
           </DropdownMenuItem>
 
-          {isOwner && workspace && (
+          {(isOwner || isAdmin) && workspace && (
             <DropdownMenuItem onClick={() => navigate('/workspace')}>
               <Settings className="mr-2 h-4 w-4" />
               Workspace settings
