@@ -1,4 +1,5 @@
-import { ArrowLeft, Paperclip, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Paperclip, AlertCircle, Loader2, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatEmailDateFull, getInitials, getDisplayName } from '@/lib/emailFormatters';
 import { useEmailDetail } from '@/hooks/useEmailDetail';
 import { EmailBodyFrame } from './EmailBodyFrame';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { UnipileEmail } from '@/hooks/useInboxEmails';
 
 interface EmailReadingViewProps {
@@ -24,12 +27,54 @@ function formatFileSize(bytes: number): string {
 }
 
 export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  
   const senderName = getDisplayName(email.from);
   const senderEmail = email.from?.identifier || '';
   const recipients = email.to?.map(r => getDisplayName(r)).join(', ') || '';
   const ccRecipients = email.cc?.length > 0 ? email.cc.map(r => getDisplayName(r)).join(', ') : null;
 
   const { detail, isLoading, error, isPending, gaveUp, retry } = useEmailDetail(email.id);
+
+  // Fonction pour télécharger une pièce jointe
+  const handleDownloadAttachment = async (attachmentId: string, filename: string) => {
+    setDownloadingId(attachmentId);
+    try {
+      const { data, error } = await supabase.functions.invoke('download-attachment', {
+        body: {
+          email_id: email.id,
+          attachment_id: attachmentId,
+          filename: filename,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Erreur lors du téléchargement');
+      }
+
+      // Créer un blob à partir des données reçues
+      const blob = new Blob([data], { type: 'application/octet-stream' });
+      
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Téléchargement terminé');
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error('Erreur lors du téléchargement', {
+        description: err.message || 'Veuillez réessayer',
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background">
@@ -157,17 +202,38 @@ export function EmailReadingView({ email, onBack }: EmailReadingViewProps) {
                       <Paperclip className="h-3.5 w-3.5" />
                       {detail.attachments.length} pièce{detail.attachments.length > 1 ? 's' : ''} jointe{detail.attachments.length > 1 ? 's' : ''}
                     </h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-2">
                       {detail.attachments.map((attachment) => (
                         <div
                           key={attachment.id}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors text-sm"
+                          className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-muted/30"
                         >
-                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate max-w-[200px]">{attachment.filename}</span>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {formatFileSize(attachment.size)}
-                          </span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate text-sm">{attachment.filename}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {formatFileSize(attachment.size)}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1.5 shrink-0"
+                            disabled={downloadingId === attachment.id}
+                            onClick={() => handleDownloadAttachment(attachment.id, attachment.filename)}
+                          >
+                            {downloadingId === attachment.id ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Téléchargement...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-3.5 w-3.5" />
+                                Télécharger
+                              </>
+                            )}
+                          </Button>
                         </div>
                       ))}
                     </div>
