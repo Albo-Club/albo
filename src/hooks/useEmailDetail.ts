@@ -32,7 +32,7 @@ interface FetchEmailDetailResponse {
 const MAX_PENDING_RETRIES = 3;
 const RETRY_INTERVAL_MS = 3000;
 
-export function useEmailDetail(emailId: string | undefined) {
+export function useEmailDetail(emailId: string | undefined, accountId?: string) {
   const queryClient = useQueryClient();
   const retryCountRef = useRef(0);
   const [gaveUp, setGaveUp] = useState(false);
@@ -41,10 +41,10 @@ export function useEmailDetail(emailId: string | undefined) {
   useEffect(() => {
     retryCountRef.current = 0;
     setGaveUp(false);
-  }, [emailId]);
+  }, [emailId, accountId]);
 
   const query = useQuery({
-    queryKey: ['email-detail', emailId],
+    queryKey: ['email-detail', emailId, accountId],
     queryFn: async (): Promise<EmailDetail> => {
       if (!emailId) {
         throw new Error('Email ID is required');
@@ -53,7 +53,7 @@ export function useEmailDetail(emailId: string | undefined) {
       const { data, error } = await supabase.functions.invoke<FetchEmailDetailResponse>(
         'fetch-email-detail',
         {
-          body: { email_id: emailId },
+          body: { email_id: emailId, account_id: accountId },
         }
       );
 
@@ -104,12 +104,12 @@ export function useEmailDetail(emailId: string | undefined) {
       const timer = setTimeout(() => {
         retryCountRef.current += 1;
         console.log(`[useEmailDetail] Retry ${retryCountRef.current}/${MAX_PENDING_RETRIES} for ${emailId}`);
-        queryClient.invalidateQueries({ queryKey: ['email-detail', emailId] });
+        queryClient.invalidateQueries({ queryKey: ['email-detail', emailId, accountId] });
       }, RETRY_INTERVAL_MS);
 
       return () => clearTimeout(timer);
     }
-  }, [query.data?.is_pending, query.isFetching, emailId, queryClient, gaveUp]);
+  }, [query.data?.is_pending, query.isFetching, emailId, accountId, queryClient, gaveUp]);
 
   return {
     detail: query.data,

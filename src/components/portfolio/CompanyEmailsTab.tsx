@@ -107,9 +107,14 @@ export function CompanyEmailsTab({ companyId, companyName, domain }: CompanyEmai
 
   // Vue de lecture d'un email
   if (selectedEmail) {
+    const originalEmail = emails.find(e => e.id === selectedEmail.id);
     return (
       <div className="border rounded-lg overflow-hidden bg-background min-h-[500px]">
-        <EmailReadingView email={selectedEmail} onBack={handleBackToList} />
+        <EmailReadingView 
+          email={selectedEmail} 
+          onBack={handleBackToList} 
+          accountId={originalEmail?.account_id}
+        />
       </div>
     );
   }
