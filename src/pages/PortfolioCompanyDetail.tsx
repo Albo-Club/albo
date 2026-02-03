@@ -8,6 +8,7 @@ import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyH
 import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
+import { CompanyEmailsTab } from "@/components/portfolio/CompanyEmailsTab";
 import { DealTabs } from "@/components/deals/DealTabs";
 
 export default function PortfolioCompanyDetail() {
@@ -77,6 +78,14 @@ export default function PortfolioCompanyDetail() {
 
   const documentsContent = <PortfolioDocumentsBrowser companyId={company.id} />;
 
+  const emailsContent = (
+    <CompanyEmailsTab 
+      companyId={company.id} 
+      companyName={company.company_name}
+      domain={company.domain}
+    />
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -91,6 +100,7 @@ export default function PortfolioCompanyDetail() {
       {/* Tabs */}
       <DealTabs 
         overviewContent={overviewContent} 
+        emailsContent={emailsContent}
         foldersContent={documentsContent}
       />
     </div>
