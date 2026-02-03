@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Paperclip, AlertCircle, Loader2, RefreshCw, Download } from 'lucide-react';
+import { ArrowLeft, Paperclip, AlertCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -35,7 +35,7 @@ export function EmailReadingView({ email, onBack, accountId }: EmailReadingViewP
   const recipients = email.to?.map(r => getDisplayName(r)).join(', ') || '';
   const ccRecipients = email.cc?.length > 0 ? email.cc.map(r => getDisplayName(r)).join(', ') : null;
 
-  const { detail, isLoading, error, isPending, gaveUp, retry } = useEmailDetail(
+  const { detail, isLoading, error, retry } = useEmailDetail(
     email.id,
     accountId || email.account_id
   );
@@ -136,30 +136,6 @@ export function EmailReadingView({ email, onBack, accountId }: EmailReadingViewP
 
           <Separator className="my-4" />
 
-          {/* Banner : contenu en cours de téléchargement */}
-          {isPending && (
-            <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-              <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
-              <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
-                Contenu en cours de téléchargement…
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Banner : contenu HTML non disponible (après timeout) */}
-          {gaveUp && detail?.body_plain && (
-            <Alert className="mb-4 border-muted bg-muted/30">
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              <AlertDescription className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Le contenu HTML n'est pas disponible pour cet email.</span>
-                <Button variant="ghost" size="sm" onClick={retry} className="gap-1.5 h-7">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Réessayer
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* État chargement initial */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -184,18 +160,17 @@ export function EmailReadingView({ email, onBack, accountId }: EmailReadingViewP
           {/* Contenu email */}
           {!isLoading && !error && detail && (
             <>
-              {/* Priorité : body_html si dispo ET pas abandonné, sinon body_plain */}
-              {detail.body_html && !gaveUp ? (
+              {detail.body_html ? (
                 <EmailBodyFrame html={detail.body_html} />
               ) : detail.body_plain ? (
                 <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                   {detail.body_plain}
                 </div>
-              ) : !isPending ? (
+              ) : (
                 <p className="text-muted-foreground text-sm italic">
                   Aucun contenu disponible
                 </p>
-              ) : null}
+              )}
 
               {/* Pièces jointes */}
               {detail.attachments && detail.attachments.length > 0 && (
