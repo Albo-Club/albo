@@ -1,100 +1,77 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { UnipileEmail } from './useInboxEmails';
 
-export interface CompanyEmail {
+interface EmailAttendee {
+  display_name?: string;
+  identifier: string;
+}
+
+interface CompanyEmailMatch {
   id: string;
-  account_id: string;
-  subject: string;
-  from: {
-    display_name?: string;
-    identifier: string;
-  };
-  to: Array<{
-    display_name?: string;
-    identifier: string;
-  }>;
-  date: string | null;
+  unipile_email_id: string;
+  unipile_account_id: string;
+  email_date: string;
+  email_subject: string | null;
+  email_from: EmailAttendee | null;
+  email_to: EmailAttendee[] | null;
   has_attachments: boolean;
   matched_domain: string;
-  body: string;
-  body_plain: string;
-  snippet: string;
-  read: boolean;
-  folders: string[];
-  cc: Array<{
-    display_name?: string;
-    identifier: string;
-  }>;
+  created_at: string;
 }
 
-interface FetchCompanyEmailsResponse {
-  success: boolean;
-  emails: CompanyEmail[];
-  total: number;
-  company: {
-    id: string;
-    name: string;
-    domain: string | null;
-  };
-  pagination: {
-    limit: number;
-    offset: number;
-    has_more: boolean;
-  };
-  error?: string;
-}
+export function useCompanyEmails(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ['company-emails', companyId],
+    queryFn: async (): Promise<UnipileEmail[]> => {
+      if (!companyId) return [];
 
-interface UseCompanyEmailsParams {
-  companyId: string;
-  limit?: number;
-  offset?: number;
-  enabled?: boolean;
-}
+      // Fetch from email_company_matches table directly (metadata only)
+      const { data, error } = await supabase
+        .from('email_company_matches')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('email_date', { ascending: false });
 
-export function useCompanyEmails({ 
-  companyId, 
-  limit = 50, 
-  offset = 0,
-  enabled = true 
-}: UseCompanyEmailsParams) {
-  const query = useQuery({
-    queryKey: ['company-emails', companyId, limit, offset],
-    queryFn: async (): Promise<FetchCompanyEmailsResponse> => {
-      const { data, error } = await supabase.functions.invoke<FetchCompanyEmailsResponse>(
-        'fetch-company-emails',
-        {
-          body: { company_id: companyId, limit, offset },
-        }
-      );
+      if (error) throw error;
 
-      if (error) {
-        console.error('Error fetching company emails:', error);
-        throw new Error(error.message || 'Failed to fetch company emails');
-      }
+      // Transform to UnipileEmail format (metadata only, no body)
+      return (data || []).map((match: CompanyEmailMatch): UnipileEmail => {
+        // Ensure from has required display_name
+        const fromAttendee = match.email_from 
+          ? { display_name: match.email_from.display_name || match.email_from.identifier || 'Inconnu', identifier: match.email_from.identifier }
+          : { display_name: 'Inconnu', identifier: '' };
+        
+        // Ensure to array items have required display_name
+        const toAttendees = (match.email_to || []).map(t => ({
+          display_name: t.display_name || t.identifier || 'Inconnu',
+          identifier: t.identifier
+        }));
 
-      if (!data) {
-        throw new Error('No data received from company emails service');
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch company emails');
-      }
-
-      return data;
+        return {
+          id: match.unipile_email_id,
+          subject: match.email_subject || '(Sans sujet)',
+          from: fromAttendee,
+          to: toAttendees,
+          cc: [],
+          date: match.email_date,
+          read: true,
+          read_date: null,
+          has_attachments: match.has_attachments || false,
+          folders: [],
+          role: null,
+          body: '',
+          body_plain: '',
+          snippet: '',
+          account_id: match.unipile_account_id,
+          account_display_name: '',
+          provider: '',
+          in_reply_to: null,
+          message_id: null,
+        };
+      });
     },
-    enabled: enabled && !!companyId,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: false,
+    enabled: !!companyId,
+    staleTime: 60 * 1000, // 1 minute
   });
-
-  return {
-    emails: query.data?.emails || [],
-    total: query.data?.total || 0,
-    company: query.data?.company,
-    pagination: query.data?.pagination,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-    isFetching: query.isFetching,
-  };
 }
