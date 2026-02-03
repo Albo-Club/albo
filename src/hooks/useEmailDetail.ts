@@ -1,6 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useRef, useState } from 'react';
 
 export interface EmailAttachment {
   id: string;
@@ -13,36 +12,21 @@ export interface EmailDetail {
   body_html: string | null;
   body_plain: string | null;
   attachments: EmailAttachment[];
-  is_pending?: boolean;
 }
 
 interface FetchEmailDetailResponse {
   success: boolean;
-  source?: 'cache' | 'unipile' | 'pending';
+  source?: 'cache' | 'unipile' | 'unipile_partial' | 'no_content' | 'not_found';
   email?: {
     id?: string;
     body?: string;
     body_plain?: string;
     attachments?: EmailAttachment[];
-    is_pending?: boolean;
   };
   error?: string;
 }
 
-const MAX_PENDING_RETRIES = 3;
-const RETRY_INTERVAL_MS = 3000;
-
 export function useEmailDetail(emailId: string | undefined, accountId?: string) {
-  const queryClient = useQueryClient();
-  const retryCountRef = useRef(0);
-  const [gaveUp, setGaveUp] = useState(false);
-
-  // Reset quand on change d'email
-  useEffect(() => {
-    retryCountRef.current = 0;
-    setGaveUp(false);
-  }, [emailId, accountId]);
-
   const query = useQuery({
     queryKey: ['email-detail', emailId, accountId],
     queryFn: async (): Promise<EmailDetail> => {
@@ -53,7 +37,10 @@ export function useEmailDetail(emailId: string | undefined, accountId?: string) 
       const { data, error } = await supabase.functions.invoke<FetchEmailDetailResponse>(
         'fetch-email-detail',
         {
-          body: { email_id: emailId, account_id: accountId },
+          body: { 
+            email_id: emailId,
+            account_id: accountId,
+          },
         }
       );
 
@@ -71,8 +58,7 @@ export function useEmailDetail(emailId: string | undefined, accountId?: string) 
       }
 
       const emailData = data.email;
-      const isPending = data.source === 'pending' || emailData?.is_pending === true;
-
+      
       const mappedAttachments: EmailAttachment[] = (emailData?.attachments || []).map((att: any) => ({
         id: att.id,
         filename: att.name || att.filename || 'unknown',
@@ -84,7 +70,6 @@ export function useEmailDetail(emailId: string | undefined, accountId?: string) 
         body_html: emailData?.body || null,
         body_plain: emailData?.body_plain || null,
         attachments: mappedAttachments,
-        is_pending: isPending,
       };
     },
     enabled: !!emailId,
@@ -92,45 +77,19 @@ export function useEmailDetail(emailId: string | undefined, accountId?: string) 
     refetchOnWindowFocus: false,
   });
 
-  // Auto-retry si pending, max 3 fois
-  useEffect(() => {
-    if (query.data?.is_pending && !query.isFetching && !gaveUp) {
-      if (retryCountRef.current >= MAX_PENDING_RETRIES) {
-        console.log(`[useEmailDetail] Max retries (${MAX_PENDING_RETRIES}) reached for ${emailId}, giving up`);
-        setGaveUp(true);
-        return;
-      }
-
-      const timer = setTimeout(() => {
-        retryCountRef.current += 1;
-        console.log(`[useEmailDetail] Retry ${retryCountRef.current}/${MAX_PENDING_RETRIES} for ${emailId}`);
-        queryClient.invalidateQueries({ queryKey: ['email-detail', emailId, accountId] });
-      }, RETRY_INTERVAL_MS);
-
-      return () => clearTimeout(timer);
-    }
-  }, [query.data?.is_pending, query.isFetching, emailId, accountId, queryClient, gaveUp]);
-
   return {
     detail: query.data,
     isLoading: query.isLoading,
     error: query.error,
-    // isPending est false quand on a abandonné
-    isPending: (query.data?.is_pending ?? false) && !gaveUp,
-    gaveUp,
-    retry: () => {
-      retryCountRef.current = 0;
-      setGaveUp(false);
-      query.refetch();
-    },
+    retry: () => query.refetch(),
   };
 }
 
 // Export pour le prefetch
-export async function fetchEmailDetailFn(emailId: string): Promise<EmailDetail | null> {
+export async function fetchEmailDetailFn(emailId: string, accountId?: string): Promise<EmailDetail | null> {
   const { data } = await supabase.functions.invoke<FetchEmailDetailResponse>(
     'fetch-email-detail',
-    { body: { email_id: emailId } }
+    { body: { email_id: emailId, account_id: accountId } }
   );
   
   if (!data?.success || !data.email) return null;
@@ -147,6 +106,5 @@ export async function fetchEmailDetailFn(emailId: string): Promise<EmailDetail |
     body_html: emailData?.body || null,
     body_plain: emailData?.body_plain || null,
     attachments: mappedAttachments,
-    is_pending: data.source === 'pending' || emailData?.is_pending === true,
   };
 }
