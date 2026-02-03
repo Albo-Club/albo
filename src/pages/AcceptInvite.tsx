@@ -264,74 +264,68 @@ export default function AcceptInvite() {
     }
 
     setAccepting(true);
+    
     try {
-      // Garder le token en mémoire pour reprendre après confirmation email (setup-password -> complete-profile -> retour ici)
-      localStorage.setItem('pending_invitation', token!);
-
-      const { data: signupResult, error: signupError } = await supabase.auth.signUp({
-        email: signupData.email,
-        password: signupData.password,
-        options: {
-          data: {
-            name: signupData.name,
-          },
-          // Rediriger vers auth/confirm qui validera et redirigera vers setup-password
-          emailRedirectTo: `${APP_CONFIG.baseUrl}/auth/confirm`,
-        },
+      // Appeler la Edge Function au lieu de signUp standard
+      // Cela crée l'utilisateur avec email pré-confirmé ET accepte l'invitation
+      const { data, error: fnError } = await supabase.functions.invoke('create-invited-user', {
+        body: {
+          email: signupData.email,
+          password: signupData.password,
+          name: signupData.name,
+          invitation_token: token,
+          linkedin_url: signupData.linkedinUrl || null,
+          whatsapp_number: signupData.whatsappNumber || null,
+          source: 'workspace_invitation'
+        }
       });
 
-      if (signupError) {
-        if (signupError.message.includes('already registered')) {
+      if (fnError) {
+        console.error('Edge function error:', fnError);
+        throw new Error(fnError.message || 'Erreur lors de la création du compte');
+      }
+
+      if (data?.error) {
+        if (data.error === 'already_registered') {
           toast.error('Cet email a déjà un compte. Connectez-vous pour accepter l\'invitation.');
           handleLogin();
           return;
         }
-        throw signupError;
+        throw new Error(data.error);
       }
 
-      // Si l'email est auto-confirmé, on a une session et on peut finaliser l'acceptation.
-      // Sinon, on attend la confirmation email (le lien redirige vers /setup-password).
-      if (signupResult.session && signupResult.user) {
-        // Update profile with additional info - marquer comme complet car nom fourni
-        await supabase.from('profiles').upsert({
-          id: signupResult.user.id,
-          email: signupData.email,
-          name: signupData.name,
-          linkedin_url: signupData.linkedinUrl || null,
-          whatsapp_number: signupData.whatsappNumber || null,
-          is_complete: true,
-        });
+      // L'utilisateur est créé avec email confirmé, maintenant on le connecte
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: signupData.email,
+        password: signupData.password,
+      });
 
-        // Accept the invitation
-        const { data: workspaceIdResult, error } = await supabase.rpc('accept_workspace_invitation', {
-          _token: token!,
-          _user_id: signupResult.user.id,
-        });
+      if (signInError) {
+        console.error('Erreur connexion après création:', signInError);
+        // Compte créé mais erreur de connexion - rediriger vers login
+        toast.success('Compte créé ! Connectez-vous pour continuer.');
+        navigate('/auth');
+        return;
+      }
 
-        if (error) {
-          toast.error('Erreur lors de l\'acceptation de l\'invitation.');
-          setAccepting(false);
-          return;
-        }
-
-        if (workspaceIdResult) {
-          localStorage.setItem('currentWorkspaceId', workspaceIdResult);
-        }
-
-        // On a terminé l'acceptation, on peut nettoyer le token pending
+      // Succès complet
+      if (data?.workspace_joined) {
+        localStorage.setItem('currentWorkspaceId', data.workspace_joined);
+        toast.success(`Bienvenue ${signupData.name} ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
+        
+        // Supprimer le pending_invitation car tout est fait
         localStorage.removeItem('pending_invitation');
-
-        toast.success(`Félicitations ! Vous avez rejoint "${invitation?.workspace_name}" avec succès.`);
-
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1000);
+        
+        // Rediriger vers le dashboard
+        navigate('/dashboard');
       } else {
-        toast.success('Vérifiez votre email pour confirmer votre compte');
+        // Cas rare : compte créé mais workspace non rejoint
+        toast.success('Compte créé avec succès !');
+        navigate('/dashboard');
       }
     } catch (err: any) {
-      console.error('Error during signup:', err);
-      toast.error(err.message || 'Erreur lors de l\'inscription');
+      console.error('Error creating account:', err);
+      toast.error(err.message || 'Erreur lors de la création du compte');
     } finally {
       setAccepting(false);
     }
