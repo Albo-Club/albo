@@ -3,8 +3,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +13,19 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle } from 'lucide-react';
+import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut } from 'lucide-react';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
 
 // ============================================================
@@ -63,7 +75,9 @@ interface ConnectedAccount {
 
 export default function Profile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { workspace, isOwner, isPersonalMode, leaveWorkspace } = useWorkspace();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,6 +100,7 @@ export default function Profile() {
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [connectingEmail, setConnectingEmail] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -294,6 +309,20 @@ export default function Profile() {
     } catch (error: any) {
       console.error('Error disconnecting account:', error);
       toast.error('Erreur lors de la déconnexion');
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    setLeaving(true);
+    try {
+      await leaveWorkspace();
+      toast.success('Vous avez quitté le workspace');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Error leaving workspace:', error);
+      toast.error(error.message || 'Erreur lors de la sortie du workspace');
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -599,6 +628,69 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* SECTION 5 : Quitter le workspace (seulement si membre d'un workspace et pas owner) */}
+        {!isPersonalMode && workspace && !isOwner && (
+          <Card className="border-orange-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <LogOut className="h-5 w-5" />
+                Quitter le workspace
+              </CardTitle>
+              <CardDescription>
+                Vous ne serez plus membre de ce workspace et n'aurez plus accès aux deals partagés.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-orange-50">
+                <div>
+                  <p className="font-medium">Quitter "{workspace.name}"</p>
+                  <p className="text-sm text-muted-foreground">
+                    Vous pouvez rejoindre à nouveau ce workspace si vous recevez une nouvelle invitation.
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-100">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Quitter
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Quitter ce workspace ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Vous allez quitter le workspace "{workspace.name}". 
+                        Vous n'aurez plus accès aux deals partagés avec ce workspace.
+                        Vous pourrez rejoindre à nouveau si vous recevez une nouvelle invitation.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleLeaveWorkspace}
+                        disabled={leaving}
+                        className="bg-orange-600 text-white hover:bg-orange-700"
+                      >
+                        {leaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sortie en cours...
+                          </>
+                        ) : (
+                          <>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Quitter le workspace
+                          </>
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* BOUTON DE SAUVEGARDE */}
         <div className="flex justify-end">
