@@ -25,8 +25,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut } from 'lucide-react';
+import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut, Clock } from 'lucide-react';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
+import { EmailConsentModal } from '@/components/email/EmailConsentModal';
 
 // ============================================================
 // CONSTANTES
@@ -59,11 +60,11 @@ interface Profile {
 interface ConnectedAccount {
   id: string;
   channel_type: string;
-  provider: 'GOOGLE' | 'MICROSOFT' | 'IMAP';
+  provider: 'GOOGLE' | 'MICROSOFT' | 'IMAP' | 'OUTLOOK';
   provider_account_id: string;
   email: string | null;
   display_name: string | null;
-  status: 'pending' | 'active' | 'needs_reconnect' | 'disconnected' | 'syncing';
+  status: 'pending_consent' | 'syncing' | 'active' | 'sync_error' | 'disconnected' | 'pending' | 'needs_reconnect';
   connected_at: string;
   last_synced_at: string | null;
   disconnected_at: string | null;
@@ -102,6 +103,10 @@ export default function Profile() {
   const [connectingEmail, setConnectingEmail] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
+  // États pour la modal de consentement
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [pendingConsentAccount, setPendingConsentAccount] = useState<ConnectedAccount | null>(null);
+
   useEffect(() => {
     if (user) {
       loadProfile();
@@ -109,14 +114,39 @@ export default function Profile() {
     }
   }, [user]);
 
+  // Écouter les changements en temps réel sur connected_accounts
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('connected_accounts_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'connected_accounts',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Account status changed:', payload);
+          // Recharger la liste quand un compte change
+          loadConnectedAccounts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   // Gérer le retour depuis Unipile (query params ?connection=success ou ?connection=failed)
   useEffect(() => {
     const connectionStatus = searchParams.get('connection');
     if (connectionStatus === 'success') {
-      toast.success('Compte email connecté avec succès !', {
-        description: 'Votre boîte mail est maintenant liée à Albo.',
-      });
-      // Recharger les comptes après un court délai (le webhook peut prendre 1-2s)
+      // ⚠️ NE PAS afficher de toast ici - la modal s'en charge
+      // Recharger les comptes après un délai (le webhook prend 1-2s)
       setTimeout(() => loadConnectedAccounts(), 2000);
       // Nettoyer le query param de l'URL
       searchParams.delete('connection');
@@ -170,13 +200,22 @@ export default function Profile() {
     try {
       const { data, error } = await supabase
         .from('connected_accounts')
-        .select('*')
+        .select('id, provider, provider_account_id, email, display_name, status, connected_at, last_synced_at, disconnected_at, channel_type')
         .eq('user_id', user.id)
         .neq('status', 'disconnected')
         .order('connected_at', { ascending: false });
 
       if (error) throw error;
-      setConnectedAccounts((data || []) as ConnectedAccount[]);
+      
+      const accounts = (data || []) as ConnectedAccount[];
+      setConnectedAccounts(accounts);
+
+      // Vérifier s'il y a un compte en attente de consentement
+      const pendingAccount = accounts.find((a) => a.status === 'pending_consent');
+      if (pendingAccount) {
+        setPendingConsentAccount(pendingAccount);
+        setConsentModalOpen(true);
+      }
     } catch (error: any) {
       console.error('Error loading connected accounts:', error);
     } finally {
@@ -344,21 +383,6 @@ export default function Profile() {
       case 'MICROSOFT': return 'Outlook';
       case 'IMAP': return 'IMAP';
       default: return provider;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">Connecté</Badge>;
-      case 'syncing':
-        return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Synchronisation</Badge>;
-      case 'needs_reconnect':
-        return <Badge variant="destructive" className="bg-amber-100 text-amber-700 hover:bg-amber-100"><AlertCircle className="h-3 w-3 mr-1" />Reconnexion requise</Badge>;
-      case 'pending':
-        return <Badge variant="secondary"><Loader2 className="h-3 w-3 mr-1 animate-spin" />En attente...</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -574,26 +598,67 @@ export default function Profile() {
                       <div className="flex items-center justify-center h-9 w-9 rounded-full bg-muted">
                         {getProviderIcon(account.provider)}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {account.email || account.display_name || 'Compte email'}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">
+                            {account.email || account.display_name || 'Compte email'}
+                          </p>
+                          {/* Status indicator inline */}
+                          {account.status === 'syncing' && (
+                            <span className="flex items-center gap-1 text-xs text-blue-600">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Synchronisation...
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
                             {getProviderLabel(account.provider)}
                           </span>
-                          {getStatusBadge(account.status)}
+                          {/* Status badge */}
+                          {account.status === 'syncing' ? (
+                            <Badge variant="secondary" className="text-xs">
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                              Sync en cours
+                            </Badge>
+                          ) : account.status === 'pending_consent' ? (
+                            <Badge variant="secondary" className="text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              En attente
+                            </Badge>
+                          ) : account.status === 'sync_error' ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Erreur
+                            </Badge>
+                          ) : account.status === 'needs_reconnect' ? (
+                            <Badge variant="destructive" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Reconnexion requise
+                            </Badge>
+                          ) : account.status === 'active' ? (
+                            <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
+                              Connecté
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              {account.status}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDisconnectAccount(account.id)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Unplug className="h-4 w-4" />
-                    </Button>
+                    {/* Bouton déconnexion (seulement si active ou sync_error) */}
+                    {(account.status === 'active' || account.status === 'sync_error' || account.status === 'needs_reconnect') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDisconnectAccount(account.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Unplug className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -706,6 +771,21 @@ export default function Profile() {
           </Button>
         </div>
       </form>
+
+      {/* Modal de consentement */}
+      <EmailConsentModal
+        open={consentModalOpen}
+        onOpenChange={setConsentModalOpen}
+        account={pendingConsentAccount}
+        onSuccess={() => {
+          setPendingConsentAccount(null);
+          // La liste se mettra à jour via Realtime
+        }}
+        onCancel={() => {
+          setPendingConsentAccount(null);
+          loadConnectedAccounts();
+        }}
+      />
     </div>
   );
 }
