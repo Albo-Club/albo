@@ -7,21 +7,24 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, Mail, CheckCircle2, Server, Unplug } from 'lucide-react';
+import { Loader2, Mail, CheckCircle2, Server, Unplug, Clock, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { EmailConsentModal } from '@/components/email/EmailConsentModal';
 
 // Type pour les comptes connectés
 interface ConnectedAccount {
   id: string;
-  provider: 'GOOGLE' | 'MICROSOFT' | 'IMAP';
+  provider: 'GOOGLE' | 'MICROSOFT' | 'IMAP' | 'OUTLOOK';
+  provider_account_id: string;
   email: string | null;
   display_name: string | null;
-  status: string;
+  status: 'pending_consent' | 'syncing' | 'active' | 'sync_error' | 'disconnected' | 'pending' | 'needs_reconnect';
   connected_at: string;
 }
 
@@ -35,6 +38,10 @@ export default function ConnectEmailOnboarding() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [completing, setCompleting] = useState(false);
 
+  // États pour la modal de consentement
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [pendingConsentAccount, setPendingConsentAccount] = useState<ConnectedAccount | null>(null);
+
   // --------------------------------------------------------
   // Charger les comptes connectés
   // --------------------------------------------------------
@@ -44,13 +51,22 @@ export default function ConnectEmailOnboarding() {
     try {
       const { data, error } = await supabase
         .from('connected_accounts')
-        .select('id, provider, email, display_name, status, connected_at')
+        .select('id, provider, provider_account_id, email, display_name, status, connected_at')
         .eq('user_id', user.id)
         .eq('channel_type', 'email')
         .neq('status', 'disconnected');
 
       if (error) throw error;
-      setConnectedAccounts((data as ConnectedAccount[]) || []);
+      
+      const accounts = (data as ConnectedAccount[]) || [];
+      setConnectedAccounts(accounts);
+
+      // Vérifier s'il y a un compte en attente de consentement
+      const pendingAccount = accounts.find((a) => a.status === 'pending_consent');
+      if (pendingAccount) {
+        setPendingConsentAccount(pendingAccount);
+        setConsentModalOpen(true);
+      }
     } catch (error) {
       console.error('Error loading accounts:', error);
     } finally {
@@ -63,14 +79,41 @@ export default function ConnectEmailOnboarding() {
   }, [user]);
 
   // --------------------------------------------------------
+  // Écouter les changements en temps réel sur connected_accounts
+  // --------------------------------------------------------
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('connected_accounts_onboarding_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'connected_accounts',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Account status changed (onboarding):', payload);
+          // Recharger la liste quand un compte change
+          loadConnectedAccounts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // --------------------------------------------------------
   // Gérer le retour depuis Unipile
   // --------------------------------------------------------
   useEffect(() => {
     const connectionStatus = searchParams.get('connection');
     if (connectionStatus === 'success') {
-      toast.success('Email account connected successfully!', {
-        description: 'Your inbox is now linked to Albo.',
-      });
+      // ⚠️ NE PAS afficher de toast ici - la modal s'en charge
       setTimeout(() => loadConnectedAccounts(), 2000);
       searchParams.delete('connection');
       setSearchParams(searchParams, { replace: true });
@@ -169,6 +212,8 @@ export default function ConnectEmailOnboarding() {
   // Render
   // --------------------------------------------------------
   const hasConnectedAccount = connectedAccounts.length > 0;
+  // Consider an account as "ready" if it's active or syncing (not pending_consent)
+  const hasReadyAccount = connectedAccounts.some((a) => a.status === 'active' || a.status === 'syncing');
 
   return (
     <OnboardingModal 
@@ -193,14 +238,41 @@ export default function ConnectEmailOnboarding() {
                   {getProviderIcon(account.provider)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {account.email || account.display_name || 'Email account'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">
+                      {account.email || account.display_name || 'Email account'}
+                    </p>
+                    {/* Spinner inline pour syncing */}
+                    {account.status === 'syncing' && (
+                      <span className="flex items-center gap-1 text-xs text-blue-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Syncing...
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {getProviderLabel(account.provider)}
                   </p>
                 </div>
-                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                {/* Status indicator */}
+                {account.status === 'syncing' ? (
+                  <Badge variant="secondary" className="text-xs shrink-0">
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Syncing
+                  </Badge>
+                ) : account.status === 'pending_consent' ? (
+                  <Badge variant="secondary" className="text-xs shrink-0">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Pending
+                  </Badge>
+                ) : account.status === 'sync_error' ? (
+                  <Badge variant="destructive" className="text-xs shrink-0">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Error
+                  </Badge>
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                )}
               </div>
             ))}
           </div>
@@ -239,7 +311,7 @@ export default function ConnectEmailOnboarding() {
         {/* Bouton Continue / Skip */}
         <Button
           type="button"
-          onClick={hasConnectedAccount ? handleComplete : handleSkip}
+          onClick={hasReadyAccount ? handleComplete : handleSkip}
           disabled={completing}
           className="w-full"
         >
@@ -248,13 +320,28 @@ export default function ConnectEmailOnboarding() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Finishing...
             </>
-          ) : hasConnectedAccount ? (
+          ) : hasReadyAccount ? (
             'Continue'
           ) : (
             'Skip for now'
           )}
         </Button>
       </div>
+
+      {/* Modal de consentement */}
+      <EmailConsentModal
+        open={consentModalOpen}
+        onOpenChange={setConsentModalOpen}
+        account={pendingConsentAccount}
+        onSuccess={() => {
+          setPendingConsentAccount(null);
+          // La liste se mettra à jour via Realtime
+        }}
+        onCancel={() => {
+          setPendingConsentAccount(null);
+          loadConnectedAccounts();
+        }}
+      />
     </OnboardingModal>
   );
 }
