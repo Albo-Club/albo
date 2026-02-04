@@ -64,27 +64,22 @@ export default function Dashboard() {
       dealsData = data || [];
     } else if (workspace?.id) {
       // Utilise la fonction RPC pour récupérer les deals du workspace
-      // Elle retourne les deals triés du plus récent au plus ancien
+      // Elle retourne maintenant toutes les données y compris owner info
       const { data, error } = await supabase
         .rpc('get_workspace_deals', { p_workspace_id: workspace.id });
 
       if (error) throw error;
 
-      // Récupérer les infos du propriétaire pour chaque deal
-      const dealIds = (data || []).map((d: any) => d.id);
-      if (dealIds.length > 0) {
-        const { data: dealsWithOwner } = await supabase
-          .from("deals")
-          .select(`
-            *,
-            owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
-          `)
-          .in("id", dealIds)
-          .neq("is_hidden", true)
-          .order("created_at", { ascending: false });
-
-        dealsData = dealsWithOwner || [];
-      }
+      // La fonction RPC retourne toutes les données directement
+      dealsData = (data || []).map((deal: any) => ({
+        ...deal,
+        owner: {
+          id: deal.owner_id,
+          name: deal.owner_name,
+          email: deal.owner_email,
+          avatar_url: deal.owner_avatar_url
+        }
+      }));
     } else {
       // Fallback: deals de l'utilisateur sans workspace
       const { data, error } = await supabase
