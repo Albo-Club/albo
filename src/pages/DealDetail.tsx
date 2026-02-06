@@ -11,6 +11,7 @@ import { MemoWidget } from '@/components/deals/MemoWidget';
 import { DealInfoCard } from '@/components/deals/DealInfoCard';
 import { DealChatPanel } from '@/components/deals/DealChatPanel';
 import { DealDocumentsList } from '@/components/deals/DealDocumentsList';
+import { DealEmailTab } from '@/components/deals/DealEmailTab';
 import { displayCompanyName } from '@/lib/utils';
 interface Deal {
   id: string;
@@ -29,6 +30,7 @@ interface Deal {
   investment_amount_eur: number | null;
   funding_type: string | null;
   domain: string | null;
+  mail_content: string | null;
   created_at: string;
   updated_at: string | null;
   analyzed_at: string | null;
@@ -256,6 +258,7 @@ export default function DealDetail() {
         {/* Tabs */}
         <DealTabs 
           overviewContent={overviewContent} 
+          emailsContent={deal.mail_content ? <DealEmailTab mailContent={deal.mail_content} /> : undefined}
           foldersContent={<DealDocumentsList dealId={deal.id} />}
         />
       </div>
