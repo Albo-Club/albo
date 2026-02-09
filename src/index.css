@@ -142,6 +142,7 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-overflow-scrolling: touch;
   }
 
   html {

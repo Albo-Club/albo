@@ -68,7 +68,7 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
     count: rows.length,
     estimateSize: () => 56,
     getScrollElement: () => tableContainerRef.current,
-    overscan: 5,
+    overscan: 10,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
@@ -152,13 +152,10 @@ export function PortfolioTable({ data }: PortfolioTableProps) {
       )}
 
       {/* Table */}
-      <div 
-        className="mt-4 rounded-md border overflow-hidden"
-        style={{ maxHeight: "calc(100vh - 380px)" }}
-      >
+      <div className="mt-4 rounded-md border overflow-hidden">
         <div
           ref={tableContainerRef}
-          className="overflow-y-auto overflow-x-auto"
+          className="overflow-y-auto overflow-x-auto overscroll-contain will-change-transform"
           style={{ maxHeight: "calc(100vh - 380px)" }}
         >
           <Table style={{ minWidth: "900px" }}>
