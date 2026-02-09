@@ -1,6 +1,16 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
+function sanitizeHtml(html: string): string {
+  if (!html) return html;
+  let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  cleaned = cleaned.replace(/<script\b[^>]*\/>/gi, '');
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '');
+  cleaned = cleaned.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+  return cleaned;
+}
+
 interface EmailBodyFrameProps {
   html: string;
   className?: string;
@@ -12,7 +22,7 @@ export function EmailBodyFrame({ html, className }: EmailBodyFrameProps) {
 
   // Wrapper le HTML dans un document complet avec styles de base
   const srcDoc = useMemo(() => {
-    const raw = (html ?? '').trim();
+    const raw = sanitizeHtml((html ?? '').trim());
     if (!raw) return '';
 
     const lower = raw.trimStart().toLowerCase();

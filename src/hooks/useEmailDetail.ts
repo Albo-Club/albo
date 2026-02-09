@@ -12,6 +12,7 @@ export interface EmailDetail {
   body_html: string | null;
   body_plain: string | null;
   attachments: EmailAttachment[];
+  source?: string;
 }
 
 interface FetchEmailDetailResponse {
@@ -70,11 +71,19 @@ export function useEmailDetail(emailId: string | undefined, accountId?: string) 
         body_html: emailData?.body || null,
         body_plain: emailData?.body_plain || null,
         attachments: mappedAttachments,
+        source: data.source || undefined,
       };
     },
     enabled: !!emailId,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (d?.source === 'unipile_meta' || d?.source === 'not_found') {
+        if (query.state.dataUpdateCount < 3) return 5000;
+      }
+      return false;
+    },
   });
 
   return {
