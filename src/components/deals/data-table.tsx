@@ -70,7 +70,7 @@ export function DataTable<TData, TValue>({
     count: rows.length,
     estimateSize: () => 56,
     getScrollElement: () => tableContainerRef.current,
-    overscan: 5,
+    overscan: 10,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
@@ -87,13 +87,10 @@ export function DataTable<TData, TValue>({
       <div className="shrink-0">
         <DataTableToolbar table={table} />
       </div>
-      <div 
-        className="mt-4 rounded-md border overflow-hidden"
-        style={{ maxHeight: "calc(100vh - 280px)" }}
-      >
+      <div className="mt-4 rounded-md border overflow-hidden">
         <div
           ref={tableContainerRef}
-          className="overflow-y-auto overflow-x-auto"
+          className="overflow-y-auto overflow-x-auto overscroll-contain will-change-transform"
           style={{ maxHeight: "calc(100vh - 280px)" }}
         >
           <Table style={{ minWidth: "1100px" }}>
