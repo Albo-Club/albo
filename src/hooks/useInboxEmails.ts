@@ -6,6 +6,19 @@ export interface EmailAttendee {
   identifier: string;
 }
 
+export interface MatchedCompany {
+  id: string;
+  name: string;
+  domain: string;
+}
+
+export interface EmailOwner {
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+}
+
 export interface UnipileEmail {
   id: string;
   subject: string;
@@ -14,7 +27,6 @@ export interface UnipileEmail {
   cc: EmailAttendee[];
   date: string;
   read: boolean;
-  read_date: string | null;
   has_attachments: boolean;
   folders: string[];
   role: string | null;
@@ -26,6 +38,10 @@ export interface UnipileEmail {
   provider: string;
   in_reply_to: any | null;
   message_id: string | null;
+  companies: MatchedCompany[];
+  owners: EmailOwner[];
+  is_potential_report: boolean;
+  has_cached_detail: boolean;
 }
 
 export interface ConnectedEmailAccount {
@@ -38,7 +54,6 @@ export interface ConnectedEmailAccount {
 
 interface FetchEmailsParams {
   limit?: number;
-  folder?: string;
 }
 
 interface FetchEmailsResponse {
@@ -49,15 +64,15 @@ interface FetchEmailsResponse {
 }
 
 export function useInboxEmails(params: FetchEmailsParams = {}) {
-  const { limit = 50, folder = 'INBOX' } = params;
+  const { limit = 50 } = params;
 
   const query = useQuery({
-    queryKey: ['inbox-emails', limit, folder],
+    queryKey: ['inbox-emails', limit],
     queryFn: async (): Promise<FetchEmailsResponse> => {
       const { data, error } = await supabase.functions.invoke<FetchEmailsResponse>(
         'fetch-unipile-emails',
         {
-          body: { limit, folder },
+          body: { limit },
         }
       );
 
@@ -76,7 +91,7 @@ export function useInboxEmails(params: FetchEmailsParams = {}) {
 
       return data;
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
 

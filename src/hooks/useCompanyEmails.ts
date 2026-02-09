@@ -56,7 +56,6 @@ export function useCompanyEmails(companyId: string | undefined) {
           cc: [],
           date: match.email_date,
           read: true,
-          read_date: null,
           has_attachments: match.has_attachments || false,
           folders: [],
           role: null,
@@ -68,6 +67,10 @@ export function useCompanyEmails(companyId: string | undefined) {
           provider: '',
           in_reply_to: null,
           message_id: null,
+          companies: [],
+          owners: [],
+          is_potential_report: false,
+          has_cached_detail: false,
         };
       });
     },
