@@ -5,8 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * Hook pour écouter les nouveaux emails en temps réel via Supabase Realtime.
- * Quand un nouvel email est inséré dans la table `emails`, 
- * on invalide le cache React Query pour rafraîchir la liste.
+ * Écoute la table `email_company_matches` pour les nouvelles insertions
+ * et invalide le cache React Query pour rafraîchir la liste.
  */
 export function useEmailRealtime() {
   const queryClient = useQueryClient();
@@ -15,21 +15,17 @@ export function useEmailRealtime() {
   useEffect(() => {
     if (!user?.id) return;
 
-    // S'abonner aux INSERT sur la table emails pour cet utilisateur
     const channel = supabase
-      .channel('emails-realtime')
+      .channel('email-matches-realtime')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'emails',
-          filter: `user_id=eq.${user.id}`,
+          table: 'email_company_matches',
         },
         (payload) => {
-          console.log('📬 Nouvel email reçu via realtime:', payload.new);
-          
-          // Invalider le cache pour rafraîchir la liste des emails
+          console.log('📬 New email match via realtime:', payload.new);
           queryClient.invalidateQueries({ queryKey: ['inbox-emails'] });
         }
       )
@@ -37,9 +33,8 @@ export function useEmailRealtime() {
         console.log('📡 Email realtime subscription status:', status);
       });
 
-    // Cleanup : se désabonner quand le composant se démonte
     return () => {
-      console.log('🔌 Unsubscribing from emails realtime');
+      console.log('🔌 Unsubscribing from email realtime');
       supabase.removeChannel(channel);
     };
   }, [user?.id, queryClient]);
