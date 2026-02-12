@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -68,6 +69,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none min-h-0">
           <div className="max-w-7xl mx-auto w-full min-w-0 p-4 py-6">
