@@ -96,7 +96,7 @@ export function PortfolioChatPanel({ companyId, companyName }: PortfolioChatPane
     createNewConversation,
     deleteConversation,
     stopStreaming,
-  } = usePortfolioChat(companyId);
+  } = usePortfolioChat(companyId, companyName);
   
   // Auto-scroll quand nouveaux messages ou streaming
   useEffect(() => {

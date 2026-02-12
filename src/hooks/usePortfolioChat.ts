@@ -43,7 +43,7 @@ export interface PortfolioMessage {
 // ============================================
 
 // URL du webhook N8N pour le chat portfolio
-const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df';
+const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/chat_with_your_deals';
 
 // Configuration du streaming simulé (effet naturel style ChatGPT)
 const TYPING_SPEED = 30; // millisecondes entre chaque mise à jour
@@ -53,7 +53,7 @@ const CHUNK_SIZE = 1; // 1 caractère à la fois pour plus de fluidité
 // Hook principal
 // ============================================
 
-export function usePortfolioChat(companyId: string | undefined) {
+export function usePortfolioChat(companyId: string | undefined, companyName?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
@@ -277,6 +277,7 @@ export function usePortfolioChat(companyId: string | undefined) {
           user_id: user.id,
           conversation_id: conversationId,
           portfolio_company_id: companyId,
+          company_name: companyName || '',
         }),
       });
       

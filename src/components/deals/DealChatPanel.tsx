@@ -95,7 +95,7 @@ export function DealChatPanel({ dealId, companyName }: DealChatPanelProps) {
     createNewConversation,
     deleteConversation,
     stopStreaming,
-  } = useDealChat(dealId);
+  } = useDealChat(dealId, companyName);
   
   // Auto-scroll
   useEffect(() => {
