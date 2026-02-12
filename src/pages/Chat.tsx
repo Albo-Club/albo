@@ -135,7 +135,7 @@ const Chat = () => {
       
       // 3. Appeler le webhook N8N pour obtenir la réponse IA
       const response = await fetch(
-        'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df',
+        'https://n8n.alboteam.com/webhook/chat_with_your_deals',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

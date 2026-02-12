@@ -43,7 +43,7 @@ export interface DealMessage {
 // ============================================
 
 // URL du webhook N8N pour le chat deals
-const DEAL_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df';
+const DEAL_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/chat_with_your_deals';
 
 // Configuration du streaming simulé
 const TYPING_SPEED = 30;
@@ -53,7 +53,7 @@ const CHUNK_SIZE = 1;
 // Hook principal
 // ============================================
 
-export function useDealChat(dealId: string | undefined) {
+export function useDealChat(dealId: string | undefined, companyName?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
@@ -266,6 +266,7 @@ export function useDealChat(dealId: string | undefined) {
           user_id: user.id,
           conversation_id: conversationId,
           deal_id: dealId,
+          company_name: companyName || '',
         }),
       });
       

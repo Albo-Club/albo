@@ -124,7 +124,7 @@ export function DealChatDrawer({ dealId, companyName, isOpen, onOpenChange }: De
 
       // 3. Call N8N webhook with deal_id
       const response = await fetch(
-        "https://n8n.alboteam.com/webhook/6d0211b4-a08d-45b3-a20d-1b717f7713df",
+        "https://n8n.alboteam.com/webhook/chat_with_your_deals",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -133,6 +133,7 @@ export function DealChatDrawer({ dealId, companyName, isOpen, onOpenChange }: De
             user_id: user.id,
             conversation_id: activeConversationId,
             deal_id: dealId,
+            company_name: companyName,
           }),
         }
       );
