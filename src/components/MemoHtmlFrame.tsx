@@ -1,18 +1,25 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { cleanEmailHtml } from "@/lib/cleanEmailHtml";
 
 function normalizeMemoHtml(raw: string) {
   const input = (raw ?? "").trim();
   if (!input) return "";
 
-  // If backend stored literal "\\n" sequences, convert them back to new lines.
-  const withNewlines = input.includes("\\n") ? input.replace(/\\n/g, "\n") : input;
+  // 1. Clean email HTML (signatures, quotes, forwarded headers, "=" prefix)
+  const cleaned = cleanEmailHtml(input);
+
+  // 2. Convert literal "\\n" sequences to actual newlines
+  const withNewlines = cleaned.includes("\\n")
+    ? cleaned.replace(/\\n/g, "\n")
+    : cleaned;
   const lower = withNewlines.trimStart().toLowerCase();
 
+  // If it's already a full document, return as-is
   const isFullDoc = lower.startsWith("<!doctype") || lower.includes("<html");
   if (isFullDoc) return withNewlines;
 
-  // Minimal, safe wrapper for fragments.
+  // Otherwise wrap in a minimal HTML document with clean styles
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -21,16 +28,23 @@ function normalizeMemoHtml(raw: string) {
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
-      line-height: 1.6;
-      color: hsl(0 0% 10%);
+      line-height: 1.65;
+      color: #1a1a1a;
       padding: 24px;
       margin: 0;
-      background: hsl(0 0% 100%);
+      background: #fff;
+      font-size: 14px;
     }
     img { max-width: 100%; height: auto; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid hsl(0 0% 86%); padding: 8px 12px; text-align: left; }
-    th { background: hsl(0 0% 96%); }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    b, strong { font-weight: 600; }
+    ul, ol { padding-left: 20px; }
+    li { margin-bottom: 4px; }
+    h1, h2, h3 { margin-top: 1em; margin-bottom: 0.5em; }
   </style>
 </head>
 <body>${withNewlines}</body>
