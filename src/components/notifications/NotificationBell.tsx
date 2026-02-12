@@ -108,7 +108,7 @@ export function NotificationBell() {
         </div>
 
         {/* List */}
-        <ScrollArea className="max-h-[400px]">
+        <div className="max-h-[400px] overflow-y-auto">
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               Aucune notification
@@ -124,7 +124,7 @@ export function NotificationBell() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
