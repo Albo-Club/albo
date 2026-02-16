@@ -9,7 +9,6 @@ export function useProfileCompletion() {
   const [isComplete, setIsComplete] = useState(true);
 
   const checkProfile = useCallback(async () => {
-    // Récupérer l'utilisateur connecté
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -57,6 +56,31 @@ export function useProfileCompletion() {
         replace: true,
         state: { from: location.pathname }
       });
+      setIsChecking(false);
+      return;
+    }
+
+    // Vérifier que l'utilisateur appartient à au moins un workspace
+    const { data: workspaceMemberships, error: wsError } = await supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+
+    if (wsError) {
+      console.error('Erreur vérification workspace:', wsError);
+      setIsChecking(false);
+      return;
+    }
+
+    if (!workspaceMemberships || workspaceMemberships.length === 0) {
+      // Pas de workspace → rediriger vers l'onboarding workspace
+      navigate('/onboarding/workspace', {
+        replace: true,
+        state: { from: location.pathname }
+      });
+      setIsChecking(false);
+      return;
     }
 
     setIsChecking(false);
@@ -65,7 +89,6 @@ export function useProfileCompletion() {
   useEffect(() => {
     checkProfile();
 
-    // Écouter les changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
         setTimeout(() => {
