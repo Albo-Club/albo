@@ -9,7 +9,8 @@ import { DealHeader } from '@/components/deals/DealHeader';
 import { DealTabs } from '@/components/deals/DealTabs';
 import { MemoWidget } from '@/components/deals/MemoWidget';
 import { DealInfoCard } from '@/components/deals/DealInfoCard';
-import { DealChatPanel } from '@/components/deals/DealChatPanel';
+// AI Chat disabled temporarily
+// import { DealChatPanel } from '@/components/deals/DealChatPanel';
 import { DealDocumentsList } from '@/components/deals/DealDocumentsList';
 import { DealEmailTab } from '@/components/deals/DealEmailTab';
 import { displayCompanyName } from '@/lib/utils';
@@ -263,11 +264,11 @@ export default function DealDetail() {
         />
       </div>
 
-      {/* Chat IA pour ce deal */}
-      <DealChatPanel 
+      {/* Chat IA pour ce deal - désactivé temporairement */}
+      {/* <DealChatPanel 
         dealId={deal.id} 
         companyName={companyName} 
-      />
+      /> */}
     </>
   );
 }

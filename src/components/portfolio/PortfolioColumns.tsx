@@ -14,7 +14,7 @@ import {
   formatDate,
   formatPercentage,
 } from "@/lib/portfolioFormatters";
-import { getInvestmentTypeColors } from "@/types/portfolio";
+import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/portfolio";
 import { SectorBadges } from "./SectorBadges";
 import { cn } from "@/lib/utils";
 
@@ -118,9 +118,10 @@ export const portfolioColumns: ColumnDef<PortfolioCompany>[] = [
       const type = row.getValue("investment_type") as string | null;
       if (!type) return <span className="text-muted-foreground">-</span>;
       const colors = getInvestmentTypeColors(type);
+      const displayLabel = getInvestmentTypeDisplayLabel(type);
       return (
         <Badge variant="outline" className={cn(colors.bg, colors.text, colors.border)}>
-          {type}
+          {displayLabel}
         </Badge>
       );
     },

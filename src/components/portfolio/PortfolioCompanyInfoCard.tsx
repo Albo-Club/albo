@@ -17,7 +17,7 @@ import { fr } from "date-fns/locale";
 import { formatAmount, cn } from "@/lib/utils";
 import { formatPercentage } from "@/lib/portfolioFormatters";
 import { SectorBadges } from "./SectorBadges";
-import { getInvestmentTypeColors } from "@/types/portfolio";
+import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/portfolio";
 
 interface PortfolioCompanyInfoCardProps {
   company: {
@@ -79,7 +79,7 @@ export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardPr
             "text-xs font-medium"
           )}
         >
-          {company.investment_type}
+          {getInvestmentTypeDisplayLabel(company.investment_type)}
         </Badge>
       ) : null,
     },

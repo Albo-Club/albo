@@ -33,12 +33,19 @@ export const SECTORS_LIST = [
 // Types d'investissement avec couleurs harmonisées
 export const INVESTMENT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Share': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-400', border: 'border-blue-300 dark:border-blue-700' },
+  'Actions': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-400', border: 'border-blue-300 dark:border-blue-700' },
   'SPV Share': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-800 dark:text-emerald-400', border: 'border-emerald-300 dark:border-emerald-700' },
   'BSA Air': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-400', border: 'border-amber-300 dark:border-amber-700' },
+  'BSA': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-400', border: 'border-amber-300 dark:border-amber-700' },
   'Royalties': { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-800 dark:text-purple-400', border: 'border-purple-300 dark:border-purple-700' },
   'Obligation': { bg: 'bg-slate-100 dark:bg-slate-900/30', text: 'text-slate-800 dark:text-slate-400', border: 'border-slate-300 dark:border-slate-700' },
+  'Obligations': { bg: 'bg-slate-100 dark:bg-slate-900/30', text: 'text-slate-800 dark:text-slate-400', border: 'border-slate-300 dark:border-slate-700' },
   'OCA': { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-800 dark:text-orange-400', border: 'border-orange-300 dark:border-orange-700' },
   'SPV SAFE': { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-800 dark:text-teal-400', border: 'border-teal-300 dark:border-teal-700' },
+  'Fond d\'invest': { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-800 dark:text-indigo-400', border: 'border-indigo-300 dark:border-indigo-700' },
+  'Cryptomonaie': { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-800 dark:text-violet-400', border: 'border-violet-300 dark:border-violet-700' },
+  'Start-up': { bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-800 dark:text-pink-400', border: 'border-pink-300 dark:border-pink-700' },
+  'SCPI': { bg: 'bg-stone-100 dark:bg-stone-900/30', text: 'text-stone-800 dark:text-stone-400', border: 'border-stone-300 dark:border-stone-700' },
 };
 
 export const INVESTMENT_TYPES_LIST = [
@@ -86,10 +93,24 @@ export const getSectorColors = (sector: string) => {
   return CUSTOM_SECTOR_PALETTES[paletteIndex];
 };
 
+// Display label mapping: "Actions" → "Share" in UI
+export const getInvestmentTypeDisplayLabel = (type: string): string => {
+  if (type === 'Actions') return 'Share';
+  return type;
+};
+
+// Color palette for unknown/composite types
+const CUSTOM_TYPE_PALETTES = [
+  { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-800 dark:text-cyan-400', border: 'border-cyan-300 dark:border-cyan-700' },
+  { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-800 dark:text-rose-400', border: 'border-rose-300 dark:border-rose-700' },
+  { bg: 'bg-lime-100 dark:bg-lime-900/30', text: 'text-lime-800 dark:text-lime-400', border: 'border-lime-300 dark:border-lime-700' },
+  { bg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', text: 'text-fuchsia-800 dark:text-fuchsia-400', border: 'border-fuchsia-300 dark:border-fuchsia-700' },
+  { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-800 dark:text-sky-400', border: 'border-sky-300 dark:border-sky-700' },
+];
+
 export const getInvestmentTypeColors = (type: string) => {
-  return INVESTMENT_TYPE_COLORS[type] || { 
-    bg: 'bg-muted', 
-    text: 'text-muted-foreground', 
-    border: 'border-muted' 
-  };
+  if (INVESTMENT_TYPE_COLORS[type]) return INVESTMENT_TYPE_COLORS[type];
+  // For unknown/composite types, generate a deterministic color
+  const hash = hashString(type);
+  return CUSTOM_TYPE_PALETTES[hash % CUSTOM_TYPE_PALETTES.length];
 };
