@@ -25,7 +25,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/portfolio');
     }
   }, [user, navigate]);
 

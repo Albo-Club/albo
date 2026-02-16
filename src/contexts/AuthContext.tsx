@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (redirectTo) {
         navigate(redirectTo);
       } else {
-        navigate('/dashboard');
+        navigate('/portfolio');
       }
     } catch (error: any) {
       toast.error(error.message || 'Échec de la connexion');

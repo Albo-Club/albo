@@ -170,7 +170,7 @@ export default function AcceptInvite() {
         state: { from: `/invite/${token}` }
       });
     } else {
-      navigate('/dashboard');
+      navigate('/portfolio');
     }
   };
 
@@ -236,7 +236,7 @@ export default function AcceptInvite() {
       toast.success(`Félicitations ! Vous avez rejoint "${invitation.workspace_name}" avec succès.`);
       
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/portfolio');
       }, 1000);
     } catch (err) {
       console.error('Error accepting invitation:', err);
@@ -317,11 +317,11 @@ export default function AcceptInvite() {
         localStorage.removeItem('pending_invitation');
         
         // Rediriger vers le dashboard
-        navigate('/dashboard');
+        navigate('/portfolio');
       } else {
         // Cas rare : compte créé mais workspace non rejoint
         toast.success('Compte créé avec succès !');
-        navigate('/dashboard');
+        navigate('/portfolio');
       }
     } catch (err: any) {
       console.error('Error creating account:', err);
@@ -435,8 +435,8 @@ export default function AcceptInvite() {
               Demandez une nouvelle invitation si nécessaire.
             </p>
             <div className="flex flex-col gap-2">
-              <Button onClick={() => navigate('/dashboard')} className="w-full">
-                Aller au dashboard
+              <Button onClick={() => navigate('/portfolio')} className="w-full">
+                Aller au portfolio
               </Button>
               <Button 
                 variant="outline" 

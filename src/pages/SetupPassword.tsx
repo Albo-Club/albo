@@ -42,7 +42,7 @@ const SetupPassword = () => {
       
       // Si le profil est déjà complet, l'utilisateur n'a pas besoin de setup-password
       if (profile?.is_complete === true && profile?.name) {
-        navigate('/dashboard', { replace: true });
+        navigate('/portfolio', { replace: true });
         return;
       }
       

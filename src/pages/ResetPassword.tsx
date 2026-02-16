@@ -104,8 +104,8 @@ export default function ResetPassword() {
             <p className="text-muted-foreground mb-6">
               Votre mot de passe a été réinitialisé avec succès.
             </p>
-            <Button onClick={() => navigate('/dashboard')} className="w-full">
-              Aller au tableau de bord
+            <Button onClick={() => navigate('/portfolio')} className="w-full">
+              Aller au portfolio
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardContent>

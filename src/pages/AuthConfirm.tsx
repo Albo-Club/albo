@@ -53,7 +53,7 @@ export default function AuthConfirm() {
             case 'email_change':
               setMessage('Email mis à jour !');
               toast.success('Votre email a été mis à jour');
-              setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
+              setTimeout(() => navigate('/portfolio', { replace: true }), 1000);
               break;
 
             case 'invite':
@@ -105,7 +105,7 @@ export default function AuthConfirm() {
       } else if (profile.onboarding_status === 'workspace_pending') {
         navigate('/onboarding/workspace', { replace: true });
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate('/portfolio', { replace: true });
       }
     };
 

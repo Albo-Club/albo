@@ -356,7 +356,7 @@ export default function Profile() {
     try {
       await leaveWorkspace();
       toast.success('Vous avez quitté le workspace');
-      navigate('/dashboard');
+      navigate('/portfolio');
     } catch (error: any) {
       console.error('Error leaving workspace:', error);
       toast.error(error.message || 'Erreur lors de la sortie du workspace');
