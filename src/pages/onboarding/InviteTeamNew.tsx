@@ -188,15 +188,15 @@ export default function InviteTeamNew() {
         errors.forEach(err => toast.error(err));
       }
 
-      // Passer à l'étape suivante : connect-email
+      // Passer à l'étape suivante : import-portfolio
       await supabase
         .from('profiles')
         .update({ 
-          onboarding_status: 'connect_email',
+          onboarding_status: 'import_portfolio',
         })
         .eq('id', user.id);
 
-      navigate('/onboarding/connect-email');
+      navigate('/onboarding/import-portfolio');
     } catch (error: any) {
       console.error('Error finishing onboarding:', error);
       toast.error(error.message || 'Une erreur est survenue');
@@ -215,14 +215,14 @@ export default function InviteTeamNew() {
       await supabase
         .from('profiles')
         .update({ 
-          onboarding_status: 'connect_email',
+          onboarding_status: 'import_portfolio',
         })
         .eq('id', user.id);
 
-      navigate('/onboarding/connect-email');
+      navigate('/onboarding/import-portfolio');
     } catch (error: any) {
       console.error('Error skipping:', error);
-      navigate('/onboarding/connect-email');
+      navigate('/onboarding/import-portfolio');
     }
   };
 
