@@ -27,7 +27,8 @@ import { PortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithRepor
 import { SectorBadges } from "./SectorBadges";
 import { formatOwnership, formatMetricLabel } from "@/lib/portfolioFormatters";
 import type { CompanyReport } from "@/hooks/useCompanyReports";
-import { PortfolioChatPanel } from "./PortfolioChatPanel";
+// AI Chat disabled temporarily
+// import { PortfolioChatPanel } from "./PortfolioChatPanel";
 import { EditPortfolioCompanyModal } from "./EditPortfolioCompanyModal";
 import { DeletePortfolioCompanyDialog } from "./DeletePortfolioCompanyDialog";
 
@@ -443,11 +444,11 @@ export function PortfolioCompanyOverview({
       </CardContent>
     </Card>
 
-    {/* Chat with this deal */}
-    <PortfolioChatPanel 
+    {/* Chat IA désactivé temporairement */}
+    {/* <PortfolioChatPanel 
       companyId={company.id} 
       companyName={company.company_name} 
-    />
+    /> */}
 
     {/* Edit Modal */}
     <EditPortfolioCompanyModal
