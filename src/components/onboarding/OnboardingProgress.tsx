@@ -35,6 +35,7 @@ export function OnboardingProgress({
       OnboardingStatus.PROFILE_PENDING,
       OnboardingStatus.WORKSPACE_PENDING,
       OnboardingStatus.INVITE_TEAM,
+      OnboardingStatus.IMPORT_PORTFOLIO,
       OnboardingStatus.CONNECT_EMAIL,
     ];
     
@@ -172,7 +173,7 @@ function StepIndicator({
 export function OnboardingProgressMobile() {
   const { status } = useOnboardingStatus();
   
-  const totalSteps = 4;
+  const totalSteps = 5;
   const currentStep = useMemo(() => {
     if (!status) return 0;
     switch (status) {
@@ -182,8 +183,10 @@ export function OnboardingProgressMobile() {
         return 2;
       case OnboardingStatus.INVITE_TEAM:
         return 3;
-      case OnboardingStatus.CONNECT_EMAIL:
+      case OnboardingStatus.IMPORT_PORTFOLIO:
         return 4;
+      case OnboardingStatus.CONNECT_EMAIL:
+        return 5;
       case OnboardingStatus.COMPLETED:
         return totalSteps;
       default:

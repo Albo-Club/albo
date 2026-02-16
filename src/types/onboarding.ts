@@ -25,6 +25,9 @@ export enum OnboardingStatus {
   // 🏢 Workspace créé/rejoint, peut inviter l'équipe (optionnel)
   INVITE_TEAM = 'invite_team',
   
+  // 📦 Importer le portefeuille (optionnel)
+  IMPORT_PORTFOLIO = 'import_portfolio',
+  
   // 📧 Équipe invitée, peut connecter un email (optionnel)
   CONNECT_EMAIL = 'connect_email',
   
@@ -93,12 +96,21 @@ export const ONBOARDING_STEPS: Record<OnboardingStatus, OnboardingStep> = {
     skippable: true,
     icon: 'Users',
   },
+  [OnboardingStatus.IMPORT_PORTFOLIO]: {
+    id: OnboardingStatus.IMPORT_PORTFOLIO,
+    title: 'Importez votre portefeuille',
+    description: 'Ajoutez vos sociétés en portefeuille',
+    path: '/onboarding/import-portfolio',
+    stepNumber: 4,
+    skippable: true,
+    icon: 'Upload',
+  },
   [OnboardingStatus.CONNECT_EMAIL]: {
     id: OnboardingStatus.CONNECT_EMAIL,
     title: 'Connect your email',
     description: 'Link your inbox to manage communications',
     path: '/onboarding/connect-email',
-    stepNumber: 4,
+    stepNumber: 5,
     skippable: true,
     icon: 'Mail',
   },
@@ -107,7 +119,7 @@ export const ONBOARDING_STEPS: Record<OnboardingStatus, OnboardingStep> = {
     title: 'Welcome to Albo!',
     description: 'You are ready to manage your deals.',
     path: '/dashboard',
-    stepNumber: 5,
+    stepNumber: 6,
     skippable: false,
     icon: 'CheckCircle',
   },
@@ -148,6 +160,7 @@ export function getNextOnboardingStatus(
     OnboardingStatus.PROFILE_PENDING,
     OnboardingStatus.WORKSPACE_PENDING,
     OnboardingStatus.INVITE_TEAM,
+    OnboardingStatus.IMPORT_PORTFOLIO,
     OnboardingStatus.CONNECT_EMAIL,
     OnboardingStatus.COMPLETED,
   ];
@@ -155,7 +168,7 @@ export function getNextOnboardingStatus(
   const currentIndex = statusOrder.indexOf(currentStatus);
   
   if (currentIndex === -1 || currentIndex >= statusOrder.length - 1) {
-    return null; // Déjà à la dernière étape ou statut invalide
+    return null;
   }
   
   return statusOrder[currentIndex + 1];
@@ -171,6 +184,7 @@ export function getPreviousOnboardingStatus(
     OnboardingStatus.PROFILE_PENDING,
     OnboardingStatus.WORKSPACE_PENDING,
     OnboardingStatus.INVITE_TEAM,
+    OnboardingStatus.IMPORT_PORTFOLIO,
     OnboardingStatus.CONNECT_EMAIL,
     OnboardingStatus.COMPLETED,
   ];
