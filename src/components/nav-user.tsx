@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -100,11 +100,7 @@ export function NavUser({ user, onSignOut }: NavUserProps) {
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => navigate("/profile")}>
                 <User className="mr-2 h-4 w-4" />
-                Mon profil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/workspace-settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Paramètres
+                Account settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

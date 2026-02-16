@@ -41,36 +41,20 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { workspace, isPersonalMode } = useWorkspace();
+  const { workspace } = useWorkspace();
 
   const fetchDeals = async (): Promise<Deal[]> => {
     if (!user?.id || !user?.email) return [];
 
     let dealsData: any[] = [];
 
-    if (isPersonalMode) {
-      // Personal mode: only deals created by the current user
-      const { data, error } = await supabase
-        .from("deals")
-        .select(`
-          *,
-          owner:profiles!deals_user_id_fkey(id, name, email, avatar_url)
-        `)
-        .eq("user_id", user.id)
-        .neq("is_hidden", true)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      dealsData = data || [];
-    } else if (workspace?.id) {
+    if (workspace?.id) {
       // Utilise la fonction RPC pour récupérer les deals du workspace
-      // Elle retourne maintenant toutes les données y compris owner info
       const { data, error } = await supabase
         .rpc('get_workspace_deals', { p_workspace_id: workspace.id });
 
       if (error) throw error;
 
-      // La fonction RPC retourne toutes les données directement
       dealsData = (data || []).map((deal: any) => ({
         ...deal,
         owner: {
@@ -81,7 +65,7 @@ export default function Dashboard() {
         }
       }));
     } else {
-      // Fallback: deals de l'utilisateur sans workspace
+      // Fallback: deals de l'utilisateur
       const { data, error } = await supabase
         .from("deals")
         .select(`
@@ -132,7 +116,7 @@ export default function Dashboard() {
     data: deals = [],
     isLoading: loading,
   } = useQuery({
-    queryKey: ["deals", workspace?.id, isPersonalMode],
+    queryKey: ["deals", workspace?.id],
     enabled: !!user?.id && !!user?.email,
     queryFn: fetchDeals,
     retry: 1,

@@ -39,7 +39,6 @@ export interface WorkspaceInvitation {
   created_at: string;
   accepted_at: string | null;
   expires_at: string;
-  // New fields
   is_link_invite: boolean;
   status: InvitationStatus;
   resend_count: number;
@@ -61,18 +60,16 @@ interface WorkspaceContextType {
   invitations: WorkspaceInvitation[];
   userRole: WorkspaceRole | null;
   loading: boolean;
+  hasWorkspace: boolean;
   isOwner: boolean;
   isAdmin: boolean;
   canManageMembers: boolean;
-  isPersonalMode: boolean;
   switchWorkspace: (workspaceId: string) => void;
-  switchToPersonal: () => void;
   createWorkspace: (name: string) => Promise<string>;
   inviteMember: (email: string, role: WorkspaceRole) => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
   updateMemberRole: (memberId: string, newRole: WorkspaceRole) => Promise<void>;
   cancelInvitation: (invitationId: string) => Promise<void>;
-  migrateDeals: () => Promise<number>;
   leaveWorkspace: () => Promise<void>;
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
   refetch: () => Promise<void>;
@@ -89,11 +86,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [userRole, setUserRole] = useState<WorkspaceRole | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPersonalMode, setIsPersonalMode] = useState(false);
 
   const isOwner = userRole === 'owner';
   const isAdmin = userRole === 'admin' || userRole === 'owner';
   const canManageMembers = isAdmin;
+  const hasWorkspace = allWorkspaces.length > 0;
 
   const loadWorkspaceData = useCallback(async (targetWorkspaceId?: string) => {
     if (!user?.id) {
@@ -107,7 +104,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Load ALL workspaces the user belongs to
       const { data: workspacesData, error: workspacesError } = await supabase
         .from('workspace_members')
         .select(`
@@ -140,7 +136,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Transform the data
       const workspaces: WorkspaceWithRole[] = workspacesData.map(wm => {
         const ws = wm.workspaces as unknown as Workspace;
         return {
@@ -151,7 +146,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
       setAllWorkspaces(workspaces);
 
-      // Determine which workspace to use
       const savedWorkspaceId = targetWorkspaceId || localStorage.getItem('currentWorkspaceId');
       const selectedWorkspace = workspaces.find(w => w.id === savedWorkspaceId) || workspaces[0];
       
@@ -160,23 +154,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setUserRole(selectedWorkspace.userRole);
       localStorage.setItem('currentWorkspaceId', selectedWorkspace.id);
 
-      // Load members for the selected workspace
       const { data: membersData, error: membersError } = await supabase
         .from('workspace_members')
-        .select(`
-          id,
-          workspace_id,
-          user_id,
-          role,
-          joined_at
-        `)
+        .select(`id, workspace_id, user_id, role, joined_at`)
         .eq('workspace_id', selectedWorkspace.id)
         .order('joined_at', { ascending: true });
 
       if (membersError) {
         console.error('Error loading members:', membersError);
       } else {
-        // Fetch profiles separately for each member
         const membersWithProfiles = await Promise.all(
           (membersData || []).map(async (member) => {
             const { data: profileData } = await supabase
@@ -194,7 +180,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setMembers(membersWithProfiles);
       }
 
-      // Load pending invitations (only for admin/owner)
       if (selectedWorkspace.userRole === 'owner' || selectedWorkspace.userRole === 'admin') {
         const { data: invitationsData, error: invitationsError } = await supabase
           .from('workspace_invitations')
@@ -221,25 +206,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const switchWorkspace = useCallback((workspaceId: string) => {
     const newWorkspace = allWorkspaces.find(w => w.id === workspaceId);
     if (newWorkspace && newWorkspace.id !== currentWorkspaceId) {
-      setIsPersonalMode(false);
       setCurrentWorkspaceId(workspaceId);
       setWorkspace(newWorkspace);
       setUserRole(newWorkspace.userRole);
       localStorage.setItem('currentWorkspaceId', workspaceId);
-      // Reload members and invitations for the new workspace
       loadWorkspaceData(workspaceId);
     }
   }, [allWorkspaces, currentWorkspaceId, loadWorkspaceData]);
-
-  const switchToPersonal = useCallback(() => {
-    setIsPersonalMode(true);
-    setCurrentWorkspaceId(null);
-    setWorkspace(null);
-    setUserRole(null);
-    setMembers([]);
-    setInvitations([]);
-    localStorage.removeItem('currentWorkspaceId');
-  }, []);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -263,14 +236,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!workspace?.id || !user?.id) throw new Error('No workspace');
     if (!canManageMembers) throw new Error('Permission denied');
 
-    // Get inviter profile name
     const { data: inviterProfile } = await supabase
       .from('profiles')
       .select('name')
       .eq('id', user.id)
       .single();
 
-    // Create invitation in database
     const { data: invitation, error } = await supabase
       .from('workspace_invitations')
       .insert({
@@ -284,7 +255,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
 
-    // Send invitation email via Edge Function
     const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
       body: {
         email: email.toLowerCase(),
@@ -297,7 +267,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
 
     if (emailError) {
-      // Rollback: delete invitation if email failed
       await supabase.from('workspace_invitations').delete().eq('id', invitation.id);
       throw new Error('Failed to send invitation email');
     }
@@ -348,18 +317,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await loadWorkspaceData();
   };
 
-  const migrateDeals = async (): Promise<number> => {
-    if (!user?.id || !workspace?.id) throw new Error('No workspace');
-
-    const { data, error } = await supabase.rpc('migrate_deals_to_workspace', {
-      _user_id: user.id,
-      _workspace_id: workspace.id
-    });
-
-    if (error) throw error;
-    return data as number;
-  };
-
   const leaveWorkspace = async () => {
     if (!user?.id || !workspace?.id) throw new Error('No workspace');
     if (isOwner) throw new Error('Owner cannot leave workspace');
@@ -384,8 +341,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
 
-    // Switch to personal mode or another workspace after deletion
-    switchToPersonal();
     await loadWorkspaceData();
 
     return data as boolean;
@@ -399,18 +354,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       invitations,
       userRole,
       loading,
+      hasWorkspace,
       isOwner,
       isAdmin,
       canManageMembers,
-      isPersonalMode,
       switchWorkspace,
-      switchToPersonal,
       createWorkspace,
       inviteMember,
       removeMember,
       updateMemberRole,
       cancelInvitation,
-      migrateDeals,
       leaveWorkspace,
       deleteWorkspace,
       refetch: loadWorkspaceData

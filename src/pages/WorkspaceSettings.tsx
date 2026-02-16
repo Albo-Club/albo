@@ -71,7 +71,7 @@ export default function WorkspaceSettings() {
     removeMember,
     updateMemberRole,
     cancelInvitation,
-    migrateDeals,
+    
     leaveWorkspace,
     deleteWorkspace,
     refetch,
@@ -88,7 +88,7 @@ export default function WorkspaceSettings() {
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  const [migrating, setMigrating] = useState(false);
+  
   const [deleting, setDeleting] = useState(false);
   const [resending, setResending] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -221,18 +221,6 @@ export default function WorkspaceSettings() {
     }
   };
 
-  const handleMigrateDeals = async () => {
-    setMigrating(true);
-    try {
-      const count = await migrateDeals();
-      toast.success(`${count} deal${count > 1 ? 's' : ''} migré${count > 1 ? 's' : ''} vers le workspace`);
-    } catch (error: any) {
-      console.error('Error migrating deals:', error);
-      toast.error(error.message || 'Erreur lors de la migration');
-    } finally {
-      setMigrating(false);
-    }
-  };
 
   const handleDeleteWorkspace = async () => {
     if (!workspace?.id) return;
@@ -353,14 +341,6 @@ export default function WorkspaceSettings() {
             </Badge>
           </CardDescription>
         </CardHeader>
-        {isOwner && (
-          <CardContent>
-            <Button variant="outline" onClick={handleMigrateDeals} disabled={migrating}>
-              {migrating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Migrer mes deals existants vers ce workspace
-            </Button>
-          </CardContent>
-        )}
       </Card>
 
       {/* Logo du Workspace */}

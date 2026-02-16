@@ -78,7 +78,7 @@ export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { workspace, isOwner, isPersonalMode, leaveWorkspace } = useWorkspace();
+  const { workspace, isOwner, leaveWorkspace } = useWorkspace();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -695,7 +695,7 @@ export default function Profile() {
         </Card>
 
         {/* SECTION 5 : Quitter le workspace (seulement si membre d'un workspace et pas owner) */}
-        {!isPersonalMode && workspace && !isOwner && (
+        {workspace && !isOwner && (
           <Card className="border-orange-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-orange-600">

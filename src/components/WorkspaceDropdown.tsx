@@ -31,12 +31,9 @@ import {
   ChevronDown,
   ChevronRight,
   Check,
-  Plus,
-  User,
   Users,
   Settings,
   UserPlus,
-  LogOut,
   Loader2,
   X,
 } from 'lucide-react';
@@ -44,7 +41,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 export function WorkspaceDropdown() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
   const {
@@ -55,44 +52,18 @@ export function WorkspaceDropdown() {
     canManageMembers,
     isOwner,
     isAdmin,
-    isPersonalMode,
     switchWorkspace,
-    switchToPersonal,
-    createWorkspace,
     inviteMember,
     cancelInvitation,
     refetch,
   } = useWorkspace();
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState('');
-  const [creating, setCreating] = useState(false);
 
   const [inviteEmails, setInviteEmails] = useState('');
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
   const [inviting, setInviting] = useState(false);
-
-  const handleCreateWorkspace = async () => {
-    if (!workspaceName.trim()) {
-      toast.error('Please enter a name');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      await createWorkspace(workspaceName.trim());
-      toast.success('Workspace created!');
-      setIsCreateDialogOpen(false);
-      setWorkspaceName('');
-    } catch (error: any) {
-      console.error('Error creating workspace:', error);
-      toast.error(error.message || 'Error creating workspace');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleInvite = async () => {
     if (!inviteEmails.trim()) {
@@ -133,17 +104,8 @@ export function WorkspaceDropdown() {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const workspaceInitial = isPersonalMode ? 'M' : (workspace?.name?.charAt(0).toUpperCase() || 'A');
-  const displayName = isPersonalMode ? 'My Workspace' : (workspace?.name || 'Mon espace');
+  const workspaceInitial = workspace?.name?.charAt(0).toUpperCase() || 'W';
+  const displayName = workspace?.name || 'Workspace';
 
   return (
     <>
@@ -153,7 +115,7 @@ export function WorkspaceDropdown() {
             variant="ghost"
             className={`w-full justify-start gap-2 px-2 h-auto py-2 hover:bg-sidebar-accent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isCollapsed ? 'justify-center' : ''}`}
           >
-            {!isPersonalMode && workspace?.logo_url ? (
+            {workspace?.logo_url ? (
               <img 
                 src={workspace.logo_url}
                 alt={workspace.name}
@@ -179,84 +141,69 @@ export function WorkspaceDropdown() {
           className="w-64 bg-popover border shadow-lg z-50"
           sideOffset={4}
         >
-          {/* My Workspace - Personal space */}
-          <DropdownMenuItem
-            onClick={() => switchToPersonal()}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <div className="h-6 w-6 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-500 font-semibold text-xs shrink-0">
-              <User className="h-4 w-4" />
-            </div>
-            <span className="flex-1 truncate">My Workspace</span>
-            {isPersonalMode && <Check className="h-4 w-4 text-primary" />}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-
           {/* Current workspace with members */}
           {workspace && (
-            <>
-              <Collapsible open={isMembersOpen} onOpenChange={setIsMembersOpen}>
-                <CollapsibleTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()}
-                    className="flex items-center justify-between cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      {workspace.logo_url ? (
-                        <img 
-                          src={workspace.logo_url}
-                          alt={workspace.name}
-                          className="h-6 w-6 rounded-md object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
-                          {workspace.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <span className="font-medium">{workspace.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Check className="h-4 w-4 text-primary" />
-                      <ChevronRight className={cn("h-4 w-4 transition-transform", isMembersOpen && "rotate-90")} />
-                    </div>
-                  </DropdownMenuItem>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="pl-4 py-2 space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
-                      <Users className="h-3 w-3" />
-                      {members.length} member{members.length > 1 ? 's' : ''}
-                    </div>
-                    {members.map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="flex items-center gap-2 px-2 py-1 text-sm"
-                      >
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-xs bg-muted">
-                            {member.profile?.name?.charAt(0).toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="flex-1 truncate text-muted-foreground">
-                          {member.profile?.name || member.profile?.email || 'Member'}
-                        </span>
-                        {member.role === 'owner' && (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                            Owner
-                          </Badge>
-                        )}
+            <Collapsible open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+              <CollapsibleTrigger asChild>
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="flex items-center justify-between cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
+                >
+                  <div className="flex items-center gap-2">
+                    {workspace.logo_url ? (
+                      <img 
+                        src={workspace.logo_url}
+                        alt={workspace.name}
+                        className="h-6 w-6 rounded-md object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
+                        {workspace.name.charAt(0).toUpperCase()}
                       </div>
-                    ))}
+                    )}
+                    <span className="font-medium">{workspace.name}</span>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-              <DropdownMenuSeparator />
-            </>
+                  <div className="flex items-center gap-1">
+                    <Check className="h-4 w-4 text-primary" />
+                    <ChevronRight className={cn("h-4 w-4 transition-transform", isMembersOpen && "rotate-90")} />
+                  </div>
+                </DropdownMenuItem>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="pl-4 py-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
+                    <Users className="h-3 w-3" />
+                    {members.length} member{members.length > 1 ? 's' : ''}
+                  </div>
+                  {members.map((member) => (
+                    <div
+                      key={member.user_id}
+                      className="flex items-center gap-2 px-2 py-1 text-sm"
+                    >
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="text-xs bg-muted">
+                          {member.profile?.name?.charAt(0).toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="flex-1 truncate text-muted-foreground">
+                        {member.profile?.name || member.profile?.email || 'Member'}
+                      </span>
+                      {member.role === 'owner' && (
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                          Owner
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* List of other workspaces */}
           {allWorkspaces.filter(ws => ws.id !== workspace?.id).length > 0 && (
             <>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Other workspaces
               </DropdownMenuLabel>
@@ -280,24 +227,12 @@ export function WorkspaceDropdown() {
                   <span className="flex-1 truncate">{ws.name}</span>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
             </>
           )}
 
-          {/* New workspace */}
-          <DropdownMenuItem onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New workspace
-          </DropdownMenuItem>
-
           <DropdownMenuSeparator />
 
-          {/* Settings links */}
-          <DropdownMenuItem onClick={() => navigate('/profile')}>
-            <User className="mr-2 h-4 w-4" />
-            Account settings
-          </DropdownMenuItem>
-
+          {/* Workspace-only actions */}
           {(isOwner || isAdmin) && workspace && (
             <DropdownMenuItem onClick={() => navigate('/workspace')}>
               <Settings className="mr-2 h-4 w-4" />
@@ -311,48 +246,8 @@ export function WorkspaceDropdown() {
               Invite team members
             </DropdownMenuItem>
           )}
-
-          <DropdownMenuSeparator />
-
-          {/* Sign out */}
-          <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Create Workspace Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create a Workspace</DialogTitle>
-            <DialogDescription>
-              Give your workspace a name. Your existing deals will be automatically migrated.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="workspace-name">Workspace name</Label>
-            <Input
-              id="workspace-name"
-              value={workspaceName}
-              onChange={(e) => setWorkspaceName(e.target.value)}
-              placeholder="Ex: Albo Fund"
-              className="mt-2"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateWorkspace} disabled={creating}>
-              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Invite Team Members Dialog */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
