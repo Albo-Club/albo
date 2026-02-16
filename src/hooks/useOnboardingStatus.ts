@@ -225,7 +225,7 @@ export function useOnboardingStatus(): UseOnboardingStatusReturn {
     try {
       await updateStatusInDB(OnboardingStatus.COMPLETED);
       setStatus(OnboardingStatus.COMPLETED);
-      navigate('/dashboard');
+      navigate('/portfolio');
     } catch (err: any) {
       console.error('Error completing onboarding:', err);
       setError(err.message);

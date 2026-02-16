@@ -87,9 +87,9 @@ export default function AuthCallback() {
         console.log('Redirecting to onboarding/invite');
         navigate('/onboarding/invite', { replace: true });
       } else {
-        // Tout est bon, aller au dashboard
-        console.log('Redirecting to dashboard');
-        navigate('/dashboard', { replace: true });
+        // Tout est bon, aller au portfolio
+        console.log('Redirecting to portfolio');
+        navigate('/portfolio', { replace: true });
       }
     };
 

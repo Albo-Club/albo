@@ -263,7 +263,7 @@ export default function SubmitDeal() {
           toast.error(result?.error || "Échec de l'analyse");
         }
 
-        navigate('/dashboard');
+        navigate('/opportunities');
       } catch (n8nError: any) {
         console.error('N8N Error:', n8nError);
         
@@ -281,7 +281,7 @@ export default function SubmitDeal() {
           .eq('id', analysisRecord.id);
 
         toast.error('Erreur lors de l\'analyse. Vous pouvez réessayer depuis la page du deal.');
-        navigate('/dashboard');
+        navigate('/opportunities');
       }
     } catch (error: any) {
       console.error('Error submitting deal:', error);
@@ -391,7 +391,7 @@ export default function SubmitDeal() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/opportunities')}
                 className="flex-1"
               >
                 Annuler

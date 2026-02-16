@@ -56,7 +56,7 @@ export default function PortfolioPage() {
         <div className="flex gap-2">
           <Button onClick={() => setImportModalOpen(true)} variant="outline" className="gap-2">
             <Upload className="h-4 w-4" />
-            Import CSV
+            Import Portfolio
           </Button>
           <Button onClick={() => setAddModalOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />

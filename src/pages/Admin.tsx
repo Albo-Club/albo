@@ -28,7 +28,7 @@ export default function Admin() {
   useEffect(() => {
     if (!authLoading && !isAdmin) {
       toast.error('Accès non autorisé');
-      navigate('/dashboard');
+      navigate('/portfolio');
     } else if (isAdmin) {
       loadStats();
     }

@@ -229,7 +229,7 @@ export default function WorkspaceSettings() {
     try {
       await deleteWorkspace(workspace.id);
       toast.success('Workspace supprimé');
-      navigate('/dashboard');
+      navigate('/portfolio');
     } catch (error: any) {
       console.error('Error deleting workspace:', error);
       toast.error(error.message || 'Erreur lors de la suppression');
@@ -243,7 +243,7 @@ export default function WorkspaceSettings() {
     try {
       await leaveWorkspace();
       toast.success('Vous avez quitté le workspace');
-      navigate('/dashboard');
+      navigate('/portfolio');
     } catch (error: any) {
       console.error('Error leaving workspace:', error);
       toast.error(error.message || 'Erreur lors de la sortie du workspace');

@@ -168,7 +168,7 @@ export default function ConnectEmailOnboarding() {
         })
         .eq('id', user.id);
 
-      navigate('/opportunities');
+      navigate('/portfolio');
     } catch (error: any) {
       console.error('Error completing onboarding:', error);
       toast.error('Error completing setup');

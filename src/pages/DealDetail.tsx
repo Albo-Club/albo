@@ -84,7 +84,7 @@ export default function DealDetail() {
       if (dealError) throw dealError;
       if (!dealData) {
         toast.error('Deal non trouvé');
-        navigate('/dashboard');
+        navigate('/opportunities');
         return;
       }
       
@@ -92,7 +92,7 @@ export default function DealDetail() {
     } catch (error: any) {
       console.error('Error loading deal:', error);
       toast.error('Erreur lors du chargement du deal');
-      navigate('/dashboard');
+      navigate('/opportunities');
     } finally {
       setLoading(false);
     }
@@ -188,8 +188,8 @@ export default function DealDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">Deal non trouvé</p>
-        <Button onClick={() => navigate('/dashboard')} className="mt-4">
-          Retour au Dashboard
+        <Button onClick={() => navigate('/opportunities')} className="mt-4">
+          Retour au Dealflow
         </Button>
       </div>
     );

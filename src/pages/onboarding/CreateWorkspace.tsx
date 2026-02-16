@@ -128,7 +128,7 @@ export default function CreateWorkspace() {
 
       // Marquer l'onboarding comme terminé (pas besoin d'inviter si on rejoint)
       await setOnboardingStatus(OnboardingStatus.COMPLETED);
-      navigate('/dashboard');
+      navigate('/portfolio');
     } catch (error: any) {
       console.error('Error joining workspace:', error);
       toast.error(error.message || 'Erreur lors de la jonction au workspace');
@@ -144,7 +144,7 @@ export default function CreateWorkspace() {
     // L'utilisateur peut continuer sans workspace (mode personnel)
     await setOnboardingStatus(OnboardingStatus.COMPLETED);
     toast.info('Vous pouvez créer un workspace plus tard dans les paramètres');
-    navigate('/dashboard');
+    navigate('/portfolio');
   };
 
   return (

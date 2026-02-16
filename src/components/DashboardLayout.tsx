@@ -18,14 +18,15 @@ interface DashboardLayoutProps {
 }
 
 const routeLabels: Record<string, string> = {
-  "/dashboard": "Vue d'ensemble",
-  "/opportunities": "Opportunités",
+  "/dashboard": "Dealflow",
+  "/opportunities": "Dealflow",
   "/inbox": "Inbox",
   "/portfolio": "Portfolio",
   "/submit": "Soumettre un deal",
   "/profile": "Profil",
   "/admin": "Administration",
   "/workspace-settings": "Paramètres du workspace",
+  "/workspace": "Paramètres du workspace",
 };
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
