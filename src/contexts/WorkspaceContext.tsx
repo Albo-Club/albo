@@ -24,6 +24,7 @@ export interface WorkspaceMember {
     name: string;
     email: string;
     avatar_url?: string | null;
+    is_super_admin?: boolean;
   };
 }
 
@@ -167,7 +168,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           (membersData || []).map(async (member) => {
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, name, email, avatar_url')
+              .select('id, name, email, avatar_url, is_super_admin')
               .eq('id', member.user_id)
               .single();
             
@@ -177,7 +178,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             } as WorkspaceMember;
           })
         );
-        setMembers(membersWithProfiles);
+        const visibleMembers = membersWithProfiles.filter(
+          (member) => !member.profile?.is_super_admin
+        );
+        setMembers(visibleMembers);
       }
 
       if (selectedWorkspace.userRole === 'owner' || selectedWorkspace.userRole === 'admin') {
