@@ -11,6 +11,7 @@ import { Loader2, Mail, CheckCircle2, Server, Unplug, Clock, RefreshCw, AlertCir
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -30,8 +31,18 @@ interface ConnectedAccount {
 
 export default function ConnectEmailOnboarding() {
   const { user } = useAuth();
+  const { allWorkspaces } = useWorkspace();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const isAdminOrOwnerAnywhere = allWorkspaces.some(w => w.userRole === 'admin' || w.userRole === 'owner');
+
+  // Auto-skip this step for simple members
+  useEffect(() => {
+    if (allWorkspaces.length > 0 && !isAdminOrOwnerAnywhere) {
+      handleComplete();
+    }
+  }, [allWorkspaces, isAdminOrOwnerAnywhere]);
 
   const [connectingEmail, setConnectingEmail] = useState(false);
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
