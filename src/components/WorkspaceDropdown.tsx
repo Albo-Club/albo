@@ -188,11 +188,9 @@ export function WorkspaceDropdown() {
                       <span className="flex-1 truncate text-muted-foreground">
                         {member.profile?.name || member.profile?.email || 'Member'}
                       </span>
-                      {member.role === 'owner' && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                          Owner
-                        </Badge>
-                      )}
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                        {member.role === 'owner' ? 'Owner' : member.role === 'admin' ? 'Admin' : 'Membre'}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -207,7 +205,7 @@ export function WorkspaceDropdown() {
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Other workspaces
               </DropdownMenuLabel>
-              {allWorkspaces.filter(ws => ws.id !== workspace?.id).map((ws) => (
+                  {allWorkspaces.filter(ws => ws.id !== workspace?.id).map((ws) => (
                 <DropdownMenuItem
                   key={ws.id}
                   onClick={() => switchWorkspace(ws.id)}
@@ -225,6 +223,9 @@ export function WorkspaceDropdown() {
                     </div>
                   )}
                   <span className="flex-1 truncate">{ws.name}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                    {ws.userRole === 'owner' ? 'Owner' : ws.userRole === 'admin' ? 'Admin' : 'Membre'}
+                  </Badge>
                 </DropdownMenuItem>
               ))}
             </>

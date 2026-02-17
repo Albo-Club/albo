@@ -78,7 +78,9 @@ export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { workspace, isOwner, leaveWorkspace } = useWorkspace();
+  const { workspace, allWorkspaces, isOwner, leaveWorkspace } = useWorkspace();
+  
+  const isAdminOrOwnerAnywhere = allWorkspaces.some(w => w.userRole === 'admin' || w.userRole === 'owner');
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -581,116 +583,120 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Liste des comptes connectés */}
-            {loadingAccounts ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Chargement des comptes...
-              </div>
-            ) : connectedAccounts.length > 0 ? (
-              <div className="space-y-3">
-                {connectedAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center h-9 w-9 rounded-full bg-muted">
-                        {getProviderIcon(account.provider)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {account.email || account.display_name || 'Compte email'}
-                          </p>
-                          {/* Status indicator inline */}
-                          {account.status === 'syncing' && (
-                            <span className="flex items-center gap-1 text-xs text-blue-600">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              Synchronisation...
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-muted-foreground">
-                            {getProviderLabel(account.provider)}
-                          </span>
-                          {/* Status badge */}
-                          {account.status === 'syncing' ? (
-                            <Badge variant="secondary" className="text-xs">
-                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                              Sync en cours
-                            </Badge>
-                          ) : account.status === 'pending_consent' ? (
-                            <Badge variant="secondary" className="text-xs">
-                              <Clock className="h-3 w-3 mr-1" />
-                              En attente
-                            </Badge>
-                          ) : account.status === 'sync_error' ? (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Erreur
-                            </Badge>
-                          ) : account.status === 'needs_reconnect' ? (
-                            <Badge variant="destructive" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Reconnexion requise
-                            </Badge>
-                          ) : account.status === 'active' ? (
-                            <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
-                              Connecté
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              {account.status}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Bouton déconnexion (seulement si active ou sync_error) */}
-                    {(account.status === 'active' || account.status === 'sync_error' || account.status === 'needs_reconnect') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDisconnectAccount(account.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Unplug className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {!isAdminOrOwnerAnywhere ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                La connexion email est réservée aux administrateurs de workspace.
+              </p>
             ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Aucun compte email connecté</p>
-              </div>
+              <>
+                {/* Liste des comptes connectés */}
+                {loadingAccounts ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Chargement des comptes...
+                  </div>
+                ) : connectedAccounts.length > 0 ? (
+                  <div className="space-y-3">
+                    {connectedAccounts.map((account) => (
+                      <div
+                        key={account.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center h-9 w-9 rounded-full bg-muted">
+                            {getProviderIcon(account.provider)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate">
+                                {account.email || account.display_name || 'Compte email'}
+                              </p>
+                              {account.status === 'syncing' && (
+                                <span className="flex items-center gap-1 text-xs text-blue-600">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  Synchronisation...
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-muted-foreground">
+                                {getProviderLabel(account.provider)}
+                              </span>
+                              {account.status === 'syncing' ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                  Sync en cours
+                                </Badge>
+                              ) : account.status === 'pending_consent' ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  En attente
+                                </Badge>
+                              ) : account.status === 'sync_error' ? (
+                                <Badge variant="destructive" className="text-xs">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Erreur
+                                </Badge>
+                              ) : account.status === 'needs_reconnect' ? (
+                                <Badge variant="destructive" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Reconnexion requise
+                                </Badge>
+                              ) : account.status === 'active' ? (
+                                <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
+                                  Connecté
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  {account.status}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {(account.status === 'active' || account.status === 'sync_error' || account.status === 'needs_reconnect') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDisconnectAccount(account.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Unplug className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Aucun compte email connecté</p>
+                  </div>
+                )}
+
+                <Separator />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleConnectEmail}
+                  disabled={connectingEmail}
+                  className="w-full"
+                >
+                  {connectingEmail ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Redirection vers le fournisseur...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Connecter un compte email
+                    </>
+                  )}
+                </Button>
+              </>
             )}
-
-            <Separator />
-
-            {/* Bouton pour connecter un nouveau compte */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleConnectEmail}
-              disabled={connectingEmail}
-              className="w-full"
-            >
-              {connectingEmail ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Redirection vers le fournisseur...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Connecter un compte email
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
 
