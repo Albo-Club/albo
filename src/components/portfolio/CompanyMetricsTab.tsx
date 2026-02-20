@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -15,7 +16,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { BarChart3, Sparkles, TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { BarChart3, Sparkles, TrendingUp, TrendingDown, ChevronDown, RefreshCw, AlertTriangle, Info } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -30,10 +37,37 @@ interface AgentInsight {
   insight: string;
 }
 
-interface AgentAnalysis {
+interface BPComparison {
+  metric_key: string;
+  label: string;
+  bp_value: string;
+  actual_value: string;
+  deviation_pct: number;
+  status: "on_track" | "behind" | "ahead";
+  comment: string;
+}
+
+interface Alert {
+  severity: "critical" | "warning" | "info";
+  title: string;
+  message: string;
+  metric_key?: string;
+}
+
+interface RecommendedMetric {
+  metric_key: string;
+  label: string;
+  reason: string;
+}
+
+interface CompanyAnalysis {
   executive_summary: string;
   health_score: { score: number; label: string };
   top_insights: AgentInsight[];
+  bp_vs_reality: BPComparison[];
+  alerts: Alert[];
+  recommended_metrics: RecommendedMetric[];
+  key_questions: string[];
 }
 
 interface MetricDataPoint {
@@ -303,31 +337,64 @@ function MetricChart({ series }: { series: MetricSeries }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Health Score Badge                                                   */
+/* ------------------------------------------------------------------ */
+
+function HealthScoreBadge({ score }: { score: number }) {
+  const color =
+    score <= 3 ? "bg-red-500" :
+    score <= 5 ? "bg-amber-500" :
+    score <= 7 ? "bg-emerald-500" :
+    "bg-blue-500";
+
+  return (
+    <div className={`flex-shrink-0 w-12 h-12 rounded-full ${color} flex items-center justify-center`}>
+      <span className="text-white text-lg font-bold">{score}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* AI Insight Banner                                                    */
 /* ------------------------------------------------------------------ */
 
 function InsightBanner({
   analysis,
   loading,
+  onRefresh,
+  refreshing,
 }: {
-  analysis: AgentAnalysis | null;
+  analysis: CompanyAnalysis | null;
   loading: boolean;
+  onRefresh: () => void;
+  refreshing: boolean;
 }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {[0, 1, 2].map((i) => (
-          <Card key={i}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-2">
-              <Skeleton className="h-7 w-20" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-3/4" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-4 mb-6">
+        {/* Health score skeleton */}
+        <div className="flex items-start gap-4">
+          <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+        {/* KPI cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2">
+                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -343,36 +410,106 @@ function InsightBanner({
     );
   }
 
+  const alertVariant = (severity: Alert["severity"]) => {
+    if (severity === "critical") return "destructive" as const;
+    return "outline" as const;
+  };
+
+  const alertColors = (severity: Alert["severity"]) => {
+    if (severity === "critical") return "";
+    if (severity === "warning") return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
+    return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      {analysis.top_insights.map((ins) => {
-        const colors =
-          ins.trend_direction === "up"
-            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
-            : ins.trend_direction === "down"
-              ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
-              : "bg-muted text-muted-foreground border-border";
-        const Icon = ins.trend_direction === "down" ? TrendingDown : TrendingUp;
-        return (
-          <Card key={ins.metric_key}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">{ins.label}</span>
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${colors}`}>
-                  <Icon className="h-3 w-3 mr-0.5" />
-                  {ins.trend}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <p className="text-2xl font-bold">{ins.current_value}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-1 line-clamp-2">
-                {ins.insight}
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="space-y-4 mb-6 relative">
+      {/* Refresh button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-0 right-0 h-8 w-8"
+        onClick={onRefresh}
+        disabled={refreshing}
+      >
+        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+      </Button>
+
+      {/* Row 1: Health Score + Executive Summary */}
+      <div className="flex items-start gap-4 pr-10">
+        <HealthScoreBadge score={analysis.health_score.score} />
+        <div>
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {analysis.health_score.label}
+          </span>
+          <p className="text-sm text-muted-foreground mt-1">
+            {analysis.executive_summary}
+          </p>
+        </div>
+      </div>
+
+      {/* Row 2: Top 3 KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {analysis.top_insights.map((ins) => {
+          const colors =
+            ins.trend_direction === "up"
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+              : ins.trend_direction === "down"
+                ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                : "bg-muted text-muted-foreground border-border";
+          const Icon = ins.trend_direction === "down" ? TrendingDown : TrendingUp;
+          return (
+            <Card key={ins.metric_key}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">{ins.label}</span>
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${colors}`}>
+                    <Icon className="h-3 w-3 mr-0.5" />
+                    {ins.trend}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-2xl font-bold">{ins.current_value}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-1 line-clamp-2">
+                  {ins.insight}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Row 3: Alerts */}
+      {analysis.alerts && analysis.alerts.length > 0 && (
+        <TooltipProvider>
+          <div className="flex flex-wrap gap-2">
+            {analysis.alerts.map((alert, i) => (
+              <Tooltip key={i}>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Badge
+                      variant={alertVariant(alert.severity)}
+                      className={`text-xs cursor-default ${alertColors(alert.severity)}`}
+                    >
+                      {alert.severity === "critical" ? (
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                      ) : alert.severity === "warning" ? (
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Info className="h-3 w-3 mr-1" />
+                      )}
+                      {alert.title}
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="text-sm">{alert.message}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
@@ -386,9 +523,45 @@ interface CompanyMetricsTabProps {
 }
 
 export function CompanyMetricsTab({ companyId }: CompanyMetricsTabProps) {
-  // AI analysis (placeholder for now)
-  const [analysis] = useState<AgentAnalysis | null>(null);
-  const [analysisLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  // AI analysis via edge function
+  const {
+    data: analysis = null,
+    isLoading: analysisLoading,
+    isFetching: analysisRefreshing,
+  } = useQuery<CompanyAnalysis | null>({
+    queryKey: ["company-intelligence", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("company-intelligence", {
+        body: { company_id: companyId, mode: "analysis" },
+      });
+      if (error) {
+        console.warn("Company intelligence not available:", error.message);
+        return null;
+      }
+      return data as CompanyAnalysis;
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const handleRefresh = useCallback(() => {
+    queryClient.fetchQuery({
+      queryKey: ["company-intelligence", companyId],
+      queryFn: async () => {
+        const { data, error } = await supabase.functions.invoke("company-intelligence", {
+          body: { company_id: companyId, mode: "analysis", force_refresh: true },
+        });
+        if (error) {
+          console.warn("Company intelligence refresh failed:", error.message);
+          return null;
+        }
+        return data as CompanyAnalysis;
+      },
+    });
+  }, [companyId, queryClient]);
 
   // Fetch reports with metrics
   const { data: allSeries = [], isLoading } = useQuery({
@@ -460,7 +633,7 @@ export function CompanyMetricsTab({ companyId }: CompanyMetricsTabProps) {
   return (
     <div className="space-y-0">
       {/* ZONE 1 — AI Banner */}
-      <InsightBanner analysis={analysis} loading={analysisLoading} />
+      <InsightBanner analysis={analysis} loading={analysisLoading} onRefresh={handleRefresh} refreshing={analysisRefreshing} />
 
       {/* ZONE 2 — Metrics from reports */}
       {allSeries.length === 0 ? (
