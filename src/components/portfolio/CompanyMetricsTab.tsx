@@ -436,10 +436,10 @@ function InsightBanner({
 
       {/* Row 1: Health Score + Executive Summary */}
       <div className="flex items-start gap-4 pr-10">
-        <HealthScoreBadge score={analysis.health_score.score} />
+        {analysis.health_score && <HealthScoreBadge score={analysis.health_score.score} />}
         <div>
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {analysis.health_score.label}
+            {analysis.health_score?.label}
           </span>
           <p className="text-sm text-muted-foreground mt-1">
             {analysis.executive_summary}
@@ -449,7 +449,7 @@ function InsightBanner({
 
       {/* Row 2: Top 3 KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {analysis.top_insights.map((ins) => {
+        {analysis.top_insights?.map((ins) => {
           const colors =
             ins.trend_direction === "up"
               ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
