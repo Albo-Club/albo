@@ -8,6 +8,7 @@ import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyH
 import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
+import { CompanyAIBanner } from "@/components/portfolio/CompanyAIBanner";
 import { CompanyEmailsTab } from "@/components/portfolio/CompanyEmailsTab";
 import { CompanyMetricsTab } from "@/components/portfolio/CompanyMetricsTab";
 import { DealTabs } from "@/components/deals/DealTabs";
@@ -59,19 +60,22 @@ export default function PortfolioCompanyDetail() {
   }
 
   const overviewContent = (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Colonne gauche - Scrollable */}
-      <div className="lg:col-span-3 min-h-0">
-        <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} />
-      </div>
-      
-      {/* Colonne droite - Sticky */}
-      <div className="lg:col-span-2">
-        <div className="sticky top-4">
-          <PortfolioCompanyOverview 
-            company={company}
-            latestReport={latestReport}
-          />
+    <div>
+      <CompanyAIBanner companyId={company.id} />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Colonne gauche - Scrollable */}
+        <div className="lg:col-span-3 min-h-0">
+          <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} />
+        </div>
+        
+        {/* Colonne droite - Sticky */}
+        <div className="lg:col-span-2">
+          <div className="sticky top-4">
+            <PortfolioCompanyOverview 
+              company={company}
+              latestReport={latestReport}
+            />
+          </div>
         </div>
       </div>
     </div>
