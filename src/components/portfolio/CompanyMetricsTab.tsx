@@ -1,205 +1,379 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { BarChart3 } from "lucide-react";
-import { formatMetricLabel, formatMetricValue } from "@/lib/portfolioFormatters";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { BarChart3, Sparkles, TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-interface DataPoint {
-  report_period: string;
-  metric_value: string;
-  created_at: string;
-}
-
-interface MetricGroup {
+interface AgentInsight {
   metric_key: string;
-  metric_type: string;
-  points: DataPoint[];
+  label: string;
+  current_value: string;
+  trend: string;
+  trend_direction: "up" | "down" | "stable";
+  insight: string;
 }
 
-const TYPE_CATEGORIES: Record<string, string> = {
-  currency: "Financier",
-  percentage: "Performance",
-  number: "Chiffres",
-  months: "Chiffres",
-  text: "Autre",
+interface AgentAnalysis {
+  executive_summary: string;
+  health_score: { score: number; label: string };
+  top_insights: AgentInsight[];
+}
+
+interface MetricDataPoint {
+  period: string;
+  date: string;
+  value: number;
+}
+
+interface MetricSeries {
+  key: string;
+  label: string;
+  type: "currency" | "percentage" | "number";
+  dataPoints: MetricDataPoint[];
+  latestValue: number;
+  category: string;
+}
+
+interface Report {
+  id: string;
+  report_period: string | null;
+  report_date: string | null;
+  metrics: Record<string, any> | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const SPECIAL_LABELS: Record<string, string> = {
+  mrr: "MRR", arr: "ARR", aum: "AuM", ebitda: "EBITDA",
+  gmv: "GMV", nrr: "NRR",
 };
 
+function formatMetricLabel(key: string): string {
+  if (SPECIAL_LABELS[key]) return SPECIAL_LABELS[key];
+  let f = key.replace(/_/g, " ");
+  if (f.includes("growth yoy")) f = f.replace(" growth yoy", " (YoY)");
+  if (f.includes("growth mom")) f = f.replace(" growth mom", " (MoM)");
+  f = f.replace(/\byoy\b/gi, "YoY").replace(/\bmom\b/gi, "MoM")
+    .replace(/\bmrr\b/gi, "MRR").replace(/\barr\b/gi, "ARR")
+    .replace(/\bebitda\b/gi, "EBITDA").replace(/\baum\b/gi, "AuM")
+    .replace(/\bgmv\b/gi, "GMV").replace(/\bnrr\b/gi, "NRR");
+  return f.split(" ").map(w => {
+    if (/^[A-Z]{2,}$/.test(w) || /^\(.*\)$/.test(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(" ");
+}
+
+function formatMetricValue(value: number, type: string): string {
+  if (type === "currency") {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    if (abs >= 1_000_000_000) return `${sign}${(abs / 1e9).toFixed(1).replace(".", ",")}Md €`;
+    if (abs >= 1_000_000) return `${sign}${(abs / 1e6).toFixed(1).replace(".", ",")}M €`;
+    if (abs >= 1_000) return `${sign}${Math.round(abs / 1e3)}k €`;
+    return `${sign}${Math.round(abs)} €`;
+  }
+  if (type === "percentage") {
+    if (Math.abs(value) <= 1) return `${(value * 100).toFixed(1).replace(".", ",")}%`;
+    if (Math.abs(value) < 100) return `${value.toFixed(1).replace(".", ",")}%`;
+    return formatMetricValue(value, "currency");
+  }
+  return new Intl.NumberFormat("fr-FR").format(Math.round(value));
+}
+
+const PERCENTAGE_KEYS = /rate|margin|churn|growth|percentage|nrr/i;
+const CURRENCY_KEYS = /revenue|mrr|arr|cash|ebitda|burn|cost|salary|debt|valuation|aum|inflow|outflow|gmv/i;
+
+function detectMetricType(key: string, value: number): "currency" | "percentage" | "number" {
+  if (PERCENTAGE_KEYS.test(key)) return "percentage";
+  if (Math.abs(value) > 1000 || CURRENCY_KEYS.test(key)) return "currency";
+  return "number";
+}
+
+function detectMetricCategory(key: string): string {
+  if (/^(revenue|mrr|arr|gmv)$/i.test(key)) return "Revenu";
+  if (/cash|burn|runway|debt/i.test(key)) return "Trésorerie";
+  if (/ebitda|margin|outflow_rate|churn|nrr/i.test(key)) return "Performance";
+  if (/growth|new_customer|new_contract|new_registered|new_project/i.test(key)) return "Croissance";
+  if (/customer|active_user|registered_user|contract|user/i.test(key)) return "Clients";
+  return "Autre";
+}
+
 const PRIORITY_KEYS = [
-  "revenue",
-  "arr",
-  "mrr",
-  "cash_position",
-  "burn_rate",
-  "runway_months",
-  "ebitda",
-  "gross_margin",
-  "churn_rate",
-  "employees",
+  "mrr", "revenue", "arr", "cash_position", "ebitda",
+  "runway_months", "burn_rate", "gross_margin", "churn_rate", "employees",
 ];
 
-/* ------------------------------------------------------------------ */
-/* Hook                                                                */
-/* ------------------------------------------------------------------ */
+function buildMetricSeries(reports: Report[]): MetricSeries[] {
+  const map = new Map<string, MetricDataPoint[]>();
 
-function useCompanyMetricsGrouped(companyId: string) {
-  return useQuery({
-    queryKey: ["company-metrics-grouped", companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("portfolio_company_metrics")
-        .select("metric_key, metric_type, metric_value, report_period, created_at")
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: true });
+  for (const r of reports) {
+    if (!r.metrics || !r.report_date) continue;
+    for (const [key, raw] of Object.entries(r.metrics)) {
+      const val = typeof raw === "number" ? raw : parseFloat(String(raw));
+      if (isNaN(val)) continue;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push({
+        period: r.report_period || r.report_date,
+        date: r.report_date,
+        value: val,
+      });
+    }
+  }
 
-      if (error) throw error;
-
-      const map = new Map<string, MetricGroup>();
-      for (const row of data ?? []) {
-        if (!map.has(row.metric_key)) {
-          map.set(row.metric_key, {
-            metric_key: row.metric_key,
-            metric_type: row.metric_type,
-            points: [],
-          });
-        }
-        map.get(row.metric_key)!.points.push({
-          report_period: row.report_period ?? "",
-          metric_value: row.metric_value,
-          created_at: row.created_at,
-        });
-      }
-      return Array.from(map.values());
-    },
-    enabled: !!companyId,
-  });
+  const series: MetricSeries[] = [];
+  for (const [key, points] of map) {
+    const isPriority = PRIORITY_KEYS.includes(key);
+    if (points.length < 2 && !isPriority) continue;
+    points.sort((a, b) => a.date.localeCompare(b.date));
+    const latestValue = points[points.length - 1].value;
+    series.push({
+      key,
+      label: formatMetricLabel(key),
+      type: detectMetricType(key, latestValue),
+      dataPoints: points,
+      latestValue,
+      category: detectMetricCategory(key),
+    });
+  }
+  return series;
 }
 
 /* ------------------------------------------------------------------ */
-/* SVG mini-chart                                                      */
+/* Inverse metrics (up is bad)                                         */
 /* ------------------------------------------------------------------ */
 
-function MiniLineChart({
-  points,
-  metricType,
-  metricKey,
-}: {
-  points: DataPoint[];
-  metricType: string;
-  metricKey: string;
-}) {
-  const values = points.map((p) => parseFloat(p.metric_value)).filter((v) => !isNaN(v));
-  if (values.length < 2) return null;
+const INVERSE_METRICS = /burn_rate|churn_rate|outflow_rate/i;
 
-  const W = 320;
-  const H = 160;
-  const PX = 40;
-  const PY = 24;
+/* ------------------------------------------------------------------ */
+/* MetricChart                                                         */
+/* ------------------------------------------------------------------ */
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
+function MetricChart({ series }: { series: MetricSeries }) {
+  const { dataPoints, type, key, label, latestValue } = series;
 
-  const coords = values.map((v, i) => ({
-    x: PX + (i / (values.length - 1)) * (W - PX * 2),
-    y: PY + (1 - (v - min) / range) * (H - PY * 2),
+  if (dataPoints.length < 2) {
+    return (
+      <Card>
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col items-center justify-center py-6">
+          <span className="text-3xl font-bold">{formatMetricValue(latestValue, type)}</span>
+          <span className="text-sm text-muted-foreground mt-1">{dataPoints[0]?.period}</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Variation badge
+  const prev = dataPoints[dataPoints.length - 2].value;
+  const last = dataPoints[dataPoints.length - 1].value;
+  const pctChange = prev !== 0 ? ((last - prev) / Math.abs(prev)) * 100 : 0;
+  const isInverse = INVERSE_METRICS.test(key);
+  const isPositive = isInverse ? pctChange <= 0 : pctChange >= 0;
+
+  // SVG chart
+  const VW = 500, VH = 200;
+  const PAD = { top: 20, right: 30, bottom: 40, left: 60 };
+  const chartW = VW - PAD.left - PAD.right;
+  const chartH = VH - PAD.top - PAD.bottom;
+
+  const values = dataPoints.map(d => d.value);
+  let yMin = Math.min(...values);
+  let yMax = Math.max(...values);
+  const yRange = yMax - yMin || 1;
+  yMin -= yRange * 0.1;
+  yMax += yRange * 0.1;
+  if (yMin > 0 && yMin < yMax * 0.3) yMin = 0;
+  const finalRange = yMax - yMin || 1;
+
+  const coords = dataPoints.map((d, i) => ({
+    x: PAD.left + (dataPoints.length === 1 ? chartW / 2 : (i / (dataPoints.length - 1)) * chartW),
+    y: PAD.top + (1 - (d.value - yMin) / finalRange) * chartH,
   }));
 
-  const trend = values[values.length - 1] >= values[0];
-  const strokeColor = trend ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
-  const fillColor = trend
-    ? "hsl(var(--chart-2) / 0.1)"
-    : "hsl(var(--destructive) / 0.1)";
+  const trendUp = last >= dataPoints[0].value;
+  const lineColor = trendUp ? "#10b981" : "#ef4444";
 
   const linePath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x},${c.y}`).join(" ");
-  const areaPath = `${linePath} L${coords[coords.length - 1].x},${H - PY} L${coords[0].x},${H - PY} Z`;
+  const areaPath = `${linePath} L${coords[coords.length - 1].x},${PAD.top + chartH} L${coords[0].x},${PAD.top + chartH} Z`;
 
   // Y-axis ticks
-  const yTicks = [min, min + range / 2, max];
+  const yTickCount = 4;
+  const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) => yMin + (finalRange * i) / yTickCount);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-      {/* area */}
-      <path d={areaPath} fill={fillColor} />
-      {/* line */}
-      <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={2} />
-      {/* points */}
-      {coords.map((c, i) => (
-        <circle key={i} cx={c.x} cy={c.y} r={3} fill={strokeColor} />
-      ))}
-      {/* last value label */}
-      <text
-        x={coords[coords.length - 1].x}
-        y={coords[coords.length - 1].y - 8}
-        textAnchor="middle"
-        className="fill-foreground text-[9px] font-medium"
-      >
-        {formatMetricValue(points[points.length - 1].metric_value, metricType, metricKey)}
-      </text>
-      {/* Y axis */}
-      {yTicks.map((v, i) => {
-        const y = PY + (1 - (v - min) / range) * (H - PY * 2);
-        return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+            <p className="text-lg font-bold mt-0.5">{formatMetricValue(latestValue, type)}</p>
+          </div>
+          {pctChange !== 0 && (
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0 ${isPositive ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}
+            >
+              {pctChange >= 0 ? "+" : ""}{pctChange.toFixed(1).replace(".", ",")}%
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+          {/* Grid lines */}
+          {yTicks.map((v, i) => {
+            const y = PAD.top + (1 - (v - yMin) / finalRange) * chartH;
+            return (
+              <g key={i}>
+                <line x1={PAD.left} y1={y} x2={VW - PAD.right} y2={y} stroke="currentColor" opacity={0.1} strokeDasharray="4 4" />
+                <text x={PAD.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">
+                  {formatMetricValue(v, type)}
+                </text>
+              </g>
+            );
+          })}
+          {/* Area */}
+          <path d={areaPath} fill={lineColor} opacity={0.08} />
+          {/* Line */}
+          <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} />
+          {/* Points */}
+          {coords.map((c, i) => (
+            <circle
+              key={i}
+              cx={c.x}
+              cy={c.y}
+              r={i === coords.length - 1 ? 5 : 4}
+              fill={i === coords.length - 1 ? lineColor : "white"}
+              stroke={lineColor}
+              strokeWidth={2}
+            />
+          ))}
+          {/* Last value label */}
           <text
-            key={i}
-            x={PX - 4}
-            y={y + 3}
-            textAnchor="end"
-            className="fill-muted-foreground text-[8px]"
-          >
-            {formatMetricValue(String(v), metricType, metricKey)}
-          </text>
-        );
-      })}
-      {/* X axis labels */}
-      {points.map((p, i) => {
-        if (points.length > 6 && i % 2 !== 0 && i !== points.length - 1) return null;
-        return (
-          <text
-            key={i}
-            x={coords[i].x}
-            y={H - 4}
+            x={coords[coords.length - 1].x}
+            y={coords[coords.length - 1].y - 10}
             textAnchor="middle"
-            className="fill-muted-foreground text-[7px]"
+            className="fill-foreground text-[11px] font-semibold"
           >
-            {p.report_period.length > 8 ? p.report_period.slice(0, 8) : p.report_period}
+            {formatMetricValue(last, type)}
           </text>
-        );
-      })}
-    </svg>
+          {/* X labels */}
+          {dataPoints.map((d, i) => {
+            const showAll = dataPoints.length <= 4;
+            if (!showAll && i % 2 !== 0 && i !== dataPoints.length - 1) return null;
+            const lbl = d.period.length > 8 ? d.period.slice(0, 8) : d.period;
+            return (
+              <text
+                key={i}
+                x={coords[i].x}
+                y={VH - 6}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px]"
+                transform={dataPoints.length > 4 ? `rotate(-30, ${coords[i].x}, ${VH - 6})` : undefined}
+              >
+                {lbl}
+              </text>
+            );
+          })}
+        </svg>
+      </CardContent>
+    </Card>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Variation badge                                                     */
+/* AI Insight Banner                                                    */
 /* ------------------------------------------------------------------ */
 
-function VariationBadge({ points }: { points: DataPoint[] }) {
-  if (points.length < 2) return null;
-  const prev = parseFloat(points[points.length - 2].metric_value);
-  const last = parseFloat(points[points.length - 1].metric_value);
-  if (isNaN(prev) || isNaN(last) || prev === 0) return null;
-  const pct = ((last - prev) / Math.abs(prev)) * 100;
-  const positive = pct >= 0;
+function InsightBanner({
+  analysis,
+  loading,
+}: {
+  analysis: AgentAnalysis | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {[0, 1, 2].map((i) => (
+          <Card key={i}>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-2">
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <div className="bg-muted/30 border border-dashed rounded-lg p-6 mb-6 flex flex-col items-center gap-2">
+        <Sparkles className="h-6 w-6 text-muted-foreground/50" />
+        <p className="text-sm text-muted-foreground text-center">
+          L'analyse IA sera bientôt disponible pour cette entreprise
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <Badge
-      variant="secondary"
-      className={`text-[10px] px-1.5 py-0 ${positive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}
-    >
-      {positive ? "+" : ""}
-      {pct.toFixed(1).replace(".", ",")}%
-    </Badge>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {analysis.top_insights.map((ins) => {
+        const colors =
+          ins.trend_direction === "up"
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+            : ins.trend_direction === "down"
+              ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+              : "bg-muted text-muted-foreground border-border";
+        const Icon = ins.trend_direction === "down" ? TrendingDown : TrendingUp;
+        return (
+          <Card key={ins.metric_key}>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">{ins.label}</span>
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${colors}`}>
+                  <Icon className="h-3 w-3 mr-0.5" />
+                  {ins.trend}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-2xl font-bold">{ins.current_value}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-1 line-clamp-2">
+                {ins.insight}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 
@@ -212,88 +386,67 @@ interface CompanyMetricsTabProps {
 }
 
 export function CompanyMetricsTab({ companyId }: CompanyMetricsTabProps) {
-  const { data: groups = [], isLoading } = useCompanyMetricsGrouped(companyId);
+  // AI analysis (placeholder for now)
+  const [analysis] = useState<AgentAnalysis | null>(null);
+  const [analysisLoading] = useState(false);
+
+  // Fetch reports with metrics
+  const { data: allSeries = [], isLoading } = useQuery({
+    queryKey: ["company-metrics-from-reports", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_reports")
+        .select("id, report_period, report_date, metrics")
+        .eq("company_id", companyId)
+        .eq("processing_status", "completed")
+        .not("metrics", "is", null)
+        .order("report_date", { ascending: true });
+
+      if (error) throw error;
+      return buildMetricSeries((data ?? []) as Report[]);
+    },
+    enabled: !!companyId,
+  });
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [topSlots, setTopSlots] = useState<string[]>([]);
 
-  // Auto-select on mount
+  // Auto-select top 3
   useEffect(() => {
-    if (groups.length === 0) return;
-    if (selected.size > 0) return; // already initialised
-
-    const sorted = [...groups].sort((a, b) => {
-      if (b.points.length !== a.points.length) return b.points.length - a.points.length;
-      const idxA = PRIORITY_KEYS.indexOf(a.metric_key);
-      const idxB = PRIORITY_KEYS.indexOf(b.metric_key);
+    if (allSeries.length === 0 || selected.size > 0) return;
+    const sorted = [...allSeries].sort((a, b) => {
+      if (b.dataPoints.length !== a.dataPoints.length) return b.dataPoints.length - a.dataPoints.length;
+      const idxA = PRIORITY_KEYS.indexOf(a.key);
+      const idxB = PRIORITY_KEYS.indexOf(b.key);
       return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
     });
-
-    const top3 = sorted.slice(0, 3).map((g) => g.metric_key);
-    setSelected(new Set(top3));
-    setTopSlots(top3);
-  }, [groups]);
+    setSelected(new Set(sorted.slice(0, 3).map((s) => s.key)));
+  }, [allSeries]);
 
   // Group by category
   const categories = useMemo(() => {
-    const cats = new Map<string, MetricGroup[]>();
-    for (const g of groups) {
-      const cat = TYPE_CATEGORIES[g.metric_type] || "Autre";
-      if (!cats.has(cat)) cats.set(cat, []);
-      cats.get(cat)!.push(g);
+    const cats = new Map<string, MetricSeries[]>();
+    for (const s of allSeries) {
+      if (!cats.has(s.category)) cats.set(s.category, []);
+      cats.get(s.category)!.push(s);
     }
     return cats;
-  }, [groups]);
+  }, [allSeries]);
 
-  const toggle = useCallback(
-    (key: string) => {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) {
-          next.delete(key);
-          setTopSlots((ts) => ts.filter((k) => k !== key));
-        } else {
-          next.add(key);
-          setTopSlots((ts) => {
-            if (ts.length < 3) return [...ts, key];
-            return ts;
-          });
-        }
-        return next;
-      });
-    },
-    [],
-  );
-
-  const selectAll = () => {
-    const all = groups.map((g) => g.metric_key);
-    setSelected(new Set(all));
-    setTopSlots((ts) => (ts.length > 0 ? ts : all.slice(0, 3)));
-  };
-  const selectNone = () => {
-    setSelected(new Set());
-    setTopSlots([]);
-  };
-
-  const promoteToTop = (key: string) => {
-    setTopSlots((ts) => {
-      const without = ts.filter((k) => k !== key);
-      // replace last slot
-      const newSlots = [...without.slice(0, 2), key];
-      return newSlots;
+  const toggle = useCallback((key: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
     });
-  };
+  }, []);
 
-  const groupMap = useMemo(() => {
-    const m = new Map<string, MetricGroup>();
-    groups.forEach((g) => m.set(g.metric_key, g));
-    return m;
-  }, [groups]);
+  const selectAll = () => setSelected(new Set(allSeries.map((s) => s.key)));
+  const selectNone = () => setSelected(new Set());
 
-  const topMetrics = topSlots.filter((k) => selected.has(k)).map((k) => groupMap.get(k)!).filter(Boolean);
-  const extraMetrics = [...selected]
-    .filter((k) => !topSlots.includes(k))
-    .map((k) => groupMap.get(k)!)
-    .filter(Boolean);
+  const selectedSeries = useMemo(
+    () => allSeries.filter((s) => selected.has(s.key)),
+    [allSeries, selected],
+  );
 
   if (isLoading) {
     return (
@@ -304,152 +457,84 @@ export function CompanyMetricsTab({ companyId }: CompanyMetricsTabProps) {
     );
   }
 
-  if (groups.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
-        <BarChart3 className="h-8 w-8" />
-        <p className="text-sm">Aucune métrique disponible</p>
-      </div>
-    );
-  }
-
   return (
-    <ResizablePanelGroup direction="horizontal" className="min-h-[400px] rounded-lg border">
-      {/* Sidebar */}
-      <ResizablePanel defaultSize={25} minSize={20} className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs uppercase text-muted-foreground font-medium tracking-wide">
-            Métriques ({groups.length})
-          </span>
-          <div className="flex gap-1">
-            <button onClick={selectAll} className="text-[11px] text-primary hover:underline">
-              Tout
-            </button>
-            <span className="text-muted-foreground text-[11px]">/</span>
-            <button onClick={selectNone} className="text-[11px] text-primary hover:underline">
-              Aucun
-            </button>
-          </div>
-        </div>
+    <div className="space-y-0">
+      {/* ZONE 1 — AI Banner */}
+      <InsightBanner analysis={analysis} loading={analysisLoading} />
 
-        <div className="space-y-4 overflow-y-auto max-h-[60vh]">
-          {[...categories.entries()].map(([cat, metrics]) => (
-            <div key={cat}>
-              <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-1.5">
-                {cat}
-              </p>
-              <div className="space-y-1">
-                {metrics.map((m) => (
-                  <label
-                    key={m.metric_key}
-                    className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted/50 cursor-pointer group"
-                  >
-                    <Checkbox
-                      checked={selected.has(m.metric_key)}
-                      onCheckedChange={() => toggle(m.metric_key)}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="text-sm truncate flex-1">
-                      {formatMetricLabel(m.metric_key)}
-                    </span>
-                    {m.points.length >= 2 && (
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                        {m.points.length} pts
-                      </span>
-                    )}
-                  </label>
-                ))}
+      {/* ZONE 2 — Metrics from reports */}
+      {allSeries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+          <BarChart3 className="h-8 w-8" />
+          <p className="text-sm">Aucune métrique disponible</p>
+        </div>
+      ) : (
+        <ResizablePanelGroup direction="horizontal" className="min-h-[400px] rounded-lg border">
+          {/* Sidebar */}
+          <ResizablePanel defaultSize={20} minSize={15} className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Métriques
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                  {allSeries.length}
+                </Badge>
+              </span>
+              <div className="flex gap-1">
+                <button onClick={selectAll} className="text-[11px] text-primary hover:underline">Tout</button>
+                <span className="text-muted-foreground text-[11px]">/</span>
+                <button onClick={selectNone} className="text-[11px] text-primary hover:underline">Aucun</button>
               </div>
             </div>
-          ))}
-        </div>
-      </ResizablePanel>
 
-      <ResizableHandle withHandle />
-
-      {/* Main area */}
-      <ResizablePanel defaultSize={75} className="p-4">
-        {selected.size === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-            <BarChart3 className="h-10 w-10" />
-            <p className="text-sm font-medium">Sélectionnez des métriques</p>
-            <p className="text-xs">
-              Cochez des métriques dans le panneau de gauche pour afficher les graphiques
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Top charts */}
-            {topMetrics.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {topMetrics.map((m) => (
-                  <Card key={m.metric_key}>
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">
-                          {formatMetricLabel(m.metric_key)}
-                        </CardTitle>
-                        <VariationBadge points={m.points} />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                      {m.points.length >= 2 ? (
-                        <MiniLineChart
-                          points={m.points}
-                          metricType={m.metric_type}
-                          metricKey={m.metric_key}
+            <div className="space-y-1 overflow-y-auto max-h-[60vh]">
+              {[...categories.entries()].map(([cat, metrics]) => (
+                <Collapsible key={cat} defaultOpen>
+                  <CollapsibleTrigger className="flex items-center gap-1 w-full py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                    <ChevronDown className="h-3 w-3 transition-transform [[data-state=closed]_&]:-rotate-90" />
+                    {cat}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-0.5 ml-1">
+                    {metrics.map((m) => (
+                      <label
+                        key={m.key}
+                        className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selected.has(m.key)}
+                          onCheckedChange={() => toggle(m.key)}
+                          className="h-3.5 w-3.5"
                         />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-4">
-                          <span className="text-3xl font-bold">
-                            {formatMetricValue(
-                              m.points[0]?.metric_value,
-                              m.metric_type,
-                              m.metric_key,
-                            )}
-                          </span>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {m.points[0]?.report_period}
-                          </span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                        <span className="text-sm truncate flex-1">{m.label}</span>
+                        <span className={`text-[10px] ml-auto whitespace-nowrap ${m.dataPoints.length >= 2 ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
+                          {m.dataPoints.length} pt{m.dataPoints.length > 1 ? "s" : ""}
+                        </span>
+                      </label>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          </ResizablePanel>
 
-            {/* Extra KPI cards */}
-            {extraMetrics.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {extraMetrics.map((m) => (
-                  <Card
-                    key={m.metric_key}
-                    className="cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => promoteToTop(m.metric_key)}
-                  >
-                    <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground truncate">
-                        {formatMetricLabel(m.metric_key)}
-                      </p>
-                      <p className="text-lg font-semibold mt-1">
-                        {formatMetricValue(
-                          m.points[m.points.length - 1]?.metric_value,
-                          m.metric_type,
-                          m.metric_key,
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {m.points[m.points.length - 1]?.report_period}
-                      </p>
-                    </CardContent>
-                  </Card>
+          <ResizableHandle withHandle />
+
+          {/* Main area */}
+          <ResizablePanel defaultSize={80} className="p-4">
+            {selected.size === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                <BarChart3 className="h-12 w-12 opacity-30" />
+                <p className="text-sm">Sélectionnez des métriques dans le panneau de gauche</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {selectedSeries.map((s) => (
+                  <MetricChart key={s.key} series={s} />
                 ))}
               </div>
             )}
-          </div>
-        )}
-      </ResizablePanel>
-    </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+    </div>
   );
 }
