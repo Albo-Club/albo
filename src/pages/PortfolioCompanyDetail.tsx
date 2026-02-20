@@ -9,6 +9,7 @@ import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
 import { PortfolioDocumentsBrowser } from "@/components/portfolio/PortfolioDocumentsBrowser";
 import { CompanyEmailsTab } from "@/components/portfolio/CompanyEmailsTab";
+import { CompanyMetricsTab } from "@/components/portfolio/CompanyMetricsTab";
 import { DealTabs } from "@/components/deals/DealTabs";
 
 export default function PortfolioCompanyDetail() {
@@ -86,6 +87,8 @@ export default function PortfolioCompanyDetail() {
     />
   );
 
+  const metricsContent = <CompanyMetricsTab companyId={company.id} />;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -102,6 +105,7 @@ export default function PortfolioCompanyDetail() {
         overviewContent={overviewContent} 
         emailsContent={emailsContent}
         foldersContent={documentsContent}
+        metricsContent={metricsContent}
       />
     </div>
   );
