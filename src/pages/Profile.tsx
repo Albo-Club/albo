@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, User, Briefcase, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut, Clock, Search } from 'lucide-react';
+import { Loader2, User, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut, Clock, Search } from 'lucide-react';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
 import { EmailConsentModal } from '@/components/email/EmailConsentModal';
 
@@ -33,12 +33,6 @@ import { EmailConsentModal } from '@/components/email/EmailConsentModal';
 // CONSTANTES
 // ============================================================
 
-const SECTORS = [
-  'SaaS', 'Fintech', 'HealthTech', 'EdTech', 'CleanTech', 'E-commerce',
-  'Marketplace', 'Consumer', 'B2B', 'DeepTech', 'AI/ML', 'Crypto/Web3',
-  'Gaming', 'Media', 'FoodTech', 'PropTech', 'Mobility', 'HR Tech',
-  'LegalTech', 'InsurTech', 'Other'
-];
 
 // ============================================================
 // TYPES
@@ -94,11 +88,6 @@ export default function Profile() {
     avatar_url: null as string | null,
   });
   
-  const [investmentData, setInvestmentData] = useState({
-    investment_focus: [] as string[],
-    check_size_min: '',
-    check_size_max: '',
-  });
 
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -188,11 +177,6 @@ export default function Profile() {
         avatar_url: data.avatar_url || null,
       });
       
-      setInvestmentData({
-        investment_focus: data.investment_focus || [],
-        check_size_min: data.check_size_min?.toString() || '',
-        check_size_max: data.check_size_max?.toString() || '',
-      });
       
     } catch (error: any) {
       console.error('Error loading profile:', error);
@@ -273,22 +257,6 @@ export default function Profile() {
     }
   };
 
-  const toggleSector = (sector: string) => {
-    setInvestmentData(prev => {
-      const currentFocus = prev.investment_focus;
-      if (currentFocus.includes(sector)) {
-        return {
-          ...prev,
-          investment_focus: currentFocus.filter(s => s !== sector),
-        };
-      } else {
-        return {
-          ...prev,
-          investment_focus: [...currentFocus, sector],
-        };
-      }
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,15 +274,6 @@ export default function Profile() {
         phone: formData.phone.trim() || null,
         country: formData.country.trim() || null,
         linkedin_url: formData.linkedin_url.trim() || null,
-        investment_focus: investmentData.investment_focus.length > 0 
-          ? investmentData.investment_focus 
-          : null,
-        check_size_min: investmentData.check_size_min 
-          ? parseInt(investmentData.check_size_min, 10) 
-          : null,
-        check_size_max: investmentData.check_size_max 
-          ? parseInt(investmentData.check_size_max, 10) 
-          : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -564,81 +523,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* SECTION 3 : Préférences d'investissement */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5" />
-              Préférences d'investissement
-            </CardTitle>
-            <CardDescription>
-              Aidez vos collègues à savoir quels deals vous intéressent
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <Label>Secteurs d'intérêt</Label>
-              <div className="flex flex-wrap gap-2">
-                {SECTORS.map(sector => {
-                  const isSelected = investmentData.investment_focus.includes(sector);
-                  return (
-                    <Badge
-                      key={sector}
-                      variant={isSelected ? 'default' : 'outline'}
-                      className="cursor-pointer transition-colors"
-                      onClick={() => toggleSector(sector)}
-                    >
-                      {isSelected && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                      {sector}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <Label>Ticket d'investissement</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="check_min" className="text-xs text-muted-foreground">
-                    Minimum (€)
-                  </Label>
-                  <Input
-                    id="check_min"
-                    type="number"
-                    value={investmentData.check_size_min}
-                    onChange={(e) => setInvestmentData(prev => ({ 
-                      ...prev, 
-                      check_size_min: e.target.value 
-                    }))}
-                    placeholder="10000"
-                    min="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="check_max" className="text-xs text-muted-foreground">
-                    Maximum (€)
-                  </Label>
-                  <Input
-                    id="check_max"
-                    type="number"
-                    value={investmentData.check_size_max}
-                    onChange={(e) => setInvestmentData(prev => ({ 
-                      ...prev, 
-                      check_size_max: e.target.value 
-                    }))}
-                    placeholder="100000"
-                    min="0"
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SECTION 4 : Comptes connectés (email) */}
+        {/* SECTION 3 : Comptes connectés (email) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
