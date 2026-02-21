@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useGmailEnrichment } from "@/hooks/useGmailEnrichment";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -30,6 +31,7 @@ const routeLabels: Record<string, string> = {
 };
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  useGmailEnrichment();
   const location = useLocation();
 
   // Get current page label
