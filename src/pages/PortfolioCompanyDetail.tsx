@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, TriangleAlert, AlertTriangle, Info, Newspaper } from "lucide-react";
+import { Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { useCompanyReports } from "@/hooks/useCompanyReports";
 import { useCompanyAIAnalysis } from "@/hooks/useCompanyAIAnalysis";
@@ -22,7 +21,6 @@ export default function PortfolioCompanyDetail() {
   const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
   const { data: allReports = [], isLoading: reportsLoading } = useCompanyReports(id);
   const { analysis } = useCompanyAIAnalysis(id || "");
-  const [opSummaryExpanded, setOpSummaryExpanded] = useState(false);
   
   const sortedReports = useMemo(() => {
     const completed = allReports.filter(r => r.processing_status === 'completed');
@@ -46,10 +44,6 @@ export default function PortfolioCompanyDetail() {
     return (analysis?.alerts || []).filter((a: any) => a.severity === "critical");
   }, [analysis]);
 
-  const secondaryAlerts = useMemo(() => {
-    return (analysis?.alerts || []).filter((a: any) => a.severity === "warning" || a.severity === "info");
-  }, [analysis]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -69,14 +63,9 @@ export default function PortfolioCompanyDetail() {
     );
   }
 
-  // Executive summary for operational synthesis
-  const opSummary = analysis?.executive_summary || "";
-  const opTruncated = opSummary.length > 300;
-  const displayOpSummary = opSummaryExpanded || !opTruncated ? opSummary : opSummary.slice(0, 300) + "…";
-
   const overviewContent = (
     <div>
-      {/* A. Critical Alerts — full width */}
+      {/* Critical alerts — full width */}
       {criticalAlerts.length > 0 && (
         <div className="space-y-2 mb-6">
           {criticalAlerts.map((alert: any, i: number) => (
@@ -90,67 +79,12 @@ export default function PortfolioCompanyDetail() {
         </div>
       )}
 
-      {/* Main 70/30 grid */}
+      {/* Grid 70/30 */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        {/* B. Main column (70%) */}
         <div className="lg:col-span-7 space-y-4">
-          {/* B1-B3. AI Banner (Score + KPIs + Points) */}
           <CompanyAIBanner companyId={company.id} />
-
-          {/* B4. Synthèse Opérationnelle IA */}
-          {opSummary && (
-            <Card>
-              <CardHeader className="pb-2">
-                <h3 className="text-base font-semibold">Synthèse Opérationnelle IA</h3>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground leading-relaxed">
-                  {displayOpSummary}
-                  {opTruncated && (
-                    <button
-                      type="button"
-                      onClick={() => setOpSummaryExpanded(v => !v)}
-                      className="ml-1 text-primary text-xs font-medium hover:underline"
-                    >
-                      {opSummaryExpanded ? "Moins" : "Voir plus"}
-                    </button>
-                  )}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* B5. Secondary Alerts */}
-          {secondaryAlerts.length > 0 && (
-            <div className="space-y-2">
-              {secondaryAlerts.map((alert: any, i: number) => (
-                <Alert
-                  key={i}
-                  className={
-                    alert.severity === "warning"
-                      ? "border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800"
-                      : "border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800"
-                  }
-                >
-                  {alert.severity === "warning" ? (
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  ) : (
-                    <Info className="h-4 w-4 text-blue-600" />
-                  )}
-                  <AlertDescription>
-                    <span className="font-semibold">{alert.title}</span>{" "}
-                    <span className="text-sm">{alert.message}</span>
-                  </AlertDescription>
-                </Alert>
-              ))}
-            </div>
-          )}
-
-          {/* B6. Reports Timeline */}
           <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} />
         </div>
-
-        {/* C. Sidebar (30%) */}
         <div className="lg:col-span-3">
           <div className="sticky top-4">
             <PortfolioCompanyOverview 
