@@ -93,7 +93,7 @@ export default function Landing() {
   const goAuth = () => navigate('/auth');
 
   return (
-    <div style={{ fontFamily: sans, background: COLORS.cream, color: COLORS.black, overflowX: 'hidden' as const }}>
+    <div style={{ fontFamily: sans, background: COLORS.cream, color: COLORS.black, minHeight: '100vh', overflowX: 'clip' as const }}>
 
       {/* ─── NAVBAR ─── */}
       <nav style={{

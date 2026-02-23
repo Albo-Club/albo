@@ -154,7 +154,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    overflow: hidden;
   }
 
   /* Hide scrollbars globally but allow scrolling */
