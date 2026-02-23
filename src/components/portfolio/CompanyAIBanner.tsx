@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -17,33 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// ── Types ──────────────────────────────────────────────
-
-interface TopInsight {
-  metric_key: string;
-  label: string;
-  current_value: string;
-  trend: string;
-  trend_direction: "up" | "down" | "stable";
-  context?: string;
-}
-
-interface CompanyAnalysis {
-  executive_summary: string;
-  health_score: {
-    score: number;
-    label: string;
-    rationale?: string;
-    good_points?: string[];
-    bad_points?: string[];
-  };
-  top_insights: TopInsight[];
-  alerts?: any[];
-  bp_vs_reality?: any[];
-  key_questions?: any[];
-  raw_markdown?: string;
-}
+import { useCompanyAIAnalysis, type CompanyAnalysis, type TopInsight } from "@/hooks/useCompanyAIAnalysis";
 
 // ── ScoreRing ──────────────────────────────────────────
 
@@ -73,6 +46,26 @@ function TrendIcon({ direction }: { direction: string }) {
   return <Minus className="h-3 w-3" />;
 }
 
+// ── Exported sub-components for use in overview layout ──
+
+export { ScoreRing, TrendIcon };
+
+// ── Helper functions ──
+
+export const cardBg = (dir: string) =>
+  dir === "up"
+    ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900"
+    : dir === "down"
+      ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900"
+      : "bg-zinc-50 border-zinc-200 dark:bg-zinc-900/30 dark:border-zinc-800";
+
+export const badgeClasses = (dir: string) =>
+  dir === "up"
+    ? "text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/40 dark:border-emerald-800"
+    : dir === "down"
+      ? "text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/40 dark:border-red-800"
+      : "text-zinc-600 bg-zinc-100 border-zinc-300 dark:text-zinc-400 dark:bg-zinc-800 dark:border-zinc-700";
+
 // ── Main Component ─────────────────────────────────────
 
 interface CompanyAIBannerProps {
@@ -80,57 +73,8 @@ interface CompanyAIBannerProps {
 }
 
 export function CompanyAIBanner({ companyId }: CompanyAIBannerProps) {
-  const [analysis, setAnalysis] = useState<CompanyAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState(false);
+  const { analysis, loading, analyzing, handleRunAnalysis } = useCompanyAIAnalysis(companyId);
   const [expanded, setExpanded] = useState(false);
-
-  const loadCachedAnalysis = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("portfolio_companies")
-        .select("ai_analysis, ai_analysis_updated_at")
-        .eq("id", companyId)
-        .single();
-
-      if (error) {
-        console.error("Error loading cached analysis:", error);
-        return;
-      }
-
-      const cachedAnalysis = data?.ai_analysis as unknown as CompanyAnalysis;
-      if (cachedAnalysis?.health_score?.score > 0) {
-        setAnalysis(cachedAnalysis);
-      }
-    } catch (err) {
-      console.error("AI cache load failed:", err);
-    }
-  }, [companyId]);
-
-  useEffect(() => {
-    setLoading(true);
-    loadCachedAnalysis().finally(() => setLoading(false));
-  }, [loadCachedAnalysis]);
-
-  const handleRunAnalysis = async (forceRefresh = false) => {
-    setAnalyzing(true);
-    try {
-      const { data } = await supabase.functions.invoke("company-intelligence", {
-        body: {
-          company_id: companyId,
-          mode: "analysis",
-          force_refresh: forceRefresh,
-        },
-      });
-      if (data?.success && data?.analysis) {
-        setAnalysis(data.analysis);
-      }
-    } catch (err) {
-      console.error("AI analysis failed:", err);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
 
   // ── Loading ──
   if (loading) {
@@ -200,20 +144,6 @@ export function CompanyAIBanner({ companyId }: CompanyAIBannerProps) {
   const goodPoints = analysis.health_score?.good_points;
   const badPoints = analysis.health_score?.bad_points;
   const hasPointsRow = (goodPoints && goodPoints.length > 0) || (badPoints && badPoints.length > 0);
-
-  const cardBg = (dir: string) =>
-    dir === "up"
-      ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900"
-      : dir === "down"
-        ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900"
-        : "bg-zinc-50 border-zinc-200 dark:bg-zinc-900/30 dark:border-zinc-800";
-
-  const badgeClasses = (dir: string) =>
-    dir === "up"
-      ? "text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/40 dark:border-emerald-800"
-      : dir === "down"
-        ? "text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/40 dark:border-red-800"
-        : "text-zinc-600 bg-zinc-100 border-zinc-300 dark:text-zinc-400 dark:bg-zinc-800 dark:border-zinc-700";
 
   return (
     <div className="space-y-3 mb-6">
@@ -290,7 +220,6 @@ export function CompanyAIBanner({ companyId }: CompanyAIBannerProps) {
       {/* Row 3 — Points forts / Points faibles */}
       {hasPointsRow && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Points forts */}
           <div className="rounded-xl bg-emerald-50/50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/50 p-3">
             <div className="flex items-center gap-1.5 mb-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -312,7 +241,6 @@ export function CompanyAIBanner({ companyId }: CompanyAIBannerProps) {
             )}
           </div>
 
-          {/* Points faibles */}
           <div className="rounded-xl bg-red-50/50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 p-3">
             <div className="flex items-center gap-1.5 mb-2">
               <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
