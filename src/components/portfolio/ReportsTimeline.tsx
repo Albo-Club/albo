@@ -3,6 +3,7 @@ import { Newspaper, ChevronRight, X, EyeOff, Undo2 } from "lucide-react";
 import { CompanyReport } from "@/hooks/useCompanyReports";
 import { ReportContentViewer } from "./ReportContentViewer";
 import { cn } from "@/lib/utils";
+import { parseReportPeriodToSortDate, isPeriodRange } from "@/lib/reportPeriodParser";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -73,6 +74,14 @@ export function ReportsTimeline({ reports, companyId, companyName }: ReportsTime
   const sortedReports = useMemo(() => {
     if (!reports?.length) return [];
     return [...reports].sort((a, b) => {
+      const periodDateA = parseReportPeriodToSortDate(a.report_period);
+      const periodDateB = parseReportPeriodToSortDate(b.report_period);
+      if (periodDateA.getTime() !== periodDateB.getTime()) {
+        return periodDateB.getTime() - periodDateA.getTime();
+      }
+      const isRangeA = isPeriodRange(a.report_period);
+      const isRangeB = isPeriodRange(b.report_period);
+      if (isRangeA !== isRangeB) return isRangeA ? 1 : -1;
       const dateA = a.report_date ? new Date(a.report_date) : new Date(0);
       const dateB = b.report_date ? new Date(b.report_date) : new Date(0);
       return dateB.getTime() - dateA.getTime();
