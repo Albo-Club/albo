@@ -79,6 +79,7 @@ export function ReportContentViewer({
               html={content}
               title={title || "Report Content"}
               className="h-full w-full"
+              skipCleaning
             />
           ) : format === "markdown" ? (
             <ScrollArea className="h-full">

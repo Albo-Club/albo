@@ -8,7 +8,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Sparkles } from 'lucide-react';
+
+const PAGE_BG = '#FAF9F6';
+const CARD_SHADOW = '0 2px 20px rgba(0,0,0,0.06)';
+const TEXT_PRIMARY = '#1a1a1a';
+const TEXT_MUTED = '#6b6560';
+
+function AlboLogo() {
+  return (
+    <div className="text-center mb-8">
+      <div className="flex items-center justify-center mb-3">
+        <img src="/apple-touch-icon.png" alt="Albo" style={{ width: 48, height: 48, borderRadius: 12 }} />
+      </div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY, margin: 0 }}>
+        Albo
+      </h1>
+    </div>
+  );
+}
 
 export default function Auth() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -29,17 +46,14 @@ export default function Auth() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
-
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
       redirectTo: `${window.location.origin}/auth/confirm`,
     });
-
     if (error) {
       toast.error('Une erreur est survenue. Vérifiez votre email.');
     } else {
       setResetSent(true);
     }
-
     setResetLoading(false);
   };
 
@@ -56,19 +70,15 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       const { error } = await supabase.auth.signUp({
         email: signUpEmail,
-        password: crypto.randomUUID(), // Mot de passe temporaire (l'utilisateur le définira après)
+        password: crypto.randomUUID(),
         options: {
-          // Rediriger vers auth/confirm qui validera et redirigera vers setup-password
           emailRedirectTo: `${window.location.origin}/auth/confirm`
         }
       });
-      
       if (error) throw error;
-      
       setSignUpSent(true);
       toast.success('Email envoyé ! Vérifiez votre boîte de réception.');
     } catch (error: any) {
@@ -78,24 +88,50 @@ export default function Auth() {
     }
   };
 
+  const pageStyle: React.CSSProperties = {
+    minHeight: '100vh',
+    background: PAGE_BG,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    fontFamily: "'DM Sans', sans-serif",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: '#FFFFFF',
+    boxShadow: CARD_SHADOW,
+    borderRadius: 16,
+    border: 'none',
+  };
+
+  const btnPrimary: React.CSSProperties = {
+    background: TEXT_PRIMARY,
+    color: '#fff',
+    borderRadius: 8,
+  };
+
+  const btnGoogle: React.CSSProperties = {
+    background: '#fff',
+    border: '1px solid #e0dcd7',
+    color: TEXT_PRIMARY,
+    borderRadius: 8,
+  };
+
   // Reset password form
   if (showResetPassword) {
     if (resetSent) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-elegant text-center">
+        <div style={pageStyle}>
+          <Card className="w-full max-w-md text-center" style={cardStyle}>
             <CardContent className="pt-6">
               <div className="text-6xl mb-4">📧</div>
-              <h2 className="text-xl font-bold mb-2">Email envoyé !</h2>
-              <p className="text-muted-foreground mb-4">
+              <h2 className="text-xl font-bold mb-2" style={{ color: TEXT_PRIMARY }}>Email envoyé !</h2>
+              <p className="mb-4" style={{ color: TEXT_MUTED, fontSize: 14 }}>
                 Si un compte existe avec l'adresse <strong>{resetEmail}</strong>,
                 vous recevrez un lien pour réinitialiser votre mot de passe.
               </p>
-              <Button variant="outline" onClick={() => {
-                setShowResetPassword(false);
-                setResetSent(false);
-                setResetEmail('');
-              }}>
+              <Button variant="outline" onClick={() => { setShowResetPassword(false); setResetSent(false); setResetEmail(''); }}>
                 Retour à la connexion
               </Button>
             </CardContent>
@@ -105,45 +141,26 @@ export default function Auth() {
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div style={pageStyle}>
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Sparkles className="h-6 w-6 text-primary-foreground" />
-              </div>
-            </div>
-          </div>
-          <Card className="shadow-elegant">
+          <AlboLogo />
+          <Card style={cardStyle}>
             <CardHeader>
-              <CardTitle>Réinitialiser le mot de passe</CardTitle>
-              <CardDescription>
+              <CardTitle style={{ color: TEXT_PRIMARY }}>Réinitialiser le mot de passe</CardTitle>
+              <CardDescription style={{ color: TEXT_MUTED }}>
                 Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
-                  <Label htmlFor="reset-email">Email</Label>
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="votre@email.com"
-                    required
-                    className="mt-2"
-                  />
+                  <Label htmlFor="reset-email" style={{ color: TEXT_PRIMARY }}>Email</Label>
+                  <Input id="reset-email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="votre@email.com" required className="mt-2" />
                 </div>
-                <Button type="submit" className="w-full" disabled={resetLoading || !resetEmail}>
+                <Button type="submit" className="w-full" style={btnPrimary} disabled={resetLoading || !resetEmail}>
                   {resetLoading ? 'Envoi en cours...' : 'Envoyer le lien'}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setShowResetPassword(false)}
-                >
+                <Button type="button" variant="outline" className="w-full" onClick={() => setShowResetPassword(false)}>
                   Retour
                 </Button>
               </form>
@@ -155,56 +172,38 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div style={pageStyle}>
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-primary-foreground" />
-            </div>
-          </div>
-          <p className="text-muted-foreground">AI-Powered Investment Deck Analysis</p>
-        </div>
+        <AlboLogo />
 
-        <Card className="shadow-elegant">
+        <Card style={cardStyle}>
           <CardHeader>
-            <CardTitle>Bienvenue</CardTitle>
-            <CardDescription>Connectez-vous ou créez un compte pour commencer</CardDescription>
+            <CardTitle style={{ color: TEXT_PRIMARY }}>Bienvenue</CardTitle>
+            <CardDescription style={{ color: TEXT_MUTED }}>Connectez-vous ou créez un compte pour commencer</CardDescription>
           </CardHeader>
           <CardContent>
             <Button
               variant="outline"
               className="w-full mb-6"
+              style={btnGoogle}
               onClick={signInWithGoogle}
               disabled={loading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
               Continuer avec Google
             </Button>
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <span className="w-full border-t" style={{ borderColor: '#e0dcd7' }} />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Ou continuer avec email</span>
+                <span style={{ background: '#fff', padding: '0 8px', color: TEXT_MUTED }}>Ou continuer avec email</span>
               </div>
             </div>
 
@@ -217,42 +216,18 @@ export default function Auth() {
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div>
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                      placeholder="vous@exemple.com"
-                      required
-                      className="mt-2"
-                    />
+                    <Label htmlFor="signin-email" style={{ color: TEXT_PRIMARY }}>Email</Label>
+                    <Input id="signin-email" name="email" type="email" autoComplete="email" value={signInData.email} onChange={(e) => setSignInData({ ...signInData, email: e.target.value })} placeholder="vous@exemple.com" required className="mt-2" />
                   </div>
                   <div>
-                    <Label htmlFor="signin-password">Mot de passe</Label>
-                    <Input
-                      id="signin-password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      placeholder="••••••••"
-                      required
-                      className="mt-2"
-                    />
+                    <Label htmlFor="signin-password" style={{ color: TEXT_PRIMARY }}>Mot de passe</Label>
+                    <Input id="signin-password" name="password" type="password" autoComplete="current-password" value={signInData.password} onChange={(e) => setSignInData({ ...signInData, password: e.target.value })} placeholder="••••••••" required className="mt-2" />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full" style={btnPrimary} disabled={loading}>
                     {loading ? 'Connexion...' : 'Se connecter'}
                   </Button>
                   <div className="text-center mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowResetPassword(true)}
-                      className="text-sm text-muted-foreground hover:text-primary underline"
-                    >
+                    <button type="button" onClick={() => setShowResetPassword(true)} style={{ color: TEXT_MUTED, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                       Mot de passe oublié ?
                     </button>
                   </div>
@@ -263,40 +238,24 @@ export default function Auth() {
                 {signUpSent ? (
                   <div className="text-center py-4">
                     <div className="text-4xl mb-4">📧</div>
-                    <h3 className="font-semibold mb-2">Email envoyé !</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <h3 className="font-semibold mb-2" style={{ color: TEXT_PRIMARY }}>Email envoyé !</h3>
+                    <p className="text-sm mb-4" style={{ color: TEXT_MUTED }}>
                       Cliquez sur le lien dans votre email pour finaliser votre inscription.
                     </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSignUpSent(false);
-                        setSignUpEmail('');
-                      }}
-                    >
+                    <Button variant="outline" onClick={() => { setSignUpSent(false); setSignUpEmail(''); }}>
                       Réessayer avec un autre email
                     </Button>
                   </div>
                 ) : (
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div>
-                      <Label htmlFor="signup-email">Email professionnel</Label>
-                      <Input
-                        id="signup-email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        value={signUpEmail}
-                        onChange={(e) => setSignUpEmail(e.target.value)}
-                        placeholder="vous@entreprise.com"
-                        required
-                        className="mt-2"
-                      />
+                      <Label htmlFor="signup-email" style={{ color: TEXT_PRIMARY }}>Email professionnel</Label>
+                      <Input id="signup-email" name="email" type="email" autoComplete="email" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} placeholder="vous@entreprise.com" required className="mt-2" />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="w-full" style={btnPrimary} disabled={loading}>
                       {loading ? 'Envoi...' : "Recevoir le lien d'inscription"}
                     </Button>
-                    <p className="text-xs text-center text-muted-foreground">
+                    <p className="text-xs text-center" style={{ color: TEXT_MUTED }}>
                       Vous recevrez un email pour finaliser votre inscription
                     </p>
                   </form>
@@ -305,9 +264,13 @@ export default function Auth() {
             </Tabs>
 
             <div className="mt-4 text-center">
-              <Button variant="link" onClick={() => navigate('/')} className="text-sm">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                style={{ color: TEXT_MUTED, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
                 Retour à l'accueil
-              </Button>
+              </button>
             </div>
           </CardContent>
         </Card>

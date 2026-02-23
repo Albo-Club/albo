@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, User, CheckCircle2, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut, Clock, Search } from 'lucide-react';
+import { Loader2, User, Mail, Plug, RefreshCw, Unplug, Server, AlertCircle, LogOut, Clock } from 'lucide-react';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
 import { EmailConsentModal } from '@/components/email/EmailConsentModal';
 
@@ -94,11 +94,6 @@ export default function Profile() {
   const [connectingEmail, setConnectingEmail] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
-  // États Gmail
-  const [gmailToken, setGmailToken] = useState<{ email: string; status: string; granted_at: string } | null>(null);
-  const [loadingGmailToken, setLoadingGmailToken] = useState(false);
-  const [grantingGmail, setGrantingGmail] = useState(false);
-
   // États pour la modal de consentement
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [pendingConsentAccount, setPendingConsentAccount] = useState<ConnectedAccount | null>(null);
@@ -107,7 +102,6 @@ export default function Profile() {
     if (user) {
       loadProfile();
       loadConnectedAccounts();
-      loadGmailToken();
     }
   }, [user]);
 
@@ -183,27 +177,6 @@ export default function Profile() {
       toast.error('Erreur lors du chargement du profil');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadGmailToken = async () => {
-    if (!user) return;
-    setLoadingGmailToken(true);
-    try {
-      const { data, error } = await supabase
-        .from('gmail_tokens')
-        .select('email, status, granted_at')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('granted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      setGmailToken(data);
-    } catch (error: any) {
-      console.error('Error loading Gmail token:', error);
-    } finally {
-      setLoadingGmailToken(false);
     }
   };
 
@@ -315,46 +288,6 @@ export default function Profile() {
         description: error.message || 'Veuillez réessayer.',
       });
       setConnectingEmail(false);
-    }
-  };
-
-  const handleGrantGmailAccess = async () => {
-    setGrantingGmail(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      console.error('Error granting Gmail access:', error);
-      toast.error('Erreur lors de la connexion Gmail', {
-        description: error.message || 'Veuillez réessayer.',
-      });
-      setGrantingGmail(false);
-    }
-  };
-
-  const handleRevokeGmailAccess = async () => {
-    try {
-      const { error } = await supabase
-        .from('gmail_tokens')
-        .update({ status: 'revoked', updated_at: new Date().toISOString() })
-        .eq('user_id', user?.id)
-        .eq('status', 'active');
-      if (error) throw error;
-      setGmailToken(null);
-      toast.success('Accès Gmail révoqué');
-    } catch (error: any) {
-      console.error('Error revoking Gmail access:', error);
-      toast.error('Erreur lors de la révocation');
     }
   };
 
@@ -648,91 +581,6 @@ export default function Profile() {
                   )}
                 </Button>
               </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* SECTION 4bis : Recherche Gmail avancée */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Recherche Gmail avancée
-            </CardTitle>
-            <CardDescription>
-              Autorisez Albo à rechercher dans votre boîte Gmail pour détecter automatiquement
-              les emails qui mentionnent vos sociétés en portefeuille, même quand ils ne viennent
-              pas directement de la société.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingGmailToken ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Vérification...
-              </div>
-            ) : gmailToken ? (
-              <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-green-100 dark:bg-green-900/30">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Recherche Gmail activée</p>
-                    <p className="text-xs text-muted-foreground">
-                      Connecté avec {gmailToken.email} — depuis le{' '}
-                      {new Date(gmailToken.granted_at).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRevokeGmailAccess}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Unplug className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="p-4 rounded-lg border border-dashed bg-muted/30">
-                  <div className="flex items-start gap-3">
-                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">Pourquoi accorder cet accès ?</p>
-                      <p className="text-xs text-muted-foreground">
-                        Le matching par domaine détecte ~80% des emails liés à vos sociétés.
-                        La recherche Gmail permet de retrouver les 20% restants : newsletters,
-                        emails de fonds d'investissement, messages de fondateurs depuis leurs
-                        adresses personnelles, etc.
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        ⚡ Accès en lecture seule — Albo ne peut ni modifier ni supprimer vos emails.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGrantGmailAccess}
-                  disabled={grantingGmail}
-                  className="w-full"
-                >
-                  {grantingGmail ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Redirection vers Google...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Autoriser la recherche Gmail
-                    </>
-                  )}
-                </Button>
-              </div>
             )}
           </CardContent>
         </Card>
