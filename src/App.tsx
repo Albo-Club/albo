@@ -31,6 +31,8 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Inbox from "./pages/Inbox";
 import NotFound from "./pages/NotFound";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import '@/i18n/config';
 
 const queryClient = new QueryClient();
@@ -52,6 +54,8 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/setup-password" element={<SetupPassword />} />
               <Route path="/invite/:token" element={<AcceptInvite />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               
               {/* Onboarding routes - new Twenty CRM style flow */}
               <Route path="/onboarding/workspace" element={
