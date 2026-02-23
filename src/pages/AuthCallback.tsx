@@ -9,49 +9,6 @@ export default function AuthCallback() {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    /**
-     * Si la session contient des provider tokens Google,
-     * les envoyer à l'edge function store-gmail-token.
-     * Ne jamais bloquer le flow de login — toujours silencieux.
-     */
-    const storeGmailTokenIfAvailable = async (session: any) => {
-      try {
-        const providerToken = session.provider_token;
-        const providerRefreshToken = session.provider_refresh_token;
-        const userEmail = session.user?.email;
-        const provider = session.user?.app_metadata?.provider;
-
-        if (provider !== 'google') {
-          console.log('[Gmail] Not a Google login — skipping');
-          return;
-        }
-
-        if (!providerRefreshToken) {
-          console.log('[Gmail] No provider_refresh_token — skipping token storage');
-          return;
-        }
-
-        console.log('[Gmail] Storing Google tokens for', userEmail);
-
-        const { data, error } = await supabase.functions.invoke('store-gmail-token', {
-          body: {
-            provider_token: providerToken,
-            provider_refresh_token: providerRefreshToken,
-            email: userEmail,
-          },
-        });
-
-        if (error) {
-          console.error('[Gmail] Failed to store token:', error);
-        } else {
-          console.log('[Gmail] ✓ Token stored successfully for', data?.email);
-        }
-      } catch (err) {
-        console.error('[Gmail] Error in storeGmailTokenIfAvailable:', err);
-        // Silently fail — ne jamais bloquer le login
-      }
-    };
-
     const handleAuthCallback = async () => {
       try {
         // Attendre que Supabase traite le hash d'authentification
@@ -76,14 +33,9 @@ export default function AuthCallback() {
             return;
           }
           
-          // Stocker les tokens Gmail si disponibles (retry session)
-          await storeGmailTokenIfAvailable(retrySession);
           await checkProfileAndRedirect(retrySession.user.id, retrySession.user.email);
           return;
         }
-
-        // Stocker les tokens Gmail si le user s'est connecté avec Google
-        await storeGmailTokenIfAvailable(session);
 
         // Check for pending invitation first
         const pendingToken = localStorage.getItem('pending_invitation');
