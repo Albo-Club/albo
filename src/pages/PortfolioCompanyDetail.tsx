@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { useCompanyReports } from "@/hooks/useCompanyReports";
 import { useCompanyAIAnalysis } from "@/hooks/useCompanyAIAnalysis";
+import { parseReportPeriodToSortDate, isPeriodRange } from "@/lib/reportPeriodParser";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
@@ -25,14 +26,18 @@ export default function PortfolioCompanyDetail() {
   const sortedReports = useMemo(() => {
     const completed = allReports.filter(r => r.processing_status === 'completed');
     return [...completed].sort((a, b) => {
+      const periodDateA = parseReportPeriodToSortDate(a.report_period);
+      const periodDateB = parseReportPeriodToSortDate(b.report_period);
+      if (periodDateA.getTime() !== periodDateB.getTime()) {
+        return periodDateB.getTime() - periodDateA.getTime();
+      }
+      const isRangeA = isPeriodRange(a.report_period);
+      const isRangeB = isPeriodRange(b.report_period);
+      if (isRangeA !== isRangeB) return isRangeA ? 1 : -1;
       const dateA = a.report_date || '';
       const dateB = b.report_date || '';
       if (dateA > dateB) return -1;
       if (dateA < dateB) return 1;
-      const createdA = a.created_at || '';
-      const createdB = b.created_at || '';
-      if (createdA > createdB) return -1;
-      if (createdA < createdB) return 1;
       return 0;
     });
   }, [allReports]);
