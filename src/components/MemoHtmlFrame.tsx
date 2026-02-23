@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { cleanEmailHtml } from "@/lib/cleanEmailHtml";
 
-function normalizeMemoHtml(raw: string) {
+function normalizeMemoHtml(raw: string, skipCleaning = false) {
   const input = (raw ?? "").trim();
   if (!input) return "";
 
   // 1. Clean email HTML (signatures, quotes, forwarded headers, "=" prefix)
-  const cleaned = cleanEmailHtml(input);
+  const cleaned = skipCleaning ? input : cleanEmailHtml(input);
 
   // 2. Convert literal "\\n" sequences to actual newlines
   const withNewlines = cleaned.includes("\\n")
@@ -55,12 +55,14 @@ export function MemoHtmlFrame({
   html,
   title,
   className,
+  skipCleaning,
 }: {
   html: string;
   title: string;
   className?: string;
+  skipCleaning?: boolean;
 }) {
-  const srcDoc = useMemo(() => normalizeMemoHtml(html), [html]);
+  const srcDoc = useMemo(() => normalizeMemoHtml(html, skipCleaning), [html, skipCleaning]);
 
   return (
     <iframe
