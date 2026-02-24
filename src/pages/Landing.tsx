@@ -83,16 +83,34 @@ function SBadge({ children, bg = '#e8f5e9', color = '#2e7d32' }: { children: str
   );
 }
 
-function LogoImg({ domain, size = 28 }: { domain: string; size?: number }) {
+const LOGO_FALLBACK_COLORS: Record<string, string> = {
+  'backmarket.com': '#4caf50',
+  'qonto.com': '#1565c0',
+  'doctolib.fr': '#7b1fa2',
+  'aircall.io': '#0288d1',
+  'alan.com': '#2e7d32',
+  'pennylane.com': '#f57f17',
+  'swile.co': '#e65100',
+};
+
+function LogoImg({ domain, alt, size = 32 }: { domain: string; alt?: string; size?: number }) {
+  const initial = (alt || domain)?.[0]?.toUpperCase() || '?';
+  const fallbackBg = LOGO_FALLBACK_COLORS[domain] || '#6366f1';
   return (
-    <img
-      src={`https://img.logo.dev/${domain}?token=${LOGO_TOKEN}&size=128&format=png`}
-      alt=""
-      width={size}
-      height={size}
-      style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#f0f0f0' }}
-      loading="lazy"
-    />
+    <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0, width: size, height: size }}>
+      <img
+        src={`https://img.logo.dev/${domain}?token=${LOGO_TOKEN}&size=32&format=png`}
+        alt={alt || domain}
+        width={size}
+        height={size}
+        style={{ borderRadius: '50%', objectFit: 'cover' }}
+        loading="lazy"
+        onError={(e) => { e.currentTarget.style.display = 'none'; const sib = e.currentTarget.nextElementSibling as HTMLElement; if (sib) sib.style.display = 'flex'; }}
+      />
+      <span style={{ display: 'none', width: size, height: size, borderRadius: '50%', background: fallbackBg, color: 'white', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.44, fontWeight: 700, fontFamily: sans, position: 'absolute', top: 0, left: 0 }}>
+        {initial}
+      </span>
+    </span>
   );
 }
 
@@ -185,7 +203,7 @@ export default function Landing() {
                 ].map((r, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f8f8f8' }}>
                     <td style={{ padding: '12px 24px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <LogoImg domain={r.domain} size={28} />
+                      <LogoImg domain={r.domain} alt={r.name} size={32} />
                       {r.name}
                     </td>
                     <td style={{ padding: '12px 24px' }}><SBadge bg={r.sColor} color={r.sTxt}>{r.sector}</SBadge></td>
@@ -470,7 +488,7 @@ function MockPortfolio() {
             <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
               <td style={{ padding: '10px 16px', fontWeight: 600 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <LogoImg domain={r.domain} size={28} />
+                  <LogoImg domain={r.domain} alt={r.name} size={32} />
                   {r.name}
                 </div>
               </td>
@@ -512,7 +530,7 @@ function MockImport() {
             <tr key={i} style={{ borderBottom: '1px solid #f8f8f8' }}>
               <td style={{ padding: '10px 16px', fontWeight: 600 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <LogoImg domain={r.domain} size={24} />
+                  <LogoImg domain={r.domain} alt={r.name} size={32} />
                   {r.name}
                 </div>
               </td>
@@ -608,7 +626,7 @@ function MockEmail() {
       {emails.map((e, i) => (
         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LogoImg domain={e.domain} size={24} />
+            <LogoImg domain={e.domain} alt={e.match} size={32} />
             <span style={{ fontFamily: sans, fontSize: 13, color: COLORS.gray }}>{e.from}</span>
           </div>
           <SBadge bg="#e3f2fd" color="#1565c0">{`→ ${e.match}`}</SBadge>
