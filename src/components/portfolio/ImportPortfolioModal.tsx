@@ -21,12 +21,16 @@ interface ImportResult {
 
 interface ImportResponse {
   success: boolean;
-  summary: {
+  async?: boolean;
+  jobId?: string;
+  totalRows?: number;
+  estimatedBatches?: number;
+  summary?: {
     total: number;
     successful: number;
     failed: number;
   };
-  results: ImportResult[];
+  results?: ImportResult[];
 }
 
 type ModalState = 'upload' | 'processing' | 'results';
@@ -121,11 +125,20 @@ export function ImportPortfolioModal({ open, onClose }: ImportPortfolioModalProp
 
       // Process import
       const importResults = await processImport(uploadResult.signedUrl, file.name);
+
+      // Handle async 202 response
+      if (importResults.async && importResults.jobId) {
+        toast.success(`Import lancé pour ${importResults.totalRows ?? '?'} lignes. L'enrichissement est en cours...`);
+        resetModal();
+        onClose();
+        return;
+      }
+
+      // Legacy synchronous response
       setResults(importResults);
       setState('results');
 
-      // Success toast
-      if (importResults.summary.successful > 0) {
+      if (importResults.summary && importResults.summary.successful > 0) {
         toast.success(`${importResults.summary.successful} entreprise(s) importée(s)`);
       }
     } catch (error: any) {
@@ -252,11 +265,11 @@ export function ImportPortfolioModal({ open, onClose }: ImportPortfolioModalProp
         )}
 
         {/* Results State */}
-        {state === 'results' && results && (
+        {state === 'results' && results && results.summary && (
           <div className="space-y-4">
             {/* Summary */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
+              <Badge variant="secondary" className="bg-accent text-accent-foreground">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 {results.summary.successful} importée{results.summary.successful > 1 ? 's' : ''}
               </Badge>
@@ -270,16 +283,16 @@ export function ImportPortfolioModal({ open, onClose }: ImportPortfolioModalProp
 
             {/* Results list */}
             <div className="max-h-80 overflow-y-auto space-y-2 border rounded-lg p-3">
-              {results.results.map((result, index) => (
+              {(results.results ?? []).map((result, index) => (
                 <div
                   key={index}
                   className={cn(
                     "flex items-start gap-3 p-2 rounded-md",
-                    result.success ? "bg-green-500/5" : "bg-destructive/5"
+                    result.success ? "bg-accent/50" : "bg-destructive/5"
                   )}
                 >
                   {result.success ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                   ) : (
                     <XCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                   )}

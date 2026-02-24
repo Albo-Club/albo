@@ -7,6 +7,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { AddPortfolioCompanyModal } from "@/components/portfolio/AddPortfolioCompanyModal";
 import { ImportPortfolioModal } from "@/components/portfolio/ImportPortfolioModal";
+import { ImportProgressBanner } from "@/components/portfolio/ImportProgressBanner";
 
 export default function PortfolioPage() {
   const { workspace, loading: workspaceLoading } = useWorkspace();
@@ -64,6 +65,9 @@ export default function PortfolioPage() {
           </Button>
         </div>
       </div>
+
+      {/* Import Progress Banner */}
+      <ImportProgressBanner />
 
       {/* Stats Cards */}
       <div className="shrink-0 mt-6">

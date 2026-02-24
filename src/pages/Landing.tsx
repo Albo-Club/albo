@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useRef, useCallback } from 'react';
-import { Check, FileText, BarChart3, MessageCircle, Mail, ArrowRight } from 'lucide-react';
+import { Check, FileText, BarChart3, MessageCircle, Mail, ArrowRight, Upload } from 'lucide-react';
 
 /* ──────────────────────────────────────────────
    Inline styles – keeps everything in one file
@@ -19,6 +19,8 @@ const COLORS = {
 
 const serif = "'Playfair Display', Georgia, serif";
 const sans = "'DM Sans', system-ui, sans-serif";
+
+const LOGO_TOKEN = 'pk_2jSBMEBdT4qNSfCGJpMKqA';
 
 /* ── Intersection Observer hook for fade-in ── */
 function useFadeIn() {
@@ -81,6 +83,37 @@ function SBadge({ children, bg = '#e8f5e9', color = '#2e7d32' }: { children: str
   );
 }
 
+const LOGO_FALLBACK_COLORS: Record<string, string> = {
+  'backmarket.com': '#4caf50',
+  'qonto.com': '#1565c0',
+  'doctolib.fr': '#7b1fa2',
+  'aircall.io': '#0288d1',
+  'alan.com': '#2e7d32',
+  'pennylane.com': '#f57f17',
+  'swile.co': '#e65100',
+};
+
+function LogoImg({ domain, alt, size = 32 }: { domain: string; alt?: string; size?: number }) {
+  const initial = (alt || domain)?.[0]?.toUpperCase() || '?';
+  const fallbackBg = LOGO_FALLBACK_COLORS[domain] || '#6366f1';
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0, width: size, height: size }}>
+      <img
+        src={`https://img.logo.dev/${domain}?token=${LOGO_TOKEN}&size=32&format=png`}
+        alt={alt || domain}
+        width={size}
+        height={size}
+        style={{ borderRadius: '50%', objectFit: 'cover' }}
+        loading="lazy"
+        onError={(e) => { e.currentTarget.style.display = 'none'; const sib = e.currentTarget.nextElementSibling as HTMLElement; if (sib) sib.style.display = 'flex'; }}
+      />
+      <span style={{ display: 'none', width: size, height: size, borderRadius: '50%', background: fallbackBg, color: 'white', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.44, fontWeight: 700, fontFamily: sans, position: 'absolute', top: 0, left: 0 }}>
+        {initial}
+      </span>
+    </span>
+  );
+}
+
 /* ══════════════════════════════════════════════
    LANDING PAGE
    ══════════════════════════════════════════════ */
@@ -125,13 +158,13 @@ export default function Landing() {
         <FadeSection>
           <img src="/apple-touch-icon.png" alt="Albo" style={{ width: 72, height: 72, borderRadius: 16, margin: '0 auto 20px' }} />
           <p style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: COLORS.grayLight, marginBottom: 28 }}>
-            La plateforme des Business Angels
+            Notre CRM, mais pour vous
           </p>
           <h1 style={{ fontFamily: serif, fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: 700, lineHeight: 1.15, margin: '0 0 24px', color: COLORS.black }}>
-            Vos investissements méritent mieux qu'une boîte mail saturée
+            Suivez vos participations avec l'attention qu'elles méritent
           </h1>
           <p style={{ fontFamily: sans, fontSize: 'clamp(16px, 2vw, 19px)', lineHeight: 1.7, color: COLORS.gray, maxWidth: 640, margin: '0 auto 36px' }}>
-            Albo centralise vos pitch decks, reportings et communications. L'IA analyse tout automatiquement — vous n'avez plus qu'à décider.
+            Trier, suivre et analyser vos échanges n'a jamais été aussi simple. Décuplez le potentiel de votre boîte mail grâce à l'analyse historique de chaque échange — depuis le premier pitch deck reçu jusqu'au dernier reporting.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' as const }}>
             <button onClick={goAuth} style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: COLORS.white, background: COLORS.black, border: 'none', borderRadius: 10, padding: '14px 28px', cursor: 'pointer', transition: 'background 0.2s' }}
@@ -150,7 +183,7 @@ export default function Landing() {
           </div>
         </FadeSection>
 
-        {/* Hero mock – inbox table */}
+        {/* Hero mock – dealflow table */}
         <FadeSection style={{ marginTop: 56 }}>
           <div style={{ background: COLORS.white, borderRadius: 16, boxShadow: COLORS.cardShadow, overflow: 'hidden', textAlign: 'left' as const }}>
             <div style={{ padding: '16px 24px', borderBottom: '1px solid #eee', fontFamily: sans, fontWeight: 600, fontSize: 14, color: COLORS.gray }}>Dealflow récent</div>
@@ -164,13 +197,13 @@ export default function Landing() {
               </thead>
               <tbody>
                 {[
-                  { name: 'GreenShift', initial: 'G', bg: '#2e7d32', sector: 'CleanTech', sColor: '#e8f5e9', sTxt: '#2e7d32', amount: '€45K', type: 'BSA-AIR' },
-                  { name: 'Nomade', initial: 'N', bg: '#1565c0', sector: 'Mobility', sColor: '#e3f2fd', sTxt: '#1565c0', amount: '€30K', type: 'Equity' },
-                  { name: 'Pluma', initial: 'P', bg: '#7b1fa2', sector: 'EdTech', sColor: '#f3e5f5', sTxt: '#7b1fa2', amount: '€25K', type: 'OCA' },
+                  { name: 'Back Market', domain: 'backmarket.com', sector: 'Recommerce', sColor: '#e8f5e9', sTxt: '#2e7d32', amount: '€350K', type: 'BSA-AIR' },
+                  { name: 'Qonto', domain: 'qonto.com', sector: 'FinTech', sColor: '#e3f2fd', sTxt: '#1565c0', amount: '€500K', type: 'Equity' },
+                  { name: 'Doctolib', domain: 'doctolib.fr', sector: 'HealthTech', sColor: '#f3e5f5', sTxt: '#7b1fa2', amount: '€200K', type: 'OCA' },
                 ].map((r, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f8f8f8' }}>
                     <td style={{ padding: '12px 24px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: r.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: sans, flexShrink: 0 }}>{r.initial}</div>
+                      <LogoImg domain={r.domain} alt={r.name} size={32} />
                       {r.name}
                     </td>
                     <td style={{ padding: '12px 24px' }}><SBadge bg={r.sColor} color={r.sTxt}>{r.sector}</SBadge></td>
@@ -227,7 +260,7 @@ export default function Landing() {
         <FeatureRow
           tag="DEALFLOW"
           title="Envoyez un deck, recevez un mémo d'investissement"
-          desc="Transférez n'importe quel pitch deck à deck@alboteam.com. En quelques minutes, l'IA génère un mémo complet : résumé en 30 secondes, structure du deal, analyse du marché, métriques clés et points d'attention."
+          desc="Transférez n'importe quel pitch deck à deck@alboteam.com. En quelques minutes, l'IA génère un mémo complet avec l'historique de tous vos échanges passés avec l'entreprise : premiers emails, évolution du business plan, comparaison avec le deck initial."
           bullets={[
             'Analyse IA en moins de 5 minutes',
             'Support PDF, Notion, DocSend, Google Drive',
@@ -253,7 +286,22 @@ export default function Landing() {
           reversed={false}
         />
 
-        {/* Feature 4 – AI Chat */}
+        {/* Feature 4 – Import CSV/Excel */}
+        <FeatureRow
+          tag="IMPORT"
+          title="Importez votre portefeuille en un clic"
+          desc="Téléversez votre fichier Excel ou CSV avec vos participations existantes. Albo reconnaît automatiquement les colonnes, enrichit les données et crée votre portefeuille complet en quelques secondes."
+          bullets={[
+            'Import Excel (.xlsx) et CSV en glisser-déposer',
+            'Reconnaissance automatique des colonnes (nom, montant, date, secteur)',
+            'Enrichissement automatique : logos, sites web, descriptions',
+            'Mise à jour en masse sans ressaisie',
+          ]}
+          mock={<MockImport />}
+          reversed
+        />
+
+        {/* Feature 5 – AI Chat */}
         <FeatureRow
           tag="IA CONVERSATIONNELLE"
           title="Discuter avec vos documents n'a jamais été aussi simple"
@@ -265,10 +313,10 @@ export default function Landing() {
             'Recherche sémantique dans tous vos documents et emails',
           ]}
           mock={<MockChat />}
-          reversed
+          reversed={false}
         />
 
-        {/* Feature 5 – Multi-workspace */}
+        {/* Feature 6 – Multi-workspace */}
         <FeatureRow
           tag="ORGANISATION"
           title="Un espace par véhicule, zéro contamination"
@@ -280,7 +328,7 @@ export default function Landing() {
             'Switching instantané entre workspaces',
           ]}
           mock={<MockWorkspaces />}
-          reversed={false}
+          reversed
         />
       </div>
 
@@ -310,7 +358,7 @@ export default function Landing() {
       <FadeSection>
         <section style={{ background: COLORS.beige, padding: '80px 24px', textAlign: 'center' as const }}>
           <h2 style={{ fontFamily: serif, fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, marginBottom: 16 }}>
-            Rejoignez les Business Angels qui ont simplifié leur quotidien
+            Rejoignez les investisseurs qui ont simplifié leur quotidien
           </h2>
           <p style={{ fontFamily: sans, fontSize: 16, color: COLORS.gray, marginBottom: 32 }}>
             Gratuit pour commencer. Pas de carte bancaire requise.
@@ -371,7 +419,7 @@ function FeatureRow({ tag, title, desc, bullets, mock, reversed }: {
 }
 
 /* ══════════════════════════════════════════════
-   MOCK COMPONENTS (pure JSX, no external images)
+   MOCK COMPONENTS
    ══════════════════════════════════════════════ */
 
 function MockMemo() {
@@ -413,16 +461,16 @@ function MockMemo() {
 
 function MockPortfolio() {
   const stats = [
-    { label: 'Total investi', value: '225 000 €', bg: '#e8f5e9' },
+    { label: 'Total investi', value: '220 000 €', bg: '#e8f5e9' },
     { label: 'Entreprises', value: '4', bg: '#e3f2fd' },
     { label: 'Secteurs', value: '4', bg: '#fff8e1' },
-    { label: 'Ticket moyen', value: '56 250 €', bg: '#fce4ec' },
+    { label: 'Ticket moyen', value: '55 000 €', bg: '#fce4ec' },
   ];
   const rows = [
-    { name: 'Bako', initial: 'B', bg: '#e65100', sector: 'FoodTech', sColor: '#fff3e0', sTxt: '#e65100', amount: '60 000 €' },
-    { name: 'Solveo', initial: 'S', bg: '#c62828', sector: 'FinTech', sColor: '#fce4ec', sTxt: '#c62828', amount: '80 000 €' },
-    { name: 'Vesta', initial: 'V', bg: '#00897b', sector: 'PropTech', sColor: '#e0f2f1', sTxt: '#00897b', amount: '35 000 €' },
-    { name: 'Orbite', initial: 'O', bg: '#3949ab', sector: 'SaaS B2B', sColor: '#e8eaf6', sTxt: '#3949ab', amount: '50 000 €' },
+    { name: 'Aircall', domain: 'aircall.io', sector: 'SaaS B2B', sColor: '#e3f2fd', sTxt: '#1565c0', amount: '80 000 €' },
+    { name: 'Alan', domain: 'alan.com', sector: 'InsurTech', sColor: '#e8f5e9', sTxt: '#2e7d32', amount: '60 000 €' },
+    { name: 'Pennylane', domain: 'pennylane.com', sector: 'FinTech', sColor: '#fff8e1', sTxt: '#f57f17', amount: '45 000 €' },
+    { name: 'Swile', domain: 'swile.co', sector: 'HRTech', sColor: '#f3e5f5', sTxt: '#7b1fa2', amount: '35 000 €' },
   ];
   return (
     <div style={{ background: COLORS.white, borderRadius: 16, boxShadow: COLORS.cardShadow, overflow: 'hidden' }}>
@@ -440,7 +488,7 @@ function MockPortfolio() {
             <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
               <td style={{ padding: '10px 16px', fontWeight: 600 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: r.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: sans, flexShrink: 0 }}>{r.initial}</div>
+                  <LogoImg domain={r.domain} alt={r.name} size={32} />
                   {r.name}
                 </div>
               </td>
@@ -454,14 +502,57 @@ function MockPortfolio() {
   );
 }
 
+function MockImport() {
+  const imported = [
+    { name: 'Aircall', domain: 'aircall.io', sector: 'SaaS B2B', amount: '80 000 €' },
+    { name: 'Alan', domain: 'alan.com', sector: 'InsurTech', amount: '60 000 €' },
+    { name: 'Pennylane', domain: 'pennylane.com', sector: 'FinTech', amount: '45 000 €' },
+  ];
+  return (
+    <div style={{ background: COLORS.white, borderRadius: 16, boxShadow: COLORS.cardShadow, overflow: 'hidden' }}>
+      {/* Drop zone */}
+      <div style={{ border: '2px dashed #d0cdc8', borderRadius: 12, margin: 16, padding: '28px 16px', textAlign: 'center' as const }}>
+        <Upload size={28} style={{ color: COLORS.grayLight, margin: '0 auto 8px', display: 'block' }} />
+        <p style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: COLORS.black, margin: 0 }}>Glissez votre fichier ici ou cliquez pour sélectionner</p>
+        <p style={{ fontFamily: sans, fontSize: 11, color: COLORS.grayLight, margin: '4px 0 0' }}>CSV, Excel (.xlsx, .xls)</p>
+      </div>
+      {/* Imported preview */}
+      <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontFamily: sans, fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
+            {['Entreprise', 'Secteur', 'Montant', ''].map(h => (
+              <th key={h} style={{ padding: '8px 16px', textAlign: 'left' as const, fontWeight: 600, fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: COLORS.grayLight }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {imported.map((r, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #f8f8f8' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <LogoImg domain={r.domain} alt={r.name} size={32} />
+                  {r.name}
+                </div>
+              </td>
+              <td style={{ padding: '10px 16px', color: COLORS.gray }}>{r.sector}</td>
+              <td style={{ padding: '10px 16px', color: COLORS.gray }}>{r.amount}</td>
+              <td style={{ padding: '10px 16px' }}>
+                <SBadge bg="#e8f5e9" color="#2e7d32">✓ Importé</SBadge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function MockChat() {
   return (
     <div style={{ background: COLORS.white, borderRadius: 16, boxShadow: COLORS.cardShadow, padding: 20, display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
-      {/* User bubble */}
       <div style={{ alignSelf: 'flex-end', background: COLORS.beige, borderRadius: '14px 14px 4px 14px', padding: '10px 16px', maxWidth: '80%', fontFamily: sans, fontSize: 13, lineHeight: 1.6 }}>
         Quels sont les deals SaaS avec un ARR &gt; 500K€ reçus ce mois ?
       </div>
-      {/* AI bubble */}
       <div style={{ alignSelf: 'flex-start', background: '#f8f8f8', border: '1px solid #eee', borderRadius: '14px 14px 14px 4px', padding: '12px 16px', maxWidth: '85%', fontFamily: sans, fontSize: 13, lineHeight: 1.6 }}>
         <p style={{ margin: '0 0 10px' }}>Voici les 3 deals correspondants :</p>
         <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 12 }}>
@@ -481,11 +572,9 @@ function MockChat() {
           </tbody>
         </table>
       </div>
-      {/* User bubble 2 */}
       <div style={{ alignSelf: 'flex-end', background: COLORS.beige, borderRadius: '14px 14px 4px 14px', padding: '10px 16px', maxWidth: '80%', fontFamily: sans, fontSize: 13 }}>
         Compare leur unit economics
       </div>
-      {/* AI partial */}
       <div style={{ alignSelf: 'flex-start', background: '#f8f8f8', border: '1px solid #eee', borderRadius: '14px 14px 14px 4px', padding: '12px 16px', maxWidth: '85%', fontFamily: sans, fontSize: 13, color: COLORS.gray }}>
         Voici la comparaison des 3 deals sur leurs métriques unitaires…
         <span style={{ display: 'inline-block', width: 6, height: 14, background: COLORS.black, marginLeft: 2, animation: 'blink 1s steps(2) infinite', verticalAlign: 'middle' }} />
@@ -523,9 +612,9 @@ function MockWorkspaces() {
 
 function MockEmail() {
   const emails = [
-    { from: 'ceo@greenshift.io', match: 'GreenShift', initial: 'G', bg: '#2e7d32' },
-    { from: 'finance@solveo.fr', match: 'Solveo', initial: 'S', bg: '#c62828' },
-    { from: 'reporting@orbite.cc', match: 'Orbite', initial: 'O', bg: '#3949ab' },
+    { from: 'contact@backmarket.com', match: 'Back Market', domain: 'backmarket.com' },
+    { from: 'finance@qonto.com', match: 'Qonto', domain: 'qonto.com' },
+    { from: 'reporting@doctolib.fr', match: 'Doctolib', domain: 'doctolib.fr' },
   ];
   return (
     <div style={{ background: COLORS.white, borderRadius: 16, boxShadow: COLORS.cardShadow, padding: 20 }}>
@@ -537,7 +626,7 @@ function MockEmail() {
       {emails.map((e, i) => (
         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: '50%', background: e.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11, fontFamily: sans, flexShrink: 0 }}>{e.initial}</div>
+            <LogoImg domain={e.domain} alt={e.match} size={32} />
             <span style={{ fontFamily: sans, fontSize: 13, color: COLORS.gray }}>{e.from}</span>
           </div>
           <SBadge bg="#e3f2fd" color="#1565c0">{`→ ${e.match}`}</SBadge>
