@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCompanyDomains } from "@/hooks/useCompanyDomains";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/
 
 interface PortfolioCompanyInfoCardProps {
   company: {
+    id: string;
     entry_valuation_euros: number | null;
     amount_invested_euros: number | null;
     ownership_percentage: number | null;
@@ -33,6 +35,9 @@ interface PortfolioCompanyInfoCardProps {
 }
 
 export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardProps) {
+  const { domains: companyDomains } = useCompanyDomains(company.id);
+  const primaryDomain = companyDomains.find(d => d.is_primary)?.domain || company.domain;
+  const extraDomainsCount = Math.max(0, companyDomains.length - 1);
   const isOlderThanOneMonth = company.last_news_updated_at
     ? differenceInMonths(new Date(), new Date(company.last_news_updated_at)) >= 1
     : false;
@@ -86,16 +91,21 @@ export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardPr
     {
       icon: Globe,
       label: "Domaine",
-      value: company.domain,
-      customRender: company.domain ? (
-        <a
-          href={`https://${company.domain}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline text-sm"
-        >
-          {company.domain}
-        </a>
+      value: primaryDomain,
+      customRender: primaryDomain ? (
+        <div className="flex items-center gap-1">
+          <a
+            href={`https://${primaryDomain}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline text-sm"
+          >
+            {primaryDomain}
+          </a>
+          {extraDomainsCount > 0 && (
+            <span className="text-xs text-muted-foreground">+{extraDomainsCount}</span>
+          )}
+        </div>
       ) : null,
     },
   ].filter((item) => item.value || item.customRender);

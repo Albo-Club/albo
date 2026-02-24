@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Loader2, CheckCircle2, AlertCircle, Check } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { CompanyDomainsEditor } from '@/components/portfolio/CompanyDomainsEditor';
 
 type Step = 'upload' | 'processing' | 'results';
 
@@ -33,8 +33,7 @@ export default function ImportPortfolioOnboarding() {
   const [isDragging, setIsDragging] = useState(false);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [editableDomains, setEditableDomains] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
+  // removed editableDomains state — using CompanyDomainsEditor instead
 
   const handleFileSelect = async (file: File) => {
     setStep('processing');
@@ -77,11 +76,7 @@ export default function ImportPortfolioOnboarding() {
 
       setCompanies(freshCompanies || []);
 
-      const domains: Record<string, string> = {};
-      (freshCompanies || []).forEach((c: Company) => {
-        domains[c.id] = c.domain || '';
-      });
-      setEditableDomains(domains);
+      // Domains are now managed via CompanyDomainsEditor per company
 
       setStep('results');
 
@@ -114,36 +109,20 @@ export default function ImportPortfolioOnboarding() {
     navigate('/onboarding/connect-email');
   };
 
-  const handleValidateDomains = async () => {
+  const handleContinue = async () => {
     if (!user?.id) return;
-    setSaving(true);
     try {
-      const updates = Object.entries(editableDomains).filter(([id, domain]) => {
-        const original = companies.find(c => c.id === id);
-        return original && domain !== (original.domain || '');
-      });
-
-      for (const [id, domain] of updates) {
-        await supabase
-          .from('portfolio_companies')
-          .update({ domain: domain || null })
-          .eq('id', id);
-      }
-
       await supabase
         .from('profiles')
         .update({ onboarding_status: 'connect_email' })
         .eq('id', user.id);
-
       navigate('/onboarding/connect-email');
     } catch (err) {
       toast.error('Erreur lors de la sauvegarde');
-    } finally {
-      setSaving(false);
     }
   };
 
-  const missingDomainsCount = Object.values(editableDomains).filter(d => !d).length;
+  // missingDomainsCount removed — domains managed per company via CompanyDomainsEditor
 
   // ── Upload step ──
   if (step === 'upload') {
@@ -248,56 +227,23 @@ export default function ImportPortfolioOnboarding() {
           </div>
         )}
 
-        {/* Domain validation list */}
+        {/* Domain validation list — using CompanyDomainsEditor */}
         <div className="flex-1 overflow-y-auto border rounded-lg divide-y min-h-0 mb-4">
           {companies.map((company) => (
-            <div key={company.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {company.company_name}
-                </p>
-              </div>
-              <div className="w-48">
-                <Input
-                  value={editableDomains[company.id] || ''}
-                  onChange={(e) =>
-                    setEditableDomains((prev) => ({
-                      ...prev,
-                      [company.id]: e.target.value,
-                    }))
-                  }
-                  placeholder="exemple.com"
-                  className="text-sm h-8"
-                />
-              </div>
-              {editableDomains[company.id] ? (
-                <Check className="h-4 w-4 text-green-500 shrink-0" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              )}
+            <div key={company.id} className="px-4 py-3 space-y-1">
+              <p className="text-sm font-medium text-foreground truncate">
+                {company.company_name}
+              </p>
+              <CompanyDomainsEditor companyId={company.id} compact />
             </div>
           ))}
         </div>
 
-        {missingDomainsCount > 0 && (
-          <p className="text-xs text-amber-600 text-center mb-4">
-            ⚠️ {missingDomainsCount} entreprise(s) sans nom de domaine — la synchronisation email ne fonctionnera pas pour celles-ci
-          </p>
-        )}
-
         <Button
-          onClick={handleValidateDomains}
-          disabled={saving}
-          className="w-full bg-gray-900 hover:bg-gray-800"
+          onClick={handleContinue}
+          className="w-full"
         >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Validate domains & continue'
-          )}
+          Continuer
         </Button>
       </div>
     </div>
