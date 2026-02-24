@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,7 +33,28 @@ export default function ImportPortfolioOnboarding() {
   const [isDragging, setIsDragging] = useState(false);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
-  // removed editableDomains state — using CompanyDomainsEditor instead
+
+  // Sync legacy domain field to company_domains table after import
+  useEffect(() => {
+    const syncDomainsToNewTable = async () => {
+      if (!companies || companies.length === 0 || !user?.id) return;
+      for (const company of companies) {
+        if (company.domain) {
+          await supabase
+            .from('company_domains')
+            .upsert({
+              company_id: company.id,
+              domain: company.domain.toLowerCase().trim(),
+              is_primary: true,
+              created_by: user.id,
+            }, { onConflict: 'company_id,domain' });
+        }
+      }
+    };
+    syncDomainsToNewTable();
+  }, [companies, user?.id]);
+
+  const companiesWithoutDomain = companies.filter(c => !c.domain || c.domain.trim() === '');
 
   const handleFileSelect = async (file: File) => {
     setStep('processing');
@@ -197,41 +218,50 @@ export default function ImportPortfolioOnboarding() {
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-center gap-2 mb-1">
           <CheckCircle2 className="h-6 w-6 text-green-500" />
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Portefeuille importé
+          <h1 className="text-2xl font-semibold text-foreground">
+            Vérifiez les domaines
           </h1>
         </div>
-        <p className="text-gray-500 text-center text-sm mb-6">
-          Vérifiez les noms de domaine avant la synchronisation email
+        <p className="text-muted-foreground text-center text-sm mb-6">
+          Ajoutez ou corrigez les noms de domaine pour chaque entreprise. Vous pouvez ajouter plusieurs domaines par entreprise. Chaque domaine ajouté lancera automatiquement une recherche dans vos emails.
         </p>
 
         {/* Summary */}
         {importResults && (
-          <div className="flex items-center justify-center gap-4 mb-6">
+          <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex items-center gap-1.5 text-sm">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-gray-700">{importResults.summary.created} importées</span>
+              <span className="text-foreground">{importResults.summary.created} importées</span>
             </div>
             {importResults.summary.updated > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                <span className="text-gray-700">{importResults.summary.updated} mises à jour</span>
+                <span className="text-foreground">{importResults.summary.updated} mises à jour</span>
               </div>
             )}
             {importResults.summary.failed > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <AlertCircle className="h-4 w-4 text-red-500" />
-                <span className="text-gray-700">{importResults.summary.failed} erreurs</span>
+                <span className="text-foreground">{importResults.summary.failed} erreurs</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Domain validation list — using CompanyDomainsEditor */}
-        <div className="flex-1 overflow-y-auto border rounded-lg divide-y min-h-0 mb-4">
+        {companiesWithoutDomain.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 mb-4 px-1">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <p>
+              {companiesWithoutDomain.length} entreprise(s) sans nom de domaine — la synchronisation email ne fonctionnera pas pour celles-ci. Vous pourrez les ajouter plus tard.
+            </p>
+          </div>
+        )}
+
+        {/* Domain validation list */}
+        <div className="flex-1 overflow-y-auto border rounded-lg min-h-0 mb-4 p-4 space-y-4">
           {companies.map((company) => (
-            <div key={company.id} className="px-4 py-3 space-y-1">
-              <p className="text-sm font-medium text-foreground truncate">
+            <div key={company.id} className="pb-3 border-b last:border-0">
+              <p className="text-sm font-medium text-foreground mb-2 truncate">
                 {company.company_name}
               </p>
               <CompanyDomainsEditor companyId={company.id} compact />
@@ -239,12 +269,18 @@ export default function ImportPortfolioOnboarding() {
           ))}
         </div>
 
-        <Button
-          onClick={handleContinue}
-          className="w-full"
-        >
-          Continuer
-        </Button>
+        <div className="space-y-2">
+          <Button onClick={handleContinue} className="w-full">
+            Continuer
+          </Button>
+          <button
+            type="button"
+            onClick={handleContinue}
+            className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Je ferai ça plus tard
+          </button>
+        </div>
       </div>
     </div>
   );
