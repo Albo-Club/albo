@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useCompanyDomains } from "@/hooks/useCompanyDomains";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -195,6 +196,9 @@ export function PortfolioCompanyOverview({
 }: PortfolioCompanyOverviewProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { domains: companyDomains } = useCompanyDomains(company.id);
+  const primaryDomain = companyDomains.find(d => d.is_primary)?.domain || company.domain;
+  const extraDomainsCount = Math.max(0, companyDomains.length - 1);
   
   // Metrics from the latest report
   const reportMetrics = useMemo<ReportMetricItem[]>(() => {
@@ -311,15 +315,25 @@ export function PortfolioCompanyOverview({
             <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground">Domaine</p>
-              {company.domain ? (
-                <a 
-                  href={`https://${company.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline truncate block"
-                >
-                  {company.domain}
-                </a>
+              {primaryDomain ? (
+                <div className="flex items-center gap-1">
+                  <a 
+                    href={`https://${primaryDomain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline truncate"
+                  >
+                    {primaryDomain}
+                  </a>
+                  {extraDomainsCount > 0 && (
+                    <button
+                      onClick={() => setEditModalOpen(true)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    >
+                      +{extraDomainsCount}
+                    </button>
+                  )}
+                </div>
               ) : (
                 <p className="text-xs font-medium">-</p>
               )}

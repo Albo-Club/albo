@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, ChevronLeft, Loader2 } from 'lucide-react';
+import { CompanyDomainsEditor } from './CompanyDomainsEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -202,16 +203,11 @@ export function EditPortfolioCompanyModal({ open, onOpenChange, company }: EditP
               />
             </div>
 
-            {/* Domain */}
+            {/* Domains (multi) */}
             <div className="space-y-2">
-              <Label htmlFor="domain">Domaine web</Label>
-              <Input
-                id="domain"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                placeholder="acme.com"
-              />
-              <p className="text-xs text-muted-foreground">Utilisé pour le logo</p>
+              <Label>Domaines email</Label>
+              <CompanyDomainsEditor companyId={company.id} />
+              <p className="text-xs text-muted-foreground">Le domaine principal est utilisé pour le logo</p>
             </div>
 
             {/* Description */}
