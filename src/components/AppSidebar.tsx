@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Target, Wallet } from "lucide-react";
+import { Target, Wallet, Activity, Shield } from "lucide-react";
 import { WorkspaceDropdown } from "@/components/WorkspaceDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const [profile, setProfile] = useState<{
     name: string | null;
     avatar_url: string | null;
@@ -80,6 +80,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/opportunities",
       icon: Target,
     },
+    ...(isAdmin
+      ? [
+          {
+            title: "Admin",
+            url: "/admin",
+            icon: Shield,
+            items: [
+              { title: "Vue d'ensemble", url: "/admin" },
+              { title: "Observabilité", url: "/admin/observability" },
+            ],
+          },
+        ]
+      : []),
   ];
 
   const navSecondaryItems: { title: string; url: string; icon: typeof Target }[] = [];
