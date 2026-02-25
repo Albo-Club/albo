@@ -29,6 +29,7 @@ import AcceptInvite from "./pages/AcceptInvite";
 import DealDetail from "./pages/DealDetail";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import AdminObservability from "./pages/AdminObservability";
 import Inbox from "./pages/Inbox";
 import NotFound from "./pages/NotFound";
 import Privacy from "./pages/Privacy";
@@ -200,6 +201,18 @@ const App = () => (
                     <ProfileGuard>
                       <DashboardLayout>
                         <WorkspaceSettings />
+                      </DashboardLayout>
+                    </ProfileGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/observability"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGuard>
+                      <DashboardLayout>
+                        <AdminObservability />
                       </DashboardLayout>
                     </ProfileGuard>
                   </ProtectedRoute>
