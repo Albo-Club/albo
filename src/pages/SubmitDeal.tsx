@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Upload, FileText, X } from 'lucide-react';
-import AnalysisLoader from '@/components/AnalysisLoader';
+import { Upload, FileText, X, Loader2 } from 'lucide-react';
 
 const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/2551cfc4-1892-4926-9f17-746c9a51be71';
 
@@ -39,10 +38,9 @@ const uploadToStorage = async (file: File, userId: string, dealId: string): Prom
 export default function SubmitDeal() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [additionalContext, setAdditionalContext] = useState('');
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -79,23 +77,6 @@ export default function SubmitDeal() {
     e.preventDefault();
   };
 
-  const handleCancelAnalysis = async () => {
-    if (!analysisId) return;
-
-    try {
-      await supabase
-        .from('analysis_requests')
-        .update({ status: 'cancelled' })
-        .eq('id', analysisId);
-
-      toast.info("L'analyse a été annulée");
-      setIsAnalyzing(false);
-      setAnalysisId(null);
-    } catch (error) {
-      console.error('Error cancelling analysis:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -109,7 +90,7 @@ export default function SubmitDeal() {
       return;
     }
 
-    setIsAnalyzing(true);
+    setIsSubmitting(true);
 
     try {
       console.log('1. User:', user?.id, user?.email);
@@ -129,11 +110,11 @@ export default function SubmitDeal() {
       if (analysisError || !analysisRecord?.id) {
         console.error('Failed to create analysis request:', analysisError);
         toast.error('Failed to start analysis');
-        setIsAnalyzing(false);
+        setIsSubmitting(false);
         return;
       }
 
-      setAnalysisId(analysisRecord.id);
+      
 
       // Step 2: Create deal in "pending" status with initial company name from filename
       const initialCompanyName = file.name.replace('.pdf', '').replace(/[-_]/g, ' ');
@@ -182,133 +163,40 @@ export default function SubmitDeal() {
         throw deckError;
       }
 
-      // Step 4: Send PDF to N8N webhook with analysis_id
+      // Step 4: Send PDF to N8N webhook (fire & forget)
       const formData = new FormData();
       formData.append('file', file);
       formData.append('deal_id', deal.id);
       formData.append('analysis_id', analysisRecord.id);
       formData.append('additional_context', additionalContext || '');
 
-      try {
-        const response = await fetch(N8N_WEBHOOK_URL, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`N8N Error: ${response.status}`);
-        }
-
-        const n8nRaw = await response.json();
-        const result = Array.isArray(n8nRaw) ? n8nRaw?.[0] : n8nRaw;
-        console.log('N8N Response (raw):', n8nRaw);
-        console.log('N8N Response (normalized):', result);
-
-        // Check if analysis was cancelled
-        if (result?.cancelled === true) {
-          toast.info("L'analyse a été annulée");
-          setIsAnalyzing(false);
-          return;
-        }
-
-        // Step 5: Update deal with N8N response
-        if (result?.status === 'completed') {
-          const updateData: any = {
-            status: 'analysé',
-            analyzed_at: new Date().toISOString(),
-          };
-
-          // Update company_name if provided by N8N
-          if (result.company_name) {
-            updateData.company_name = result.company_name;
-          }
-
-          // Update memo_html if provided
-          if (result.memo_html) {
-            updateData.memo_html = result.memo_html;
-          }
-
-          const { error: updateDealError } = await supabase
-            .from('deals')
-            .update(updateData)
-            .eq('id', deal.id);
-
-          if (updateDealError) throw updateDealError;
-
-          // Update analysis_request status
-          const { error: updateAnalysisError } = await supabase
-            .from('analysis_requests')
-            .update({ status: 'completed' })
-            .eq('id', analysisRecord.id);
-
-          if (updateAnalysisError) throw updateAnalysisError;
-
-          toast.success('Analyse terminée !');
-        } else {
-          const { error: updateDealError } = await supabase
-            .from('deals')
-            .update({
-              status: 'à traiter',
-              error_message: result?.error || "Échec de l'analyse",
-            })
-            .eq('id', deal.id);
-
-          const { error: updateAnalysisError } = await supabase
-            .from('analysis_requests')
-            .update({ status: 'error' })
-            .eq('id', analysisRecord.id);
-
-          if (updateAnalysisError) throw updateAnalysisError;
-
-          toast.error(result?.error || "Échec de l'analyse");
-        }
-
-        navigate('/opportunities');
-      } catch (n8nError: any) {
-        console.error('N8N Error:', n8nError);
-        
-        await supabase
+      fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        body: formData,
+      }).catch((err) => {
+        console.error('N8N webhook error (background):', err);
+        supabase
           .from('deals')
           .update({
             status: 'à traiter',
-            error_message: n8nError.message || 'Erreur lors de l\'analyse',
+            error_message: err.message || "Erreur de connexion au serveur d'analyse",
           })
           .eq('id', deal.id);
-
-        await supabase
+        supabase
           .from('analysis_requests')
           .update({ status: 'error' })
           .eq('id', analysisRecord.id);
+      });
 
-        toast.error('Erreur lors de l\'analyse. Vous pouvez réessayer depuis la page du deal.');
-        navigate('/opportunities');
-      }
+      toast.info('Analyse lancée ! Vous serez notifié par email quand ce sera terminé.');
+      navigate('/opportunities');
     } catch (error: any) {
       console.error('Error submitting deal:', error);
       toast.error(error.message || 'Erreur lors de la soumission');
     } finally {
-      setIsAnalyzing(false);
-      setAnalysisId(null);
+      setIsSubmitting(false);
     }
   };
-
-  // Show AnalysisLoader when analyzing
-  if (isAnalyzing) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <AnalysisLoader />
-        <div className="flex justify-center mt-6">
-          <Button
-            variant="outline"
-            onClick={handleCancelAnalysis}
-            className="text-destructive hover:text-destructive"
-          >
-            Annuler l'analyse
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -398,11 +286,15 @@ export default function SubmitDeal() {
               </Button>
               <Button
                 type="submit"
-                disabled={!file}
+                disabled={!file || isSubmitting}
                 className="flex-1"
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Analyser le Deck
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {isSubmitting ? 'Envoi en cours...' : 'Analyser le Deck'}
               </Button>
             </div>
           </form>
