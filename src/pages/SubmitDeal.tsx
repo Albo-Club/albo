@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Upload, FileText, X, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, Loader2, Square } from 'lucide-react';
 
 const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/2551cfc4-1892-4926-9f17-746c9a51be71';
 
@@ -41,6 +41,64 @@ export default function SubmitDeal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [additionalContext, setAdditionalContext] = useState('');
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [activeDealId, setActiveDealId] = useState<string | null>(null);
+
+  const handleCancelAnalysis = async () => {
+    if (!analysisId) return;
+    try {
+      await supabase
+        .from('analysis_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', analysisId);
+
+      if (activeDealId) {
+        await supabase
+          .from('deals')
+          .update({ status: 'à traiter', error_message: "Analyse annulée par l'utilisateur" })
+          .eq('id', activeDealId);
+      }
+
+      toast.info("L'analyse a été annulée");
+      setAnalysisId(null);
+      setActiveDealId(null);
+    } catch (error) {
+      console.error('Error cancelling analysis:', error);
+    }
+  };
+
+  // Realtime listener to auto-dismiss toast when analysis completes
+  useEffect(() => {
+    if (!activeDealId) return;
+
+    const channel = supabase
+      .channel(`submit-deal-${activeDealId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'deals',
+          filter: `id=eq.${activeDealId}`,
+        },
+        (payload: any) => {
+          const newStatus = payload.new?.status;
+          if (newStatus && newStatus !== "en cours d'analyse") {
+            toast.dismiss(`analysis-${analysisId}`);
+            if (newStatus === 'A traiter' || newStatus === 'analysé') {
+              toast.success(`Analyse terminée : ${payload.new.company_name || 'Deal'}`);
+            }
+            setAnalysisId(null);
+            setActiveDealId(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeDealId, analysisId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -106,7 +164,6 @@ export default function SubmitDeal() {
         .select('id')
         .single();
 
-      // Vérifier que ça a marché
       if (analysisError || !analysisRecord?.id) {
         console.error('Failed to create analysis request:', analysisError);
         toast.error('Failed to start analysis');
@@ -114,7 +171,7 @@ export default function SubmitDeal() {
         return;
       }
 
-      
+      setAnalysisId(analysisRecord.id);
 
       // Step 2: Create deal in "pending" status with initial company name from filename
       const initialCompanyName = file.name.replace('.pdf', '').replace(/[-_]/g, ' ');
@@ -134,6 +191,8 @@ export default function SubmitDeal() {
       console.log('2. Deal created:', deal?.id, dealError);
 
       if (dealError) throw dealError;
+
+      setActiveDealId(deal.id);
 
       // Step 3: Upload PDF to Storage and store reference in deck_files
       try {
@@ -155,11 +214,10 @@ export default function SubmitDeal() {
 
         if (deckFileError) throw deckFileError;
 
-        // keep for debugging parity with requested logs
         void storageData;
       } catch (deckError) {
         console.error('Deck upload/insert failed:', deckError);
-        toast.error('Échec de l’upload du deck (vérifier les permissions)');
+        toast.error('Échec de l\'upload du deck (vérifier les permissions)');
         throw deckError;
       }
 
@@ -169,6 +227,7 @@ export default function SubmitDeal() {
       formData.append('deal_id', deal.id);
       formData.append('analysis_id', analysisRecord.id);
       formData.append('additional_context', additionalContext || '');
+      formData.append('user_email', user.email || '');
 
       fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
@@ -188,7 +247,17 @@ export default function SubmitDeal() {
           .eq('id', analysisRecord.id);
       });
 
-      toast.info('Analyse lancée ! Vous serez notifié par email quand ce sera terminé.');
+      // Persistent toast with cancel button
+      toast('Analyse en cours...', {
+        id: `analysis-${analysisRecord.id}`,
+        duration: Infinity,
+        icon: <Loader2 className="h-4 w-4 animate-spin" />,
+        action: {
+          label: '⬛ Stop',
+          onClick: () => handleCancelAnalysis(),
+        },
+      });
+
       navigate('/opportunities');
     } catch (error: any) {
       console.error('Error submitting deal:', error);
