@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, FileText, FileSpreadsheet, Image, Loader2 } from "lucide-react";
+import { Upload, X, FileText, Table, Image, Loader2, Sparkles, Mail } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,16 +9,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
+import { useReportUpload } from "@/hooks/useReportUpload";
 import { toast } from "sonner";
 
 interface UploadReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyId: string;
+  companyName: string;
 }
 
 const ACCEPTED_TYPES = [
@@ -32,31 +31,40 @@ const ACCEPTED_TYPES = [
 
 const ACCEPTED_EXTENSIONS = ".pdf,.xlsx,.xls,.png,.jpg,.jpeg";
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function getFileIcon(mime: string) {
   if (mime === "application/pdf") return <FileText className="h-4 w-4 text-destructive" />;
   if (mime.includes("spreadsheet") || mime.includes("excel"))
-    return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+    return <Table className="h-4 w-4 text-green-600" />;
   if (mime.startsWith("image/")) return <Image className="h-4 w-4 text-blue-500" />;
   return <FileText className="h-4 w-4 text-muted-foreground" />;
 }
 
-export function UploadReportModal({ open, onOpenChange, companyId }: UploadReportModalProps) {
-  const { user } = useAuth();
-  const { workspace } = useWorkspace();
-  const queryClient = useQueryClient();
-
+export function UploadReportModal({ open, onOpenChange, companyId, companyName }: UploadReportModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [additionalContext, setAdditionalContext] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { submit, isSubmitting } = useReportUpload({
+    companyId,
+    companyName,
+    onSuccess: () => {
+      setFiles([]);
+      setAdditionalContext("");
+      onOpenChange(false);
+    },
+  });
 
   const canSubmit = files.length > 0 || additionalContext.trim().length > 0;
 
   const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const valid = Array.from(newFiles).filter((f) =>
-      ACCEPTED_TYPES.includes(f.type)
-    );
+    const valid = Array.from(newFiles).filter((f) => ACCEPTED_TYPES.includes(f.type));
     if (valid.length < Array.from(newFiles).length) {
       toast.error("Certains fichiers ont été ignorés (formats non supportés)");
     }
@@ -76,85 +84,6 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
     [addFiles]
   );
 
-  const handleSubmit = async () => {
-    if (!canSubmit || !user) return;
-    setIsSubmitting(true);
-
-    const toastId = toast.loading("Création du report en cours…");
-
-    try {
-      // 1. Create company_report row
-      const { data: report, error: reportError } = await supabase
-        .from("company_reports")
-        .insert({
-          company_id: companyId,
-          processing_status: "pending",
-          report_source: "frontend_upload",
-        })
-        .select("id")
-        .single();
-
-      if (reportError || !report) throw reportError || new Error("Failed to create report");
-
-      const reportId = report.id;
-
-      // 2. Upload files to storage & insert report_files rows
-      for (const file of files) {
-        const storagePath = `${companyId}/${reportId}/${file.name}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("report-files")
-          .upload(storagePath, file, { upsert: true });
-
-        if (uploadError) {
-          console.error("Upload error for", file.name, uploadError);
-          continue;
-        }
-
-        await supabase.from("report_files").insert({
-          report_id: reportId,
-          file_name: file.name,
-          original_file_name: file.name,
-          storage_path: storagePath,
-          mime_type: file.type,
-          file_type: "report",
-        });
-      }
-
-      // 3. Call N8N webhook with multipart/form-data
-      const formData = new FormData();
-      formData.append("company_id", companyId);
-      formData.append("workspace_id", workspace?.id || "");
-      formData.append("user_email", user.email || "");
-      formData.append("report_id", reportId);
-      formData.append("additional_context", additionalContext);
-
-      for (const file of files) {
-        formData.append("files", file);
-      }
-
-      fetch("https://n8n.alboteam.com/webhook/upload_report_frontend", {
-        method: "POST",
-        body: formData,
-      }).catch((err) => console.error("N8N webhook error:", err));
-
-      toast.success("Report envoyé pour analyse !", { id: toastId, duration: 5000 });
-
-      // Reset & close
-      setFiles([]);
-      setAdditionalContext("");
-      onOpenChange(false);
-
-      // Refresh reports
-      queryClient.invalidateQueries({ queryKey: ["company-reports", companyId] });
-    } catch (err: any) {
-      console.error("Upload report error:", err);
-      toast.error("Erreur lors de l'envoi du report", { id: toastId, duration: 8000 });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleClose = (open: boolean) => {
     if (!isSubmitting) {
       if (!open) {
@@ -171,7 +100,7 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
         <DialogHeader>
           <DialogTitle>Ajouter un report</DialogTitle>
           <DialogDescription>
-            Uploadez les fichiers du report et ajoutez du contexte si nécessaire.
+            Importez les documents du reporting et ajoutez le contexte du mail reçu
           </DialogDescription>
         </DialogHeader>
 
@@ -195,7 +124,7 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
             Glissez vos fichiers ici ou cliquez pour sélectionner
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            PDF, Excel (.xlsx, .xls), Images (.png, .jpg)
+            Formats acceptés : PDF, Excel (.xlsx, .xls), Images (.png, .jpg)
           </p>
           <input
             ref={inputRef}
@@ -220,9 +149,15 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
               >
                 {getFileIcon(file.type)}
                 <span className="flex-1 truncate">{file.name}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">
+                  {formatFileSize(file.size)}
+                </span>
                 <button
                   type="button"
-                  onClick={() => removeFile(i)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFile(i);
+                  }}
                   className="text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -233,17 +168,36 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
         )}
 
         {/* Text area */}
-        <Textarea
-          placeholder="Collez ici le contenu du mail reçu ou ajoutez des informations complémentaires sur ce report..."
-          value={additionalContext}
-          onChange={(e) => setAdditionalContext(e.target.value)}
-          rows={4}
-          className="resize-y"
-        />
+        <div className="space-y-2">
+          <Label className="text-sm text-muted-foreground">
+            Contexte additionnel (optionnel)
+          </Label>
+          <Textarea
+            placeholder="Collez ici le contenu du mail reçu ou ajoutez des informations complémentaires sur ce report..."
+            value={additionalContext}
+            onChange={(e) => setAdditionalContext(e.target.value)}
+            className="resize-y min-h-[120px]"
+          />
+        </div>
+
+        {/* Email info box */}
+        <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2">
+          <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            Vous pouvez aussi envoyer vos reports directement par email à{" "}
+            <a
+              href="mailto:report@alboteam.com"
+              className="font-medium text-foreground hover:underline"
+            >
+              report@alboteam.com
+            </a>{" "}
+            — ils seront automatiquement analysés et rattachés à la bonne entreprise.
+          </p>
+        </div>
 
         {/* Submit */}
         <Button
-          onClick={handleSubmit}
+          onClick={() => submit(files, additionalContext)}
           disabled={!canSubmit || isSubmitting}
           className="w-full gap-2"
         >
@@ -254,7 +208,7 @@ export function UploadReportModal({ open, onOpenChange, companyId }: UploadRepor
             </>
           ) : (
             <>
-              <Upload className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" />
               Analyser le report
             </>
           )}

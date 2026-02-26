@@ -144,6 +144,7 @@ export default function PortfolioCompanyDetail() {
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
         companyId={company.id}
+        companyName={company.company_name}
       />
     </div>
   );

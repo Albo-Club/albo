@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { FileText, Download, Eye, Loader2, Clock } from "lucide-react";
+import { FileText, Download, Eye, Loader2, Clock, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCompanyReports, CompanyReport } from "@/hooks/useCompanyReports";
 import { ReportSynthesisModal } from "./ReportSynthesisModal";
+import { UploadReportModal } from "./UploadReportModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface CompanyReportsTabProps {
   companyId: string;
+  companyName: string;
 }
 
 const downloadReportPdf = async (storagePath: string, fileName: string) => {
@@ -41,10 +43,11 @@ const downloadReportPdf = async (storagePath: string, fileName: string) => {
   }
 };
 
-export function CompanyReportsTab({ companyId }: CompanyReportsTabProps) {
+export function CompanyReportsTab({ companyId, companyName }: CompanyReportsTabProps) {
   const { data: reports, isLoading, error } = useCompanyReports(companyId);
   const [selectedReport, setSelectedReport] = useState<CompanyReport | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const handleDownload = async (report: CompanyReport) => {
     const pdfFile = report.files.find(f => f.mime_type === 'application/pdf');
@@ -84,6 +87,13 @@ export function CompanyReportsTab({ companyId }: CompanyReportsTabProps) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Reports</h3>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setUploadModalOpen(true)}>
+          <Plus className="h-4 w-4" />
+          Ajouter un report
+        </Button>
+      </div>
       {reports.map((report) => {
         const hasPdf = report.files.some(f => f.mime_type === 'application/pdf');
         const isProcessing = report.processing_status !== 'completed';
@@ -177,6 +187,13 @@ export function CompanyReportsTab({ companyId }: CompanyReportsTabProps) {
         onOpenChange={(open) => !open && setSelectedReport(null)}
         reportPeriod={selectedReport?.report_period || null}
         content={selectedReport?.cleaned_content || null}
+      />
+      {/* Upload Modal */}
+      <UploadReportModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        companyId={companyId}
+        companyName={companyName}
       />
     </div>
   );
