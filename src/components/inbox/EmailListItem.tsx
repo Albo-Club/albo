@@ -24,6 +24,12 @@ function hashColor(name: string): string {
   return `hsl(${hue}, 55%, 45%)`;
 }
 
+function getInitial(name: string): string {
+  if (!name) return '?';
+  if (name.includes('@')) return name[0].toUpperCase();
+  return name.split(' ').map(w => w[0]).filter(Boolean).join('').toUpperCase().slice(0, 2);
+}
+
 export function EmailListItem({ email, isSelected, onClick }: EmailListItemProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
