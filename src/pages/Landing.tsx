@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useRef, useCallback } from 'react';
 import { Check, FileText, BarChart3, MessageCircle, Mail, ArrowRight, Upload } from 'lucide-react';
-import docsendLogo from '@/assets/logos/docsend.jpg';
+import docsendLogo from '@/assets/logos/docsend.svg';
 import notionLogo from '@/assets/logos/notion.svg';
-import googledriveLogo from '@/assets/logos/googledrive.png';
+import googledriveLogo from '@/assets/logos/googledrive.svg';
 
 /* ──────────────────────────────────────────────
    Inline styles – keeps everything in one file
