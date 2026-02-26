@@ -24,12 +24,21 @@ const ACCEPTED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-excel",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "image/png",
   "image/jpeg",
   "image/jpg",
+  "image/gif",
+  "image/webp",
+  "text/plain",
+  "text/csv",
+  "application/csv",
 ];
 
-const ACCEPTED_EXTENSIONS = ".pdf,.xlsx,.xls,.png,.jpg,.jpeg";
+const ACCEPTED_EXTENSIONS = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.csv";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -124,7 +133,7 @@ export function UploadReportModal({ open, onOpenChange, companyId, companyName }
             Glissez vos fichiers ici ou cliquez pour sélectionner
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Formats acceptés : PDF, Excel (.xlsx, .xls), Images (.png, .jpg)
+            Formats acceptés : PDF, Word, Excel, PowerPoint, Images, CSV, TXT
           </p>
           <input
             ref={inputRef}
