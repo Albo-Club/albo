@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -176,6 +176,13 @@ export default function ImportPortfolioOnboarding() {
               className="hidden"
               onChange={handleInputChange}
             />
+          </div>
+
+          <div className="flex items-start gap-2 text-sm text-muted-foreground mt-4 px-1">
+            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>
+              Pour faciliter l'extraction, le fichier doit au minimum contenir : <span className="font-medium">Nom de l'entreprise</span>, <span className="font-medium">Montant investi</span>, <span className="font-medium">Date d'investissement</span>, <span className="font-medium">Valorisation d'entrée</span>, <span className="font-medium">Nom de domaine de l'entreprise</span>
+            </p>
           </div>
 
           <p className="text-xs text-gray-400 text-center mt-3">

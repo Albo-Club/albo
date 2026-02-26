@@ -236,6 +236,54 @@ export default function Landing() {
         </section>
       </FadeSection>
 
+      {/* ─── SOURCES COMPATIBLES ─── */}
+      <FadeSection>
+        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 24px' }}>
+          <h2 style={{ fontFamily: serif, fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, textAlign: 'center' as const, marginBottom: 12 }}>
+            Toutes vos sources, un seul endroit
+          </h2>
+          <p style={{ fontFamily: sans, fontSize: 16, color: COLORS.gray, textAlign: 'center' as const, maxWidth: 640, margin: '0 auto 48px' }}>
+            Transférez vos pitch decks et reports par email — on s'occupe du reste, quel que soit le format.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+            {[
+              { name: 'DocSend', logo: 'https://cdn.simpleicons.org/docsend', fallbackColor: '#4842B7', desc: 'Liens DocSend détectés et analysés automatiquement' },
+              { name: 'Notion', logo: 'https://cdn.simpleicons.org/notion', fallbackColor: '#000000', desc: 'Pages Notion partagées importées en un clic' },
+              { name: 'Google Drive', logo: 'https://cdn.simpleicons.org/googledrive', fallbackColor: '#4285F4', desc: 'Fichiers Drive synchronisés automatiquement' },
+              { name: 'Email', logo: null, fallbackColor: '#6b6560', desc: "Transférez n'importe quel document par simple email" },
+            ].map((source) => (
+              <div key={source.name} style={{ background: COLORS.white, border: '1px solid #e5e2dd', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', textAlign: 'center' as const }}>
+                <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                  {source.logo ? (
+                    <span style={{ position: 'relative', display: 'inline-flex', width: 32, height: 32 }}>
+                      <img
+                        src={source.logo}
+                        alt={source.name}
+                        width={32}
+                        height={32}
+                        style={{ objectFit: 'contain' }}
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; const sib = e.currentTarget.nextElementSibling as HTMLElement; if (sib) sib.style.display = 'flex'; }}
+                      />
+                      <span style={{ display: 'none', width: 32, height: 32, borderRadius: '50%', background: source.fallbackColor, color: '#fff', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, fontFamily: sans }}>
+                        {source.name[0]}
+                      </span>
+                    </span>
+                  ) : (
+                    <Mail size={32} style={{ color: COLORS.gray }} />
+                  )}
+                </div>
+                <p style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: COLORS.black, marginBottom: 6 }}>{source.name}</p>
+                <p style={{ fontFamily: sans, fontSize: 13, color: COLORS.gray, lineHeight: 1.6 }}>{source.desc}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontFamily: sans, fontSize: 14, color: COLORS.grayLight, textAlign: 'center' as const, maxWidth: 640, margin: '32px auto 0' }}>
+            Il suffit de transférer un email à votre adresse Albo dédiée — les documents sont extraits et analysés par notre IA automatiquement.
+          </p>
+        </section>
+      </FadeSection>
+
       {/* ─── FEATURES ─── */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px' }}>
 

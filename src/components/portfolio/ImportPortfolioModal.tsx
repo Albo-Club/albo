@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { X, Upload, Loader2, CheckCircle2, XCircle, FileSpreadsheet } from 'lucide-react';
+import { X, Upload, Loader2, CheckCircle2, XCircle, FileSpreadsheet, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -235,6 +235,13 @@ export function ImportPortfolioModal({ open, onClose }: ImportPortfolioModalProp
               </p>
               <p className="text-muted-foreground text-sm mt-1">
                 ou cliquez pour sélectionner un fichier
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 text-sm text-muted-foreground px-1">
+              <Info className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>
+                Pour faciliter l'extraction, le fichier doit au minimum contenir : <span className="font-medium">Nom de l'entreprise</span>, <span className="font-medium">Montant investi</span>, <span className="font-medium">Date d'investissement</span>, <span className="font-medium">Valorisation d'entrée</span>, <span className="font-medium">Nom de domaine de l'entreprise</span>
               </p>
             </div>
 

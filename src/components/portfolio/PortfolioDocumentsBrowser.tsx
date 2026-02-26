@@ -344,19 +344,17 @@ function ListViewItem({
               Renommer
             </DropdownMenuItem>
           )}
-          {!isVirtualReportFile && <DropdownMenuSeparator />}
-          {!isVirtualReportFile && (
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-2" />
-              Supprimer
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Supprimer
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -443,19 +441,17 @@ function GridViewItem({
               Renommer
             </DropdownMenuItem>
           )}
-          {!isVirtualReportFile && <DropdownMenuSeparator />}
-          {!isVirtualReportFile && (
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-2" />
-              Supprimer
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Supprimer
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -983,8 +979,8 @@ export function PortfolioDocumentsBrowser({ companyId }: PortfolioDocumentsBrows
             <AlertDialogTitle>Supprimer "{itemToDelete?.name}" ?</AlertDialogTitle>
             <AlertDialogDescription>
               {itemToDelete?.type === 'folder'
-                ? "Ce dossier et tout son contenu seront définitivement supprimés. Cette action est irréversible."
-                : "Ce fichier sera définitivement supprimé. Cette action est irréversible."}
+                ? "Le dossier et tous ses documents seront effacés de votre workspace."
+                : "Êtes-vous sûr de vouloir supprimer ce document ? Cette action effacera l'élément de votre workspace."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
