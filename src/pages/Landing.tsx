@@ -102,11 +102,11 @@ function LogoImg({ domain, alt, size = 32 }: { domain: string; alt?: string; siz
   return (
     <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0, width: size, height: size }}>
       <img
-        src={`https://img.logo.dev/${domain}?token=${LOGO_TOKEN}&size=32&format=png`}
+        src={`https://img.logo.dev/${domain}?token=${LOGO_TOKEN}&size=64&format=png`}
         alt={alt || domain}
         width={size}
         height={size}
-        style={{ borderRadius: '50%', objectFit: 'cover' }}
+        style={{ borderRadius: '50%', objectFit: 'contain', background: '#fff' }}
         loading="lazy"
         onError={(e) => { e.currentTarget.style.display = 'none'; const sib = e.currentTarget.nextElementSibling as HTMLElement; if (sib) sib.style.display = 'flex'; }}
       />
