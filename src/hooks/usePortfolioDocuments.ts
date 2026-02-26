@@ -93,6 +93,7 @@ export function usePortfolioDocuments(companyId: string | undefined) {
         .from('portfolio_documents')
         .select('*')
         .eq('company_id', companyId)
+        .neq('is_archived', true)
         .order('type', { ascending: true })
         .order('name', { ascending: true });
 
@@ -417,24 +418,32 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     },
   });
 
-  // Delete mutation (recursive for folders)
+  // Delete mutation (soft-delete via is_archived for portfolio_documents, or mark report_files)
   const deleteMutation = useMutation({
     mutationFn: async (documentId: string) => {
-      // Get the document to check if it's a folder
       const doc = documents.find(d => d.id === documentId);
       if (!doc) throw new Error('Document not found');
 
-      // Collect all IDs to delete (recursive for folders)
-      const idsToDelete: string[] = [];
-      const pathsToDelete: string[] = [];
+      // For virtual report files (rf- prefix), we archive them differently
+      const isVirtual = documentId.startsWith('rf-');
+
+      if (isVirtual) {
+        // Extract real report_file id
+        const realId = documentId.replace('rf-', '');
+        // Soft-delete via is_archived on report_files
+        const { error } = await supabase
+          .from('report_files')
+          .update({ is_archived: true })
+          .eq('id', realId);
+        if (error) throw error;
+        return [documentId];
+      }
+
+      // Collect all IDs to archive (recursive for folders)
+      const idsToArchive: string[] = [];
 
       const collectChildren = (id: string) => {
-        idsToDelete.push(id);
-        const item = documents.find(d => d.id === id);
-        if (item?.storage_path) {
-          pathsToDelete.push(item.storage_path);
-        }
-        // Find children
+        idsToArchive.push(id);
         documents
           .filter(d => d.parent_id === id)
           .forEach(child => collectChildren(child.id));
@@ -442,26 +451,14 @@ export function usePortfolioDocuments(companyId: string | undefined) {
 
       collectChildren(documentId);
 
-      // Delete files from storage
-      if (pathsToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from('portfolio-documents')
-          .remove(pathsToDelete);
-        
-        if (storageError) {
-          console.error('Storage deletion error:', storageError);
-          // Continue with DB deletion even if storage fails
-        }
-      }
-
-      // Delete from database
+      // Soft-delete: set is_archived = true
       const { error } = await supabase
         .from('portfolio_documents')
-        .delete()
-        .in('id', idsToDelete);
+        .update({ is_archived: true, updated_at: new Date().toISOString() })
+        .in('id', idsToArchive);
 
       if (error) throw error;
-      return idsToDelete;
+      return idsToArchive;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
