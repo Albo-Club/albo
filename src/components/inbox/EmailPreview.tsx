@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/ui/SenderAvatar';
 import { formatEmailDateFull, getInitials, getDisplayName } from '@/lib/emailFormatters';
 import type { UnipileEmail } from '@/hooks/useInboxEmails';
 
@@ -63,12 +64,11 @@ export function EmailPreview({ email, onBack, isMobile }: EmailPreviewProps) {
 
         <div className="flex items-start gap-3">
           {/* Avatar */}
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-              {getInitials(senderName)}
-            </AvatarFallback>
-          </Avatar>
-          
+          <SenderAvatar
+            senderName={senderName}
+            senderEmail={senderEmail}
+            size="lg"
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>

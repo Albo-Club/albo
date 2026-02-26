@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { formatEmailDate, getDisplayName } from '@/lib/emailFormatters';
 import { fetchEmailDetailFn } from '@/hooks/useEmailDetail';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { SenderAvatar } from '@/components/ui/SenderAvatar';
 import type { UnipileEmail } from '@/hooks/useInboxEmails';
 
 interface EmailListItemProps {

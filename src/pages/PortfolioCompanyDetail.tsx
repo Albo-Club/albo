@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { Loader2, TriangleAlert, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
@@ -15,6 +15,7 @@ import { CompanyAIBanner } from "@/components/portfolio/CompanyAIBanner";
 import { CompanyEmailsTab } from "@/components/portfolio/CompanyEmailsTab";
 import { CompanyMetricsTab } from "@/components/portfolio/CompanyMetricsTab";
 import { DealTabs } from "@/components/deals/DealTabs";
+import { UploadReportModal } from "@/components/portfolio/UploadReportModal";
 
 export default function PortfolioCompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export default function PortfolioCompanyDetail() {
   const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
   const { data: allReports = [], isLoading: reportsLoading } = useCompanyReports(id);
   const { analysis } = useCompanyAIAnalysis(id || "");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   
   const sortedReports = useMemo(() => {
     const completed = allReports.filter(r => r.processing_status === 'completed');
@@ -88,6 +90,13 @@ export default function PortfolioCompanyDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
         <div className="lg:col-span-7 space-y-4">
           <CompanyAIBanner companyId={company.id} />
+          <div className="flex items-center justify-between">
+            <div /> {/* spacer */}
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setUploadModalOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Ajouter un report
+            </Button>
+          </div>
           <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} />
         </div>
         <div className="lg:col-span-3">
@@ -129,6 +138,13 @@ export default function PortfolioCompanyDetail() {
         emailsContent={emailsContent}
         foldersContent={documentsContent}
         metricsContent={metricsContent}
+      />
+
+      <UploadReportModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        companyId={company.id}
+        companyName={company.company_name}
       />
     </div>
   );

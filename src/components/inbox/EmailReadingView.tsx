@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/ui/SenderAvatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatEmailDateFull, getInitials, getDisplayName } from '@/lib/emailFormatters';
 import { useEmailDetail } from '@/hooks/useEmailDetail';
@@ -97,11 +98,12 @@ export function EmailReadingView({ email, onBack, accountId }: EmailReadingViewP
         <div className="p-5">
           {/* Header email : from, to, date */}
           <div className="flex items-start gap-3 mb-1">
-            <Avatar className="h-9 w-9 shrink-0 mt-0.5">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                {getInitials(senderName)}
-              </AvatarFallback>
-            </Avatar>
+            <SenderAvatar
+              senderName={senderName}
+              senderEmail={senderEmail}
+              size="md"
+              className="mt-0.5"
+            />
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
