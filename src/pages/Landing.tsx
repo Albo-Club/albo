@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useRef, useCallback } from 'react';
 import { Check, FileText, BarChart3, MessageCircle, Mail, ArrowRight, Upload } from 'lucide-react';
+import docsendLogo from '@/assets/logos/docsend.jpg';
+import notionLogo from '@/assets/logos/notion.svg';
+import googledriveLogo from '@/assets/logos/googledrive.png';
 
 /* ──────────────────────────────────────────────
    Inline styles – keeps everything in one file
@@ -247,9 +250,9 @@ export default function Landing() {
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
             {[
-              { name: 'DocSend', logo: 'https://cdn.simpleicons.org/docsend', fallbackColor: '#4842B7', desc: 'Liens DocSend détectés et analysés automatiquement' },
-              { name: 'Notion', logo: 'https://cdn.simpleicons.org/notion', fallbackColor: '#000000', desc: 'Pages Notion partagées importées en un clic' },
-              { name: 'Google Drive', logo: 'https://cdn.simpleicons.org/googledrive', fallbackColor: '#4285F4', desc: 'Fichiers Drive synchronisés automatiquement' },
+              { name: 'DocSend', logo: docsendLogo, fallbackColor: '#4842B7', desc: 'Liens DocSend détectés et analysés automatiquement' },
+              { name: 'Notion', logo: notionLogo, fallbackColor: '#000000', desc: 'Pages Notion partagées importées en un clic' },
+              { name: 'Google Drive', logo: googledriveLogo, fallbackColor: '#4285F4', desc: 'Fichiers Drive synchronisés automatiquement' },
               { name: 'Email', logo: null, fallbackColor: '#6b6560', desc: "Transférez n'importe quel document par simple email" },
             ].map((source) => (
               <div key={source.name} style={{ background: COLORS.white, border: '1px solid #e5e2dd', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', textAlign: 'center' as const }}>
