@@ -61,16 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAdminRole = async (userId: string) => {
     try {
-      // Vérifier si l'utilisateur est admin ou owner dans au moins un workspace
       const { data, error } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', userId)
-        .in('role', ['admin', 'owner'])
-        .limit(1)
-        .maybeSingle();
+        .from('profiles')
+        .select('is_super_admin')
+        .eq('id', userId)
+        .single();
 
-      setIsAdmin(!!data);
+      setIsAdmin(data?.is_super_admin === true);
     } catch (error) {
       console.error('Error checking admin role:', error);
       setIsAdmin(false);
