@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/ui/SenderAvatar';
 import { formatEmailDateFull, getInitials, getDisplayName } from '@/lib/emailFormatters';
 import { useEmailDetail } from '@/hooks/useEmailDetail';
 import { EmailBodyFrame } from '@/components/inbox/EmailBodyFrame';
@@ -43,11 +44,11 @@ export function CompanyEmailReadingView({ email, onBack }: CompanyEmailReadingVi
         <div className="p-6 space-y-4">
           {/* Header email */}
           <div className="flex items-start gap-4">
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                {getInitials(senderName)}
-              </AvatarFallback>
-            </Avatar>
+            <SenderAvatar
+              senderName={senderName}
+              senderEmail={senderEmail}
+              size="lg"
+            />
 
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-baseline justify-between gap-4">
