@@ -25,7 +25,6 @@ export interface CompanyReport {
   created_at: string;
   processed_at: string | null;
   processing_status: string | null;
-  dust_conversation_url: string | null;
 }
 
 export interface PortfolioCompanyFull {
@@ -76,8 +75,7 @@ export function usePortfolioCompany(companyId: string | undefined) {
             metrics,
             created_at,
             processed_at,
-            processing_status,
-            dust_conversation_url
+            processing_status
           )
         `)
         .eq('id', companyId)
