@@ -7,6 +7,25 @@ import { toast } from "sonner";
 
 const N8N_REPORT_WEBHOOK = "https://n8n.alboteam.com/webhook/reporting-front-end";
 
+function getFileType(mimeType: string): string {
+  if (mimeType === 'application/pdf') return 'report';
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv' || mimeType === 'application/csv') return 'excel';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'presentation';
+  if (mimeType.includes('word') || mimeType === 'application/msword') return 'document';
+  if (mimeType === 'text/plain') return 'text';
+  return 'other';
+}
+
+function sanitizeFileName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
 interface UseReportUploadOptions {
   companyId: string;
   companyName: string;
@@ -47,26 +66,34 @@ export function useReportUpload({ companyId, companyName, onSuccess }: UseReport
 
       // 2. Upload each file to storage + insert report_files
       for (const file of files) {
-        const storagePath = `${companyId}/${reportId}/${file.name}`;
+        const sanitizedName = sanitizeFileName(file.name);
+        const storagePath = `${companyId}/${reportId}/${sanitizedName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("report-files")
-          .upload(storagePath, file, { upsert: true });
+          .upload(storagePath, file, {
+            cacheControl: "no-cache",
+            upsert: false,
+          });
 
         if (uploadError) {
-          console.error("Upload error for", file.name, uploadError);
+          console.error("Erreur upload fichier report:", file.name, uploadError);
           continue;
         }
 
-        await supabase.from("report_files").insert({
+        const { error: insertError } = await supabase.from("report_files").insert({
           report_id: reportId,
-          file_name: file.name,
+          file_name: sanitizedName,
           original_file_name: file.name,
           storage_path: storagePath,
-          mime_type: file.type,
+          mime_type: file.type || "application/octet-stream",
           file_size_bytes: file.size,
-          file_type: "report",
+          file_type: getFileType(file.type || ""),
         });
+
+        if (insertError) {
+          console.error("Erreur insertion report_file:", insertError);
+        }
       }
 
       // 3. Send everything to N8N webhook

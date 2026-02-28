@@ -72,9 +72,9 @@ export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { workspace, allWorkspaces, isOwner, leaveWorkspace } = useWorkspace();
+  const { workspace, allWorkspaces, isOwner, userRole, members, leaveWorkspace } = useWorkspace();
   
-  const isAdminOrOwnerAnywhere = allWorkspaces.some(w => w.userRole === 'admin' || w.userRole === 'owner');
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,7 +103,7 @@ export default function Profile() {
       loadProfile();
       loadConnectedAccounts();
     }
-  }, [user]);
+  }, [user, workspace?.id]);
 
   // Écouter les changements en temps réel sur connected_accounts
   useEffect(() => {
@@ -181,13 +181,14 @@ export default function Profile() {
   };
 
   const loadConnectedAccounts = async () => {
-    if (!user) return;
+    if (!user || !workspace?.id) return;
     setLoadingAccounts(true);
     try {
       const { data, error } = await supabase
         .from('connected_accounts')
         .select('id, provider, provider_account_id, email, display_name, status, connected_at, last_synced_at, disconnected_at, channel_type')
         .eq('user_id', user.id)
+        .eq('workspace_id', workspace.id)
         .neq('status', 'disconnected')
         .order('connected_at', { ascending: false });
 
@@ -273,7 +274,9 @@ export default function Profile() {
   const handleConnectEmail = async () => {
     setConnectingEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-unipile-link');
+      const { data, error } = await supabase.functions.invoke('generate-unipile-link', {
+        body: { workspace_id: workspace?.id }
+      });
 
       if (error) throw error;
 
@@ -361,7 +364,23 @@ export default function Profile() {
   return (
     <div className="container max-w-3xl py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Mon Profil</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Mon Profil</h1>
+          {userRole === 'owner' && (
+            <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">Propriétaire</Badge>
+          )}
+          {userRole === 'admin' && (
+            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Administrateur</Badge>
+          )}
+          {userRole === 'member' && (
+            <Badge variant="secondary">Membre</Badge>
+          )}
+        </div>
+        {workspace && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Workspace actif : <span className="font-medium text-foreground">{workspace.name}</span>
+          </p>
+        )}
         <p className="text-muted-foreground">
           Gérez vos informations personnelles et préférences
         </p>
@@ -468,7 +487,7 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!isAdminOrOwnerAnywhere ? (
+            {!isAdminOrOwner ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 La connexion email est réservée aux administrateurs de workspace.
               </p>
