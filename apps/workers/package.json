@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@albo/shared": "*",
     "@anthropic-ai/sdk": "^0.52.0",
     "@supabase/supabase-js": "^2.49.1",
     "@trigger.dev/build": "^4.4.3",

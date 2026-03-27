@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.44",
-    "@mastra/core": "1.12.0",
+    "@mastra/core": "^1.13.0",
     "@mastra/evals": "^1.1.2",
     "@mastra/libsql": "^1.7.0",
     "@mastra/loggers": "^1.0.2",
@@ -35,6 +35,6 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "@mastra/core": "1.12.0"
+    "@mastra/core": "^1.13.0"
   }
 }

@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "albote-workers",
       script: "dist/server.js",
-      cwd: "/root/albote-workers",
+      cwd: "/root/albo/apps/workers",
       instances: 1,
       env: {
         NODE_ENV: "production",
@@ -12,8 +12,8 @@ module.exports = {
       // Restart si > 500MB RAM
       max_memory_restart: "500M",
       // Logs
-      error_file: "/root/albote-workers/logs/error.log",
-      out_file: "/root/albote-workers/logs/out.log",
+      error_file: "/root/albo/apps/workers/logs/error.log",
+      out_file: "/root/albo/apps/workers/logs/out.log",
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       // Auto-restart
