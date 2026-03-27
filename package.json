@@ -1,7 +1,7 @@
 {
   "name": "albo",
   "private": true,
-  "packageManager": "npm@11.11.0",
+  "packageManager": "npm@9.9.3",
   "workspaces": [
     "apps/*",
     "packages/*"
