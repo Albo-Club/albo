@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "kpvbcqilzfeitxzwhmou",
+        "--access-token",
+        "sbp_bbf760d4f58916175ff31f4fe80f17d0584845bc"
+      ]
+    },
+    "n8n": {
+      "type": "url",
+      "url": "https://n8n.alboteam.com/mcp-server/http"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+.mastra
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.turbo
+*.db
+*.db-shm
+*.db-wal
+bun.lockb

@@ -1,0 +1,2133 @@
+{
+  "name": "report@alboteam.com unipile webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les données binaires depuis N8N\nconst binaryData = items[0].binary || {};\n\n// Convertir les clés binaires en array avec infos\nconst files = Object.entries(binaryData).map(([key, data]) => ({\n  key: key,\n  fileName: data.fileName || key,\n  mimeType: data.mimeType || '',\n  size: data.data ? Buffer.from(data.data, 'base64').length : 0,\n  data: data\n}));\n\nconsole.log('All files:', files.map(f => ({ \n  name: f.fileName, \n  type: f.mimeType, \n  size: `${(f.size / 1024 / 1024).toFixed(2)}MB` \n})));\n\n// Filtrer : uniquement les PDFs\nconst pdfs = files.filter(f => {\n  const isPDF = f.mimeType === 'application/pdf' || \n                f.fileName.toLowerCase().endsWith('.pdf');\n  return isPDF;\n});\n\nconsole.log(`PDFs found: ${pdfs.length}`);\n\nif (pdfs.length === 0) {\n  // Aucun PDF trouvé\n  return [{\n    json: {\n      hasPDF: false,\n      message: \"Aucun PDF détecté\",\n      filesFound: files.map(f => ({ \n        name: f.fileName, \n        type: f.mimeType, \n        size: f.size \n      }))\n    }\n  }];\n}\n\n// Trouver le PDF le plus lourd\nconst largestPDF = pdfs.reduce((max, current) => {\n  return current.size > max.size ? current : max;\n});\n\nconsole.log(`Selected PDF: ${largestPDF.fileName} (${(largestPDF.size / 1024 / 1024).toFixed(2)}MB)`);\n\n// Retourner UNIQUEMENT le PDF sélectionné en binary\nconst result = [{\n  json: {\n    hasPDF: true,\n    selectedFile: largestPDF.fileName,\n    sizeMB: (largestPDF.size / 1024 / 1024).toFixed(2),\n    mimeType: largestPDF.mimeType,\n    message: `PDF sélectionné: ${largestPDF.fileName}`\n  },\n  binary: {\n    // ✅ IMPORTANT : Passer UNIQUEMENT le PDF sous la clé \"data\"\n    data: {\n      data: largestPDF.data.data,\n      mimeType: largestPDF.data.mimeType,\n      fileName: largestPDF.data.fileName\n    }\n  }\n}];\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        1568
+      ],
+      "id": "b67e0fba-0347-4078-a265-2a8bd54cd1fe",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e77fb4e5-7478-4443-8904-fc55005043d8",
+              "leftValue": "={{ $json.hasPDF }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        96,
+        1568
+      ],
+      "id": "020ffa6b-5fd1-4dd3-829d-400a97ac4a70",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Premier filtre').item.json.from.value[0].address }}",
+        "subject": "=Albote | {{ $('Premier filtre').item.json.subject }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n</head>\n<body style=\"margin: 0; padding: 20px; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;\">\n    <table role=\"presentation\" width=\"100%\" style=\"max-width: 400px;\" cellspacing=\"0\" cellpadding=\"0\">\n        \n        <!-- Icône d'erreur -->\n        <tr>\n            <td align=\"center\" style=\"padding: 0 0 16px 0;\">\n                <div style=\"width: 48px; height: 48px; background-color: #fef2f2; border-radius: 50%; line-height: 48px; text-align: center;\">\n                    <span style=\"font-size: 22px;\">⚠️</span>\n                </div>\n            </td>\n        </tr>\n        \n        <!-- Titre -->\n        <tr>\n            <td align=\"center\" style=\"padding: 0 0 12px 0;\">\n                <h1 style=\"margin: 0; font-size: 18px; font-weight: 600; color: #1a1a1a;\">\n                    Une erreur est survenue\n                </h1>\n            </td>\n        </tr>\n        \n        <!-- Message d'erreur -->\n        <tr>\n            <td align=\"center\" style=\"padding: 0 0 20px 0;\">\n                <p style=\"margin: 0; font-size: 14px; line-height: 1.5; color: #666666;\">\n                    Doc Send\n                </p>\n            </td>\n        </tr>\n        \n        <!-- Détails techniques -->\n        <tr>\n            <td style=\"padding: 0 0 24px 0;\">\n                <div style=\"background-color: #f9fafb; border-radius: 6px; padding: 12px 14px;\">\n                    <code style=\"font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 11px; color: #ef4444; word-break: break-all;\">\n                      {{ $('Doc send2pdf').item.json.error.message }}  \n                    </code>\n                </div>\n            </td>\n        </tr>\n        \n        <!-- Support -->\n        <tr>\n            <td align=\"center\" style=\"padding: 16px 0 0 0; border-top: 1px solid #f0f0f0;\">\n                <p style=\"margin: 0 0 2px 0; font-size: 10px; color: #999999; text-transform: uppercase; letter-spacing: 0.05em;\">\n                    Support\n                </p>\n                <p style=\"margin: 0; font-size: 12px;\">\n                    <a href=\"mailto:hello@alboteam.com\" style=\"color: #1a1a1a; text-decoration: none;\">hello@alboteam.com</a>\n                </p>\n            </td>\n        </tr>\n        \n    </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "bccList": "={{ $('Webhook').item.json.cc.value[1].address }}",
+          "ccList": "={{ $('Webhook').item.json.from.value[0].address }}",
+          "replyTo": "={{ $('Webhook').item.json.cc.value[0].address }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        1728
+      ],
+      "id": "5d402bb8-c73c-4f1e-a1ea-cf2972780477",
+      "name": "Send a message3",
+      "webhookId": "9ded97ce-247d-445c-b3a4-c03cf6a4c6f5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tsmFIX7Q0wVDr1Sc",
+          "name": "deck@alboteam"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Stock supabase\nCréation ID\nStock files deck ",
+        "height": 224,
+        "width": 1616
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        1104
+      ],
+      "id": "90fa790a-e8f4-4b0f-abcb-35013b860e02",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.finalUrl }} {{ $('Premier filtre').item.json.primaryDeckUrl }}",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        208,
+        1296
+      ],
+      "id": "7987bb14-d0ec-4346-95d0-b70cf59dba56",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "6funxt51obXMO1ui",
+          "name": "Drive account Mael"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1216,
+        816
+      ],
+      "id": "b1a7c36b-d413-4ea6-9cb1-943c4ae3d4e5",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://docsend2pdf.com/api/convert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $('Premier filtre').item.json.docSendApiPayload.url }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Gmail Trigger').item.json.from.value[0].address }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -320,
+        1568
+      ],
+      "id": "75fc6f1a-a601-4525-87f4-b760ec1ddbcf",
+      "name": "Doc send2pdf",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data;\n\n// Extraire l'URL du meta refresh ou du JavaScript\nlet finalUrl = null;\nlet fileId = null;\n\n// Pattern 1: meta http-equiv=\"refresh\"\nconst metaMatch = html.match(/content=\"[^;]*;([^\"]+)\"/);\nif (metaMatch) {\n  finalUrl = metaMatch[1];\n}\n\n// Pattern 2: top.location dans le JS (avec les slashes échappés)\nif (!finalUrl) {\n  const jsMatch = html.match(/top\\.location='([^']+)'/);\n  if (jsMatch) {\n    finalUrl = jsMatch[1].replace(/\\\\\\//g, '/');\n  }\n}\n\n// Extraire le file ID Google Drive\nif (finalUrl) {\n  const idMatch = finalUrl.match(/\\/d\\/([a-zA-Z0-9_-]+)/);\n  fileId = idMatch ? idMatch[1] : null;\n}\n\nreturn {\n  finalUrl: finalUrl,\n  googleDriveFileId: fileId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        1392
+      ],
+      "id": "f25b00e9-8c6c-42ce-8b47-10a8a6610a32",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Premier filtre').item.json.deckLinkUrl }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.deckLinkUrl }}"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -320,
+        1392
+      ],
+      "id": "5f9fe432-27f9-4f8e-9b22-1731e0407f54",
+      "name": "By pass SendBim"
+    },
+    {
+      "parameters": {
+        "url": "https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1/profiles",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,email"
+            },
+            {
+              "name": "email",
+              "value": "=eq.{{ $json.from.value[0].address }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTk1ODUzNCwiZXhwIjoyMDgxNTM0NTM0fQ.O7XV1GMQAWk4rutBfi4u7tgzj3P19K3gm_5akPVkxG8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTk1ODUzNCwiZXhwIjoyMDgxNTM0NTM0fQ.O7XV1GMQAWk4rutBfi4u7tgzj3P19K3gm_5akPVkxG8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2560,
+        1712
+      ],
+      "id": "a45e15d7-0a0c-436c-833f-e1461bbff98b",
+      "name": "HTTP Request",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a4c08893-8724-42de-86b1-c11eb6ab139f",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2384,
+        1712
+      ],
+      "id": "92344209-53f6-497f-affa-93c66fc796c4",
+      "name": "A un compte ?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}",
+        "subject": "🚀 Votre analyse est presque prête - Créez votre compte Albo",
+        "message": "=<!DOCTYPE html> <html lang=\"fr\"> <head>     <meta charset=\"UTF-8\">     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">     <title>Créez votre compte Albo</title> </head> <body style=\"margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\">          <!-- Container principal -->     <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f4f5;\">         <tr>             <td align=\"center\" style=\"padding: 40px 20px;\">                                  <!-- Card blanche -->                 <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"max-width: 480px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);\">                                          <!-- Header avec Logo -->                     <tr>                         <td align=\"center\" style=\"padding: 40px 40px 24px 40px;\">                             <!-- Logo Albo SVG -->                             <svg width=\"120\" height=\"44\" viewBox=\"0 0 440 161\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">                                 <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M196.946 125.118H197.382L197.375 125.124C204.114 146.755 223.231 159.998 247.564 159.998C281.024 159.998 304.271 135.943 304.271 100.402C304.271 64.8605 280.373 40.1377 245.828 40.1377C228.226 40.1377 211.503 46.5348 199.333 57.7959V0L179.13 4.41456V160H199.333L196.946 125.118ZM241.268 58.8995C267.774 58.8995 283.417 74.1324 283.417 100.177C283.417 126.003 267.995 141.454 241.489 141.454C214.983 141.454 199.34 126.222 199.34 100.177C199.34 74.1324 214.762 58.8995 241.268 58.8995ZM376.34 40.1394C339.401 40.1394 312.245 65.0803 312.245 100.179C312.245 135.277 339.837 160 376.34 160C412.844 160 440 135.277 440 100.179C440 65.0803 413.279 40.1394 376.34 40.1394ZM376.34 58.9013C402.632 58.9013 419.14 75.8986 419.14 99.9606C419.14 124.241 403.067 141.456 376.34 141.456C349.613 141.456 333.105 124.023 333.105 99.9606C333.105 75.8986 350.049 58.9013 376.34 58.9013ZM0 127.424C0 106.823 15.4222 93.9689 43.0144 93.9689C58.8725 93.9689 73.215 97.7363 85.1638 105.046C86.25 100.834 86.9005 96.1842 86.9005 91.7536C86.9005 70.4824 74.9517 58.2981 51.4898 58.2981C31.7161 58.2981 22.3756 68.2671 24.7692 84.2188L6.30289 86.4341C2.17251 58.2981 20.4242 40.5754 52.7972 40.5754C87.1216 40.5754 107.546 58.517 107.546 91.0903C107.546 100.615 105.159 110.139 101.028 118.782C109.068 128.088 115.15 139.828 119.059 154.453L102.329 160.435C99.7209 150.466 95.8117 141.824 90.8162 134.515C77.9958 150.022 58.879 160.435 38.4548 160.435C13.0351 160.435 0 147.588 0 127.424ZM39.7591 142.713C55.8368 142.712 69.521 133.851 77.9958 121.223C68.2195 114.358 56.4853 110.591 42.5851 110.591C27.8134 110.591 20.4242 117.018 20.4242 127.205C20.4242 136.51 27.591 142.712 39.7591 142.713ZM39.7591 142.713C39.7579 142.713 39.7568 142.713 39.7557 142.713H39.7622C39.7611 142.713 39.7601 142.713 39.7591 142.713ZM155.209 0L135.006 4.41456V160H155.209V0Z\" fill=\"#18181b\"/>                             </svg>                         </td>                     </tr>                                          <!-- Badge \"Vous y êtes presque\" -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 16px 40px;\">                             <span style=\"display: inline-block; background-color: #f4f4f5; color: #71717a; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;\">                                 🚀 Vous y êtes presque !                             </span>                         </td>                     </tr>                                          <!-- Titre principal -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 12px 40px;\">                             <h1 style=\"margin: 0; font-size: 24px; font-weight: 600; color: #18181b; line-height: 1.3;\">                                 Votre analyse est presque prête                             </h1>                         </td>                     </tr>                                          <!-- Sous-titre -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 32px 40px;\">                             <p style=\"margin: 0; font-size: 15px; color: #71717a; line-height: 1.6;\">                                 Nous avons bien reçu votre pitch deck !                             </p>                         </td>                     </tr>                                          <!-- Contenu principal -->                     <tr>                         <td style=\"padding: 0 40px 32px 40px;\">                             <p style=\"margin: 0 0 20px 0; font-size: 15px; color: #3f3f46; line-height: 1.7;\">                                 Pour recevoir votre <strong style=\"color: #18181b;\">mémo d'investissement détaillé</strong>, il vous suffit de créer votre compte Albo en quelques secondes.                             </p>                         </td>                     </tr>                                          <!-- Bouton CTA -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 32px 40px;\">                             <a href=\"https://app.alboteam.com/auth\"                                 style=\"display: inline-block; background-color: #18181b; color: #ffffff; font-size: 15px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 8px; transition: background-color 0.2s;\">                                 Créer mon compte →                             </a>                         </td>                     </tr>                                          <!-- Info box -->                     <tr>                         <td style=\"padding: 0 40px 40px 40px;\">                             <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #fafafa; border-radius: 8px; border: 1px solid #e4e4e7;\">                                 <tr>                                     <td style=\"padding: 16px 20px;\">                                         <p style=\"margin: 0; font-size: 13px; color: #52525b; line-height: 1.6;\">                                             <strong style=\"color: #18181b;\">Prochaine étape :</strong><br>                                             Une fois inscrit avec l'adresse <span style=\"color: #18181b; font-weight: 500;\">{{ $json.email }}</span>, renvoyez simplement votre deck à notre adresse email et votre analyse sera générée automatiquement.                                         </p>                                     </td>                                 </tr>                             </table>                         </td>                     </tr>                                          <!-- Divider -->                     <tr>                         <td style=\"padding: 0 40px;\">                             <hr style=\"border: none; border-top: 1px solid #e4e4e7; margin: 0;\">                         </td>                     </tr>                                          <!-- Footer -->                     <tr>                         <td align=\"center\" style=\"padding: 24px 40px 32px 40px;\">                             <p style=\"margin: 0 0 8px 0; font-size: 14px; color: #3f3f46;\">                                 À très vite sur Albo !                             </p>                             <p style=\"margin: 0; font-size: 13px; color: #a1a1aa;\">                                 L'équipe Albo                             </p>                         </td>                     </tr>                                      </table>                                  <!-- Footer externe -->                 <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"max-width: 480px;\">                     <tr>                         <td align=\"center\" style=\"padding: 24px 20px;\">                             <p style=\"margin: 0; font-size: 12px; color: #a1a1aa; line-height: 1.5;\">                                 Cet email a été envoyé automatiquement suite à la réception d'un email de votre part.<br>                                 <a href=\"https://alboteam.com\" style=\"color: #71717a; text-decoration: underline;\">alboteam.com</a>                             </p>                         </td>                     </tr>                 </table>                              </td>         </tr>     </table>      </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -2224,
+        1648
+      ],
+      "id": "8409298a-c662-4c0d-b8f5-93e97d653316",
+      "name": "Send a message1",
+      "webhookId": "c277bedd-afb5-4b25-b2c4-3a632c7eb299",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tsmFIX7Q0wVDr1Sc",
+          "name": "deck@alboteam"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NŒUD CODE N8N : Parse Notion Page to Markdown + HTML\n// À placer après \"Fetch Notion Data\" (HTTP Request)\n// ============================================\n// Produit DEUX formats :\n// - contentMarkdown : pour l'agent Dust\n// - html_content : pour Supabase (affichage dans l'app)\n\nconst notionData = $input.first().json;\n\n// Gérer le cas où la réponse est un tableau\nconst recordMap = Array.isArray(notionData) \n  ? notionData[0]?.recordMap \n  : notionData.recordMap;\n\nif (!recordMap) {\n  return [{ \n    json: { \n      success: false,\n      error: 'No recordMap found in Notion response',\n      contentMarkdown: null,\n      html_content: null,\n      source_type: 'notion'\n    } \n  }];\n}\n\nconst blocks = recordMap.block || {};\n\n// ========== FONCTIONS UTILITAIRES ==========\n\n/**\n * Échappe les caractères HTML spéciaux\n */\nfunction escapeHtml(text) {\n  if (typeof text !== 'string') return '';\n  return text\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#039;');\n}\n\n/**\n * Extrait le texte d'une propriété title de Notion avec formatage Markdown\n */\nfunction extractTitleAsMarkdown(titleArray) {\n  if (!titleArray || !Array.isArray(titleArray)) return '';\n  \n  return titleArray.map(item => {\n    if (Array.isArray(item)) {\n      let text = item[0] || '';\n      \n      const annotations = item[1];\n      if (annotations && Array.isArray(annotations)) {\n        annotations.forEach(ann => {\n          if (Array.isArray(ann)) {\n            const type = ann[0];\n            switch(type) {\n              case 'b': text = `**${text}**`; break;\n              case 'i': text = `*${text}*`; break;\n              case 's': text = `~~${text}~~`; break;\n              case 'c': text = `\\`${text}\\``; break;\n              case 'a': text = `[${text}](${ann[1]})`; break;\n            }\n          }\n        });\n      }\n      return text;\n    }\n    return String(item || '');\n  }).join('');\n}\n\n/**\n * Extrait le texte d'une propriété title de Notion avec formatage HTML\n */\nfunction extractTitleAsHtml(titleArray) {\n  if (!titleArray || !Array.isArray(titleArray)) return '';\n  \n  return titleArray.map(item => {\n    if (Array.isArray(item)) {\n      let text = escapeHtml(item[0] || '');\n      \n      const annotations = item[1];\n      if (annotations && Array.isArray(annotations)) {\n        annotations.forEach(ann => {\n          if (Array.isArray(ann)) {\n            const type = ann[0];\n            switch(type) {\n              case 'b': text = `<strong>${text}</strong>`; break;\n              case 'i': text = `<em>${text}</em>`; break;\n              case 's': text = `<del>${text}</del>`; break;\n              case 'c': text = `<code>${text}</code>`; break;\n              case 'a': text = `<a href=\"${escapeHtml(ann[1])}\" target=\"_blank\">${text}</a>`; break;\n              case 'h': \n                if (ann[1] && ann[1] !== 'default' && ann[1] !== 'default_background') {\n                  text = `<span class=\"highlight-${ann[1]}\">${text}</span>`;\n                }\n                break;\n            }\n          }\n        });\n      }\n      return text;\n    }\n    return escapeHtml(String(item || ''));\n  }).join('');\n}\n\n/**\n * Extrait le texte brut (sans formatage)\n */\nfunction extractTitlePlain(titleArray) {\n  if (!titleArray || !Array.isArray(titleArray)) return '';\n  return titleArray.map(item => Array.isArray(item) ? item[0] || '' : String(item || '')).join('');\n}\n\n/**\n * Convertit un bloc Notion en Markdown\n */\nfunction blockToMarkdown(block, level = 0) {\n  if (!block || !block.value) return '';\n  \n  const value = block.value;\n  const type = value.type;\n  const props = value.properties || {};\n  const title = extractTitleAsMarkdown(props.title);\n  const indent = '  '.repeat(level);\n  \n  switch (type) {\n    case 'page':\n      return `# ${title}\\n\\n`;\n    case 'text':\n      if (!title) return '\\n';\n      return `${indent}${title}\\n\\n`;\n    case 'header':\n      return `# ${title}\\n\\n`;\n    case 'sub_header':\n      return `## ${title}\\n\\n`;\n    case 'sub_sub_header':\n      return `### ${title}\\n\\n`;\n    case 'bulleted_list':\n      return `${indent}- ${title}\\n`;\n    case 'numbered_list':\n      return `${indent}1. ${title}\\n`;\n    case 'to_do':\n      const checked = props.checked?.[0]?.[0] === 'Yes' ? 'x' : ' ';\n      return `${indent}- [${checked}] ${title}\\n`;\n    case 'toggle':\n      return `<details>\\n<summary>${title}</summary>\\n\\n`;\n    case 'quote':\n      const quoteLines = title.split('\\n').map(line => `> ${line}`).join('\\n');\n      return `${quoteLines}\\n\\n`;\n    case 'callout':\n      const emojiMd = props.emoji?.[0]?.[0] || '💡';\n      return `> ${emojiMd} **Note:** ${title}\\n\\n`;\n    case 'divider':\n      return '---\\n\\n';\n    case 'code':\n      const langMd = props.language?.[0]?.[0] || '';\n      return `\\`\\`\\`${langMd}\\n${extractTitlePlain(props.title)}\\n\\`\\`\\`\\n\\n`;\n    case 'equation':\n      return `$$\\n${title}\\n$$\\n\\n`;\n    case 'table':\n      return `{{TABLE:${value.id}}}\\n\\n`;\n    case 'collection_view':\n      return `{{COLLECTION:${value.id}}}\\n\\n`;\n    case 'image':\n      const imgSrcMd = props.source?.[0]?.[0] || '';\n      const imgCaptionMd = extractTitleAsMarkdown(props.caption) || '';\n      return `{{IMAGE:${value.id}|${imgSrcMd}|${imgCaptionMd}}}\\n\\n`;\n    case 'video':\n      const vidSrcMd = props.source?.[0]?.[0] || '';\n      return `[🎥 Vidéo](${vidSrcMd})\\n\\n`;\n    case 'embed':\n    case 'bookmark':\n      const embedUrlMd = props.source?.[0]?.[0] || value.format?.bookmark_cover || '';\n      return `[🔗 ${title || embedUrlMd}](${embedUrlMd})\\n\\n`;\n    case 'file':\n      const fileUrlMd = props.source?.[0]?.[0] || '';\n      const fileNameMd = props.title?.[0]?.[0] || 'Fichier';\n      return `[📎 ${fileNameMd}](${fileUrlMd})\\n\\n`;\n    default:\n      return title ? `${indent}${title}\\n\\n` : '';\n  }\n}\n\n/**\n * Convertit un bloc Notion en HTML\n */\nfunction blockToHtml(block) {\n  if (!block || !block.value) return '';\n  \n  const value = block.value;\n  const type = value.type;\n  const props = value.properties || {};\n  const title = extractTitleAsHtml(props.title);\n  \n  switch (type) {\n    case 'page':\n      return `<h1 class=\"notion-title\">${title}</h1>\\n`;\n    case 'text':\n      if (!title) return '';\n      return `<p>${title.replace(/\\n/g, '<br>')}</p>\\n`;\n    case 'header':\n      return `<h1>${title}</h1>\\n`;\n    case 'sub_header':\n      return `<h2>${title}</h2>\\n`;\n    case 'sub_sub_header':\n      return `<h3>${title}</h3>\\n`;\n    case 'bulleted_list':\n      return `<li>${title.replace(/\\n/g, '<br>')}</li>\\n`;\n    case 'numbered_list':\n      return `<li>${title.replace(/\\n/g, '<br>')}</li>\\n`;\n    case 'to_do':\n      const checkedHtml = props.checked?.[0]?.[0] === 'Yes';\n      const checkbox = checkedHtml ? '<input type=\"checkbox\" checked disabled>' : '<input type=\"checkbox\" disabled>';\n      return `<li class=\"todo-item\">${checkbox} ${title}</li>\\n`;\n    case 'toggle':\n      return `<details class=\"notion-toggle\"><summary>${title}</summary>\\n<div class=\"toggle-content\">\\n`;\n    case 'quote':\n      return `<blockquote>${title.replace(/\\n/g, '<br>')}</blockquote>\\n`;\n    case 'callout':\n      const emojiHtml = props.emoji?.[0]?.[0] || '💡';\n      return `<div class=\"callout\"><span class=\"callout-emoji\">${emojiHtml}</span><div class=\"callout-content\">${title}</div></div>\\n`;\n    case 'divider':\n      return '<hr>\\n';\n    case 'code':\n      const langHtml = props.language?.[0]?.[0] || '';\n      const codeContent = escapeHtml(extractTitlePlain(props.title));\n      return `<pre><code class=\"language-${langHtml}\">${codeContent}</code></pre>\\n`;\n    case 'equation':\n      return `<div class=\"equation\">${title}</div>\\n`;\n    case 'table':\n      return `{{TABLE:${value.id}}}\\n`;\n    case 'collection_view':\n      return `<div class=\"notion-collection\" data-id=\"${value.id}\"><em>[Collection/Galerie]</em></div>\\n`;\n    case 'image':\n      const imgSrcHtml = props.source?.[0]?.[0] || '';\n      const imgCaptionHtml = extractTitleAsHtml(props.caption) || '';\n      if (imgSrcHtml) {\n        return `<figure class=\"notion-image\">\n  <img src=\"${escapeHtml(imgSrcHtml)}\" alt=\"${escapeHtml(imgCaptionHtml)}\" loading=\"lazy\">\n  ${imgCaptionHtml ? `<figcaption>${imgCaptionHtml}</figcaption>` : ''}\n</figure>\\n`;\n      }\n      return '';\n    case 'video':\n      const vidSrcHtml = props.source?.[0]?.[0] || '';\n      return `<div class=\"notion-video\"><a href=\"${escapeHtml(vidSrcHtml)}\" target=\"_blank\">🎥 Vidéo</a></div>\\n`;\n    case 'embed':\n    case 'bookmark':\n      const embedUrlHtml = props.source?.[0]?.[0] || value.format?.bookmark_cover || '';\n      return `<div class=\"notion-embed\"><a href=\"${escapeHtml(embedUrlHtml)}\" target=\"_blank\">🔗 ${title || escapeHtml(embedUrlHtml)}</a></div>\\n`;\n    case 'file':\n      const fileUrlHtml = props.source?.[0]?.[0] || '';\n      const fileNameHtml = extractTitlePlain(props.title) || 'Fichier';\n      return `<div class=\"notion-file\"><a href=\"${escapeHtml(fileUrlHtml)}\" target=\"_blank\">📎 ${escapeHtml(fileNameHtml)}</a></div>\\n`;\n    default:\n      return title ? `<p>${title}</p>\\n` : '';\n  }\n}\n\n/**\n * Construit un tableau Markdown\n */\nfunction buildTableMarkdown(tableBlockId, blocks) {\n  const tableBlock = blocks[tableBlockId]?.value;\n  if (!tableBlock || !tableBlock.content) return '';\n  \n  const format = tableBlock.format || {};\n  const columnOrder = format.table_block_column_order || [];\n  const columnFormat = format.table_block_column_format || {};\n  const hasHeader = format.table_block_column_header || false;\n  \n  if (columnOrder.length === 0) return '';\n  \n  let markdown = '\\n';\n  const rows = tableBlock.content\n    .map(rowId => blocks[rowId]?.value)\n    .filter(row => row && row.type === 'table_row');\n  \n  if (rows.length === 0) return '';\n  \n  rows.forEach((row, rowIndex) => {\n    const props = row.properties || {};\n    const cells = columnOrder.map(colId => {\n      const cellValue = props[colId];\n      const text = extractTitleAsMarkdown(cellValue) || '';\n      return text.replace(/\\|/g, '\\\\|');\n    });\n    \n    markdown += `| ${cells.join(' | ')} |\\n`;\n    \n    if (rowIndex === 0) {\n      const separators = columnOrder.map(colId => {\n        const width = columnFormat[colId]?.width;\n        return width ? '-'.repeat(Math.min(Math.floor(width / 10), 20)) : '---';\n      });\n      markdown += `| ${separators.join(' | ')} |\\n`;\n    }\n  });\n  \n  return markdown + '\\n';\n}\n\n/**\n * Construit un tableau HTML\n */\nfunction buildTableHtml(tableBlockId, blocks) {\n  const tableBlock = blocks[tableBlockId]?.value;\n  if (!tableBlock || !tableBlock.content) return '<p><em>[Tableau non disponible]</em></p>\\n';\n  \n  const format = tableBlock.format || {};\n  const columnOrder = format.table_block_column_order || [];\n  const hasHeader = format.table_block_column_header || false;\n  \n  if (columnOrder.length === 0) return '<p><em>[Tableau vide]</em></p>\\n';\n  \n  const rows = tableBlock.content\n    .map(rowId => blocks[rowId]?.value)\n    .filter(row => row && row.type === 'table_row');\n  \n  if (rows.length === 0) return '<p><em>[Tableau vide]</em></p>\\n';\n  \n  let html = '<table class=\"notion-table\">\\n';\n  \n  rows.forEach((row, rowIndex) => {\n    const props = row.properties || {};\n    const isHeaderRow = hasHeader && rowIndex === 0;\n    const tag = isHeaderRow ? 'th' : 'td';\n    \n    if (isHeaderRow) html += '<thead>\\n';\n    if (rowIndex === 1 && hasHeader) html += '<tbody>\\n';\n    \n    html += '<tr>\\n';\n    columnOrder.forEach(colId => {\n      const cellValue = props[colId];\n      const cellHtml = extractTitleAsHtml(cellValue) || '';\n      html += `  <${tag}>${cellHtml}</${tag}>\\n`;\n    });\n    html += '</tr>\\n';\n    \n    if (isHeaderRow) html += '</thead>\\n';\n  });\n  \n  if (hasHeader && rows.length > 1) html += '</tbody>\\n';\n  html += '</table>\\n';\n  \n  return html;\n}\n\n// ========== TRAITEMENT PRINCIPAL ==========\n\nconst pageBlock = Object.values(blocks).find(b => \n  b.value?.type === 'page' && b.value?.alive\n);\n\nif (!pageBlock) {\n  return [{ \n    json: { \n      success: false,\n      error: 'Page block not found',\n      contentMarkdown: null,\n      html_content: null,\n      source_type: 'notion'\n    } \n  }];\n}\n\nconst pageValue = pageBlock.value;\nconst pageTitleMarkdown = extractTitleAsMarkdown(pageValue.properties?.title);\nconst pageTitleHtml = extractTitleAsHtml(pageValue.properties?.title);\nconst pageTitlePlain = extractTitlePlain(pageValue.properties?.title);\nconst contentBlocks = pageValue.content || [];\n\n// ===== CONSTRUIRE LE MARKDOWN =====\nlet markdown = `# ${pageTitleMarkdown}\\n\\n`;\n\nfunction processBlocksMarkdown(blockIds, level = 0) {\n  let md = '';\n  \n  for (const blockId of blockIds) {\n    const block = blocks[blockId];\n    if (!block || !block.value || !block.value.alive) continue;\n    \n    const value = block.value;\n    \n    if (value.type === 'table') {\n      md += buildTableMarkdown(blockId, blocks);\n    } else {\n      md += blockToMarkdown(block, level);\n    }\n    \n    if (value.content && value.type !== 'table') {\n      md += processBlocksMarkdown(value.content, level + 1);\n      if (value.type === 'toggle') {\n        md += '</details>\\n\\n';\n      }\n    }\n  }\n  \n  return md;\n}\n\nmarkdown += processBlocksMarkdown(contentBlocks);\nmarkdown = markdown.replace(/\\n{3,}/g, '\\n\\n').trim();\n\n// ===== CONSTRUIRE LE HTML =====\nlet html = `<article class=\"notion-page\">\\n`;\nhtml += `<h1 class=\"notion-page-title\">${pageTitleHtml}</h1>\\n`;\n\nlet inBulletList = false;\nlet inNumberedList = false;\n\nfunction processBlocksHtml(blockIds) {\n  let result = '';\n  \n  for (const blockId of blockIds) {\n    const block = blocks[blockId];\n    if (!block || !block.value || !block.value.alive) continue;\n    \n    const value = block.value;\n    const type = value.type;\n    \n    // Gestion des listes\n    if (type === 'bulleted_list' && !inBulletList) {\n      if (inNumberedList) { result += '</ol>\\n'; inNumberedList = false; }\n      result += '<ul>\\n';\n      inBulletList = true;\n    } else if (type === 'numbered_list' && !inNumberedList) {\n      if (inBulletList) { result += '</ul>\\n'; inBulletList = false; }\n      result += '<ol>\\n';\n      inNumberedList = true;\n    } else if (type !== 'bulleted_list' && type !== 'numbered_list' && type !== 'to_do') {\n      if (inBulletList) { result += '</ul>\\n'; inBulletList = false; }\n      if (inNumberedList) { result += '</ol>\\n'; inNumberedList = false; }\n    }\n    \n    if (type === 'table') {\n      result += buildTableHtml(blockId, blocks);\n    } else {\n      const blockHtml = blockToHtml(block);\n      if (blockHtml.includes('{{TABLE:')) {\n        const tableId = blockHtml.match(/{{TABLE:([^}]+)}}/)?.[1];\n        if (tableId) result += buildTableHtml(tableId, blocks);\n      } else {\n        result += blockHtml;\n      }\n    }\n    \n    if (value.content && type !== 'table') {\n      result += processBlocksHtml(value.content);\n      if (type === 'toggle') {\n        result += '</div></details>\\n';\n      }\n    }\n  }\n  \n  return result;\n}\n\nhtml += processBlocksHtml(contentBlocks);\n\nif (inBulletList) html += '</ul>\\n';\nif (inNumberedList) html += '</ol>\\n';\n\nhtml += '</article>';\n\n// Ajouter les styles CSS\nconst styledHtml = `<style>\n.notion-page { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; }\n.notion-page-title { font-size: 1.75rem; font-weight: 600; margin-bottom: 1.5rem; }\n.notion-page h2 { font-size: 1.4rem; margin-top: 1.5rem; margin-bottom: 0.75rem; }\n.notion-page h3 { font-size: 1.2rem; margin-top: 1.25rem; margin-bottom: 0.5rem; }\n.notion-page p { margin: 0.75rem 0; }\n.notion-page ul, .notion-page ol { padding-left: 1.5rem; margin: 0.75rem 0; }\n.notion-page li { margin: 0.25rem 0; }\n.notion-page blockquote { border-left: 3px solid #3b82f6; margin: 1rem 0; padding: 0.5rem 1rem; background: #f8fafc; font-style: italic; }\n.notion-page .callout { display: flex; gap: 0.75rem; padding: 1rem; background: #f8fafc; border-radius: 4px; margin: 1rem 0; }\n.notion-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }\n.notion-table th, .notion-table td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }\n.notion-table th { background: #f3f4f6; font-weight: 600; }\n.notion-page hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }\n.notion-page a { color: #2563eb; text-decoration: none; }\n.notion-page code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 3px; font-size: 0.9em; }\n.notion-page pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; }\n.notion-image img { max-width: 100%; height: auto; border-radius: 4px; }\n.notion-image figcaption { font-size: 0.875rem; color: #6b7280; text-align: center; margin-top: 0.5rem; }\n</style>\n${html}`;\n\n// ========== SORTIE ==========\nreturn [{\n  json: {\n    success: true,\n    source_type: 'notion',\n    \n    // === MARKDOWN (pour Dust) ===\n    contentMarkdown: markdown,\n    \n    // === HTML (pour Supabase) ===\n    html_content: styledHtml,\n    html_content_raw: html, // Version sans styles\n    \n    // === Métadonnées ===\n    pageId: pageValue.id,\n    pageTitle: pageTitlePlain,\n    notionPageId: pageValue.id,\n    notionPageTitle: pageTitlePlain,\n    notionUrl: `https://notion.so/${pageValue.id.replace(/-/g, '')}`,\n    \n    // === Stats ===\n    stats: {\n      totalBlocks: Object.keys(blocks).length,\n      contentBlocks: contentBlocks.length\n    },\n    \n    // === Timestamps ===\n    metadata: {\n      extractedAt: new Date().toISOString(),\n      lastEdited: pageValue.last_edited_time \n        ? new Date(pageValue.last_edited_time).toISOString() \n        : null,\n      createdAt: pageValue.created_time \n        ? new Date(pageValue.created_time).toISOString() \n        : null\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        912
+      ],
+      "id": "eb20cf40-15b6-4d86-9cbe-679a0a1289bb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.notion.so/api/v3/loadPageChunk",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"pageId\": \"{{ $('Premier filtre').item.json.notionPageIdFormatted }}\",\n  \"limit\": 100,\n  \"cursor\": { \"stack\": [] },\n  \"chunkNumber\": 0,\n  \"verticalColumns\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        912
+      ],
+      "id": "fa8ffd3c-eb25-4088-b2f6-92bad512170c",
+      "name": "Fetch Notion Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1/company_reports",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTk1ODUzNCwiZXhwIjoyMDgxNTM0NTM0fQ.O7XV1GMQAWk4rutBfi4u7tgzj3P19K3gm_5akPVkxG8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTk1ODUzNCwiZXhwIjoyMDgxNTM0NTM0fQ.O7XV1GMQAWk4rutBfi4u7tgzj3P19K3gm_5akPVkxG8"
+            },
+            {
+              "name": "prefer",
+              "value": "return=representation,resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "company_id",
+              "value": "={{ $('Extract Final Result2').item.json.company_id || $('If').item.json.company_id }}"
+            },
+            {
+              "name": "report_title",
+              "value": "={{ $('Extract Final Result2').item.json.report_title }}"
+            },
+            {
+              "name": "processing_status",
+              "value": "pending"
+            },
+            {
+              "name": "has_attachments",
+              "value": "={{ $('Extract Final Result2').item.json.has_attachments }}"
+            },
+            {
+              "name": "report_period",
+              "value": "={{ $('Extract Final Result2').item.json.report_period }}"
+            },
+            {
+              "name": "report_type",
+              "value": "={{ $('Extract Final Result2').item.json.report_type }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3680,
+        1008
+      ],
+      "id": "4179d357-a656-4b8a-a49d-3c13757fe7e5",
+      "name": "Create report",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f88f99a1-f30c-4df9-86e3-4bc5870d617e",
+              "name": "report_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f4c85efa-3f50-43a6-9bdb-229af3e41f09",
+              "name": "company_id",
+              "value": "={{ $json.company_id }}",
+              "type": "string"
+            },
+            {
+              "id": "77bf5312-7134-4015-8615-7d095900fd4a",
+              "name": "processing_status",
+              "value": "={{ $json.processing_status }}",
+              "type": "string"
+            },
+            {
+              "id": "33352320-5e12-46f6-a55b-feade6ee9c58",
+              "name": "report_type",
+              "value": "={{ $json.report_type }}",
+              "type": "string"
+            },
+            {
+              "id": "da7e557a-04d1-4b24-8cbd-f5dbb20eaa93",
+              "name": "cleaned_report_period",
+              "value": "={{ $json.report_period\n  .normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\")\n  .replace(/\\s+/g, \"_\")\n  .replace(/[^a-zA-Z0-9_\\-]/g, \"\")\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4000,
+        944
+      ],
+      "id": "06194d1d-4842-4ca5-b3b4-8007fde5115b",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1/company_reports?id=eq.{{ $('Merge').item.json.company_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "sb_secret_fOIt9ATu5TphFS0B0AxZzQ_KfbW7n58"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_secret_fOIt9ATu5TphFS0B0AxZzQ_KfbW7n58"
+            },
+            {
+              "name": "prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "report_period",
+              "value": "={{ $('Extract Final Result2').item.json.report_period }}"
+            },
+            {
+              "name": "report_type",
+              "value": "={{ $('Edit Fields1').item.json.report_type }}"
+            },
+            {
+              "name": "headline",
+              "value": "={{ $('Extract Final Result2').item.json.headline }}"
+            },
+            {
+              "name": "key_highlights",
+              "value": "={{ $('Extract Final Result2').item.json.key_highlights }}"
+            },
+            {
+              "name": "metrics",
+              "value": "={{ $('Extract Final Result2').item.json.metrics }}"
+            },
+            {
+              "name": "processing_status",
+              "value": "completed"
+            },
+            {
+              "name": "processed_at",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "cleaned_content",
+              "value": "={{$('Clean original text report').first().json.html_content}}"
+            },
+            {
+              "name": "report_date",
+              "value": "={{ $('Extract Final Result2').item.json.report_date }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5056,
+        1152
+      ],
+      "id": "bec2bb89-b068-458f-b534-67ca648b713b",
+      "name": "Update with Report"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Extract Final Result2').item.json.email_from }}\n",
+        "subject": "=Re : {{ $('Extract Final Result2').item.json.email_subject }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Report ajouté - Albo</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fafafa;\">\n  \n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #fafafa; padding: 48px 24px;\">\n    <tr>\n      <td align=\"center\">\n        <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width: 420px;\">\n          \n          <!-- Logo -->\n          <tr>\n            <td style=\"padding-bottom: 32px; text-align: center;\">\n              <span style=\"font-size: 24px; font-weight: 700; color: #18181b; letter-spacing: -0.5px;\">Albo</span>\n            </td>\n          </tr>\n          \n          <!-- Card -->\n          <tr>\n            <td>\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #ffffff; border: 1px solid #e4e4e7; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\">\n                \n                <!-- Success Icon -->\n                <tr>\n                  <td style=\"padding: 32px 32px 0 32px; text-align: center;\">\n                    <div style=\"display: inline-block; width: 48px; height: 48px; background-color: #dcfce7; border-radius: 50%; line-height: 48px; font-size: 24px;\">\n                      ✓\n                    </div>\n                  </td>\n                </tr>\n                \n                <!-- Title -->\n                <tr>\n                  <td style=\"padding: 20px 32px 0 32px; text-align: center;\">\n                    <h1 style=\"margin: 0; font-size: 20px; font-weight: 600; color: #18181b; line-height: 1.4;\">\n                      Report ajouté avec succès\n                    </h1>\n                  </td>\n                </tr>\n                \n                <!-- Company Name Badge -->\n                <tr>\n                  <td style=\"padding: 16px 32px 0 32px; text-align: center;\">\n                    <span style=\"display: inline-block; background-color: #f4f4f5; color: #18181b; font-size: 14px; font-weight: 500; padding: 6px 16px; border-radius: 20px;\">\n                   {{ $('Extract Final Result2').item.json.company_name }}\n                    </span>\n                  </td>\n                </tr>\n                \n                <!-- Description -->\n                <tr>\n                  <td style=\"padding: 16px 32px 0 32px; text-align: center;\">\n                    <p style=\"margin: 0; font-size: 14px; color: #71717a; line-height: 1.6;\">\n                      Le report <strong style=\"color: #3f3f46;\">{{ $('Extract Final Result2').item.json.report_period }}</strong> a été traité et ajouté à votre portfolio.\n                    </p>\n                  </td>\n                </tr>\n                \n                <!-- Report Details -->\n                <tr>\n                  <td style=\"padding: 20px 32px 0 32px;\">\n                    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f9fafb; border-radius: 8px; padding: 16px;\">\n                      <tr>\n                        <td style=\"padding: 12px 16px;\">\n                          <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">\n                            <tr>\n                              <td style=\"font-size: 12px; color: #71717a; padding-bottom: 4px;\">Période</td>\n                              <td style=\"font-size: 12px; color: #71717a; padding-bottom: 4px; text-align: right;\">Type</td>\n                            </tr>\n                            <tr>\n                              <td style=\"font-size: 14px; color: #18181b; font-weight: 500;\">\n{{ $('Extract Final Result2').item.json.report_period }}</td>\n                              <td style=\"font-size: 14px; color: #18181b; font-weight: 500; text-align: right;\">{{ $('Extract Final Result2').item.json.report_type }}</td>\n                            </tr>\n                          </table>\n                        </td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n                \n                <!-- Button -->\n                <tr>\n                  <td style=\"padding: 24px 32px 0 32px; text-align: center;\">\n                    <a href=\"https://app.alboteam.com/portfolio/{{ $('Extract Final Result2').item.json.company_id }}\"\n                       style=\"display: inline-block; background-color: #18181b; color: #fafafa; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 28px; border-radius: 6px;\">\n                      Voir le portfolio\n                    </a>\n                  </td>\n                </tr>\n                \n                <!-- Secondary link -->\n                <tr>\n                  <td style=\"padding: 12px 32px 32px 32px; text-align: center;\">\n                    <a href=\"https://app.alboteam.com/portfolio\" \n                       style=\"font-size: 13px; color: #71717a; text-decoration: none;\">\n                      Voir toutes les entreprises →\n                    </a>\n                  </td>\n                </tr>\n                \n              </table>\n            </td>\n          </tr>\n          \n          <!-- Footer -->\n          <tr>\n            <td style=\"padding-top: 24px; text-align: center;\">\n              <p style=\"margin: 0 0 4px 0; font-size: 12px; color: #a1a1aa;\">\n                Cet email a été envoyé automatiquement suite à la réception d'un report.\n              </p>\n              <p style=\"margin: 0; font-size: 11px; color: #d4d4d8;\">\n                © 2026 Albo · Portfolio management\n              </p>\n            </td>\n          </tr>\n          \n        </table>\n      </td>\n    </tr>\n  </table>\n  \n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "bccList": "={{ $('Extract Final Result2').item.json.email_cc_0 }}",
+          "ccList": "={{ $('Extract Final Result2').item.json.email_cc_1 }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        5280,
+        1152
+      ],
+      "id": "d2990bdb-122f-43f1-86a6-b35019c770d3",
+      "name": "Send a message2",
+      "webhookId": "45319aaa-473f-4cf9-a629-d11f942287e9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tsmFIX7Q0wVDr1Sc",
+          "name": "deck@alboteam"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://kpvbcqilzfeitxzwhmou.supabase.co/storage/v1/object/report-files/{{ $json.storagePath }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mimeType }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdmJjcWlsemZlaXR4endobW91Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTk1ODUzNCwiZXhwIjoyMDgxNTM0NTM0fQ.O7XV1GMQAWk4rutBfi4u7tgzj3P19K3gm_5akPVkxG8"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4688,
+        880
+      ],
+      "id": "73cd93b8-18b4-4a43-9641-1cbe8acff859",
+      "name": "Upload storage",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1/report_files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=report_id",
+              "value": "={{ $('Merge').item.json.report_id }}"
+            },
+            {
+              "name": "file_name",
+              "value": "={{ $('Prepares files').item.json.cleanName }}"
+            },
+            {
+              "name": "original_file_name",
+              "value": "={{ $('Prepares files').item.json.originalName }}"
+            },
+            {
+              "name": "storage_path",
+              "value": "={{ $('Prepares files').item.json.storagePath }}"
+            },
+            {
+              "name": "file_type",
+              "value": "report"
+            },
+            {
+              "name": "mime_type",
+              "value": "={{ $('Prepares files').item.json.mimeType }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4864,
+        880
+      ],
+      "id": "968958da-f6bb-4445-8535-bd12efb17278",
+      "name": "Insert report files",
+      "credentials": {
+        "supabaseApi": {
+          "id": "N2jJq4ne6AX405VC",
+          "name": "Supabase Albote prod"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition_exists",
+              "leftValue": "={{ $json.company_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        848
+      ],
+      "id": "6da912b9-724d-479f-be36-05124e1ab471",
+      "name": "Check company_id from Dust"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraction intelligente du nom de company depuis plusieurs sources\nconst extractResult = $('Extract Final Result2').first().json;\nconst parsedData = extractResult.parsedData || extractResult;\n\n// Source 1: Nom détecté par l'agent (priorité max)\nconst dustCompanyName = parsedData.company_name_from_report || parsedData.company_name || '';\n\n// Source 2: Nom du fichier PDF (depuis Start + Download)\nconst startData = $('Start + Download').first().json;\nconst pdfFilename = startData.filename || '';\n\n// Source 3: Sujet de l'email\nconst emailSubject = startData.subject || '';\n\n// Source 4: Domaine email extrait du body (forwarded messages, signatures, CC...)\nconst senderEmail = startData.from?.value?.[0]?.address || '';\nconst emailText = startData.text || '';\nconst emailHtml = startData.html || '';\n\nfunction extractCompanyDomain(senderAddr, bodyText, bodyHtml) {\n  // Domaines génériques à ignorer\n  const genericDomains = [\n    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',\n    'icloud.com', 'protonmail.com', 'free.fr', 'orange.fr', 'sfr.fr',\n    'laposte.net', 'wanadoo.fr', 'me.com', 'aol.com', 'msn.com',\n    'alboteam.com', 'googlemail.com', 'mail.com', 'ymail.com',\n    'odaje.com', 'google.com', 'appspot.com', 'googleusercontent.com'\n  ];\n  \n  // Extraire TOUTES les adresses email du body (text + html)\n  const fullContent = (bodyText || '') + ' ' + (bodyHtml || '');\n  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g;\n  const allEmails = [...new Set((fullContent.match(emailRegex) || []).map(e => e.toLowerCase()))];\n  \n  // Aussi inclure le sender direct\n  if (senderAddr) allEmails.unshift(senderAddr.toLowerCase());\n  \n  // Chercher le premier domaine non-générique\n  // Priorité aux emails dans les blocs \"De :\" / \"From :\" (plus pertinents)\n  const forwardedEmails = [];\n  const forwardRegex = /(?:De|From)\\s*:\\s*[^<\\n]*<([^>]+)>/gi;\n  let match;\n  while ((match = forwardRegex.exec(fullContent)) !== null) {\n    forwardedEmails.push(match[1].toLowerCase());\n  }\n  \n  // Aussi chercher dans les CC\n  const ccRegex = /(?:Cc|CC|cc)\\s*:\\s*[^<\\n]*<([^>]+)>/gi;\n  while ((match = ccRegex.exec(fullContent)) !== null) {\n    forwardedEmails.push(match[1].toLowerCase());\n  }\n  \n  // Aussi extraire depuis les href mailto: dans le HTML\n  const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/gi;\n  while ((match = mailtoRegex.exec(bodyHtml || '')) !== null) {\n    forwardedEmails.push(match[1].toLowerCase());\n  }\n  \n  // Aussi extraire depuis les signatures (www.xxx.com → xxx.com)\n  const wwwRegex = /www\\.([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/gi;\n  const websiteDomains = [];\n  while ((match = wwwRegex.exec(fullContent)) !== null) {\n    websiteDomains.push(match[1].toLowerCase());\n  }\n  \n  // Ordre de priorité : forwarded senders > CC > tous les emails > websites\n  const orderedEmails = [...new Set([...forwardedEmails, ...allEmails])];\n  \n  for (const email of orderedEmails) {\n    const domain = email.split('@')[1];\n    if (domain && !genericDomains.includes(domain)) {\n      const companyFromDomain = domain.split('.')[0];\n      return {\n        domain: domain,\n        companyName: companyFromDomain\n          .replace(/-/g, ' ')\n          .split(' ')\n          .map(w => w.charAt(0).toUpperCase() + w.slice(1))\n          .join(' '),\n        sourceEmail: email,\n        source: 'email'\n      };\n    }\n  }\n  \n  // Fallback : domaines depuis www.xxx.com\n  for (const domain of websiteDomains) {\n    if (!genericDomains.includes(domain)) {\n      const companyFromDomain = domain.split('.')[0];\n      return {\n        domain: domain,\n        companyName: companyFromDomain\n          .replace(/-/g, ' ')\n          .split(' ')\n          .map(w => w.charAt(0).toUpperCase() + w.slice(1))\n          .join(' '),\n        sourceEmail: null,\n        source: 'website'\n      };\n    }\n  }\n  \n  return null;\n}\n\nconst domainInfo = extractCompanyDomain(senderEmail, emailText, emailHtml);\nconst fromDomain = domainInfo?.companyName || null;\n\n// Mots à ignorer (génériques)\nconst stopWords = [\n  'reporting', 'report', 'update', 'newsletter', 'investor',\n  'monthly', 'quarterly', 'annual', 'q1', 'q2', 'q3', 'q4',\n  'january', 'february', 'march', 'april', 'may', 'june',\n  'july', 'august', 'september', 'october', 'november', 'december',\n  'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec',\n  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',\n  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',\n  '2023', '2024', '2025', '2026', '2027',\n  'fwd', 're', 'fw', 'pdf', 'performances', 'ambitions', 'bilan', 'news'\n];\n\nfunction extractCompanyName(text) {\n  if (!text) return null;\n  let cleaned = text.replace(/\\.[^.]+$/, '');\n  cleaned = cleaned.replace(/[^a-zA-Z0-9\\s-]/g, ' ');\n  const words = cleaned.split(/[\\s-]+/).filter(w => w.length > 1);\n  const meaningfulWords = words.filter(w => \n    !stopWords.includes(w.toLowerCase())\n  );\n  return meaningfulWords.length > 0 ? meaningfulWords.join(' ') : null;\n}\n\nconst fromDust = dustCompanyName || null;\nconst fromPdf = extractCompanyName(pdfFilename);\nconst fromSubject = extractCompanyName(emailSubject);\n\n// Priorité: Agent Dust > Domaine email > PDF > Subject\nconst searchTerms = [];\nif (fromDust) searchTerms.push(fromDust);\nif (fromDomain && !searchTerms.some(t => t.toLowerCase() === fromDomain.toLowerCase())) searchTerms.push(fromDomain);\nif (fromPdf && !searchTerms.some(t => t.toLowerCase() === fromPdf.toLowerCase())) searchTerms.push(fromPdf);\nif (fromSubject && !searchTerms.some(t => t.toLowerCase() === fromSubject.toLowerCase())) searchTerms.push(fromSubject);\n\nreturn {\n  json: {\n    searchTerms: searchTerms,\n    primarySearchTerm: searchTerms[0] || 'ZZZNOMATCHZZZ',\n    fromDust: fromDust,\n    fromDomain: fromDomain,\n    fromPdf: fromPdf,\n    fromSubject: fromSubject,\n    debug: {\n      originalPdfFilename: pdfFilename,\n      originalSubject: emailSubject,\n      originalDustName: dustCompanyName,\n      senderEmail: senderEmail,\n      domainInfo: domainInfo,\n      allFoundDomains: domainInfo\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        848
+      ],
+      "id": "9a321e6d-09f4-4a6d-8290-a59b399a06fd",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d51494be-a499-4e25-951c-0b6b04d37c8a",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        848
+      ],
+      "id": "1dec1901-fce6-4eec-9463-697ad40a5e8e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "=",
+        "subject": "=Erreur : Report  {{ $('Extract Final Result').item.json.parsedData.company_name }}",
+        "message": "=<!DOCTYPE html> <html lang=\"fr\"> <head>     <meta charset=\"UTF-8\">     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">     <title>Albo - Report non traité</title> </head> <body style=\"margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\">          <!-- Container principal -->     <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f4f5;\">         <tr>             <td align=\"center\" style=\"padding: 40px 20px;\">                                  <!-- Card blanche -->                 <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"max-width: 480px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);\">                                          <!-- Header avec Logo -->                     <tr>                         <td align=\"center\" style=\"padding: 40px 40px 24px 40px;\">                             <!-- Logo Albo SVG -->                             <svg width=\"120\" height=\"44\" viewBox=\"0 0 440 161\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">                                 <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M196.946 125.118H197.382L197.375 125.124C204.114 146.755 223.231 159.998 247.564 159.998C281.024 159.998 304.271 135.943 304.271 100.402C304.271 64.8605 280.373 40.1377 245.828 40.1377C228.226 40.1377 211.503 46.5348 199.333 57.7959V0L179.13 4.41456V160H199.333L196.946 125.118ZM241.268 58.8995C267.774 58.8995 283.417 74.1324 283.417 100.177C283.417 126.003 267.995 141.454 241.489 141.454C214.983 141.454 199.34 126.222 199.34 100.177C199.34 74.1324 214.762 58.8995 241.268 58.8995ZM376.34 40.1394C339.401 40.1394 312.245 65.0803 312.245 100.179C312.245 135.277 339.837 160 376.34 160C412.844 160 440 135.277 440 100.179C440 65.0803 413.279 40.1394 376.34 40.1394ZM376.34 58.9013C402.632 58.9013 419.14 75.8986 419.14 99.9606C419.14 124.241 403.067 141.456 376.34 141.456C349.613 141.456 333.105 124.023 333.105 99.9606C333.105 75.8986 350.049 58.9013 376.34 58.9013ZM0 127.424C0 106.823 15.4222 93.9689 43.0144 93.9689C58.8725 93.9689 73.215 97.7363 85.1638 105.046C86.25 100.834 86.9005 96.1842 86.9005 91.7536C86.9005 70.4824 74.9517 58.2981 51.4898 58.2981C31.7161 58.2981 22.3756 68.2671 24.7692 84.2188L6.30289 86.4341C2.17251 58.2981 20.4242 40.5754 52.7972 40.5754C87.1216 40.5754 107.546 58.517 107.546 91.0903C107.546 100.615 105.159 110.139 101.028 118.782C109.068 128.088 115.15 139.828 119.059 154.453L102.329 160.435C99.7209 150.466 95.8117 141.824 90.8162 134.515C77.9958 150.022 58.879 160.435 38.4548 160.435C13.0351 160.435 0 147.588 0 127.424ZM39.7591 142.713C55.8368 142.712 69.521 133.851 77.9958 121.223C68.2195 114.358 56.4853 110.591 42.5851 110.591C27.8134 110.591 20.4242 117.018 20.4242 127.205C20.4242 136.51 27.591 142.712 39.7591 142.713ZM39.7591 142.713C39.7579 142.713 39.7568 142.713 39.7557 142.713H39.7622C39.7611 142.713 39.7601 142.713 39.7591 142.713ZM155.209 0L135.006 4.41456V160H155.209V0Z\" fill=\"#18181b\"/>                             </svg>                         </td>                     </tr>                                          <!-- Badge Alerte -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 16px 40px;\">                             <span style=\"display: inline-block; background-color: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;\">                                 ⚠️ Action requise                             </span>                         </td>                     </tr>                                          <!-- Titre principal -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 12px 40px;\">                             <h1 style=\"margin: 0; font-size: 24px; font-weight: 600; color: #18181b; line-height: 1.3;\">                                 Report non traité                             </h1>                         </td>                     </tr>                                          <!-- Sous-titre -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 32px 40px;\">                             <p style=\"margin: 0; font-size: 15px; color: #71717a; line-height: 1.6;\">                                 La company n'a pas été identifiée dans le portfolio                             </p>                         </td>                     </tr>                                          <!-- Nom du Report (ZONE À PERSONNALISER) -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 24px 40px;\">                             <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f4f5; border-radius: 8px;\">                                 <tr>                                     <td style=\"padding: 20px; text-align: center;\">                                         <p style=\"margin: 0 0 4px 0; font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Report reçu                                         </p>                                         <p style=\"margin: 0; font-size: 18px; font-weight: 600; color: #18181b;\">                                             {{ $('Extract Final Result').item.json.parsedData.report_title || $('Extract Final Result').item.json.parsedData.company_name || 'Titre non détecté' }}                                         </p>                                     </td>                                 </tr>                             </table>                         </td>                     </tr>                                          <!-- Détails du report -->                     <tr>                         <td style=\"padding: 0 40px 32px 40px;\">                             <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #fafafa; border-radius: 8px; border: 1px solid #e4e4e7;\">                                                                  <!-- Expéditeur -->                                 <tr>                                     <td style=\"padding: 16px 20px; border-bottom: 1px solid #e4e4e7;\">                                         <p style=\"margin: 0 0 2px 0; font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Expéditeur                                         </p>                                         <p style=\"margin: 0; font-size: 14px; color: #18181b; font-weight: 500;\">                                             {{ $('Premier filtre').item.json.from.value[0].name || '' }} &lt;{{ $('Premier filtre').item.json.from.value[0].address }}&gt;                                         </p>                                     </td>                                 </tr>                                                                  <!-- Sujet -->                                 <tr>                                     <td style=\"padding: 16px 20px; border-bottom: 1px solid #e4e4e7;\">                                         <p style=\"margin: 0 0 2px 0; font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Sujet de l'email                                         </p>                                         <p style=\"margin: 0; font-size: 14px; color: #18181b; font-weight: 500;\">                                             {{ $('Premier filtre').item.json.subject }}                                         </p>                                     </td>                                 </tr>                                                                  <!-- Company détectée -->                                 <tr>                                     <td style=\"padding: 16px 20px; border-bottom: 1px solid #e4e4e7;\">                                         <p style=\"margin: 0 0 2px 0; font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Company détectée                                         </p>                                         <p style=\"margin: 0; font-size: 14px; color: #dc2626; font-weight: 500;\">                                             {{ $('Extract Final Result').item.json.parsedData.company_name || 'Non détectée' }} — introuvable en base                                         </p>                                     </td>                                 </tr>                                                                  <!-- Fichier PDF -->                                 <tr>                                     <td style=\"padding: 16px 20px; border-bottom: 1px solid #e4e4e7;\">                                         <p style=\"margin: 0 0 2px 0; font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Fichier PDF                                         </p>                                         <p style=\"margin: 0; font-size: 14px; color: #18181b; font-weight: 500;\">                                             {{ $('Premier filtre').item.json.largestPdfFilename || 'Aucun fichier' }}                                         </p>                                     </td>                                 </tr>                                                                  <!-- Période -->                                 <tr>                                     <td style=\"padding: 16px 20px;\">                                         <p style=\"margin: 0 0 2px 0; font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;\">                                             Période du report                                         </p>                                         <p style=\"margin: 0; font-size: 14px; color: #18181b; font-weight: 500;\">                                             {{ $('Extract Final Result').item.json.parsedData.report_period || 'Non détectée' }}                                         </p>                                     </td>                                 </tr>                                                              </table>                         </td>                     </tr>                                          <!-- Actions à effectuer -->                     <tr>                         <td style=\"padding: 0 40px 24px 40px;\">                             <p style=\"margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #18181b;\">                                 Actions à effectuer :                             </p>                             <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">                                 <tr>                                     <td style=\"padding: 8px 0; font-size: 14px; color: #3f3f46; line-height: 1.5;\">                                         <span style=\"color: #18181b; font-weight: 600;\">1.</span> Vérifier si cette company doit être ajoutée au portfolio                                     </td>                                 </tr>                                 <tr>                                     <td style=\"padding: 8px 0; font-size: 14px; color: #3f3f46; line-height: 1.5;\">                                         <span style=\"color: #18181b; font-weight: 600;\">2.</span> Si oui, créer la company dans Albo                                     </td>                                 </tr>                                 <tr>                                     <td style=\"padding: 8px 0; font-size: 14px; color: #3f3f46; line-height: 1.5;\">                                         <span style=\"color: #18181b; font-weight: 600;\">3.</span> Renvoyer l'email à report@alboteam.com                                     </td>                                 </tr>                             </table>                         </td>                     </tr>                                          <!-- Bouton CTA -->                     <tr>                         <td align=\"center\" style=\"padding: 0 40px 32px 40px;\">                             <a href=\"https://app.alboteam.com/portfolio\"                                 style=\"display: inline-block; background-color: #18181b; color: #ffffff; font-size: 15px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 8px;\">                                 Ouvrir le Portfolio →                             </a>                         </td>                     </tr>                                          <!-- Divider -->                     <tr>                         <td style=\"padding: 0 40px;\">                             <hr style=\"border: none; border-top: 1px solid #e4e4e7; margin: 0;\">                         </td>                     </tr>                                          <!-- Footer -->                     <tr>                         <td align=\"center\" style=\"padding: 24px 40px 32px 40px;\">                             <p style=\"margin: 0; font-size: 13px; color: #a1a1aa;\">                                 Email automatique — Albo Workflow                             </p>                         </td>                     </tr>                                      </table>                                  <!-- Footer externe -->                 <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"max-width: 480px;\">                     <tr>                         <td align=\"center\" style=\"padding: 24px 20px;\">                             <p style=\"margin: 0; font-size: 12px; color: #a1a1aa; line-height: 1.5;\">                                 <a href=\"https://app.alboteam.com\" style=\"color: #71717a; text-decoration: underline;\">app.alboteam.com</a>                             </p>                         </td>                     </tr>                 </table>                              </td>         </tr>     </table>      </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3408,
+        832
+      ],
+      "id": "2818edcb-2b7e-4178-8151-2f773cfa6e35",
+      "name": "Send a message4",
+      "webhookId": "a11e27a6-41ed-4fdd-aae1-13f917cc7d8e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tsmFIX7Q0wVDr1Sc",
+          "name": "deck@alboteam"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        1056
+      ],
+      "id": "d7970d5a-9e0e-4a7a-ab0d-f44087791042",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "8ao9IfPxGvE3JKCi",
+          "name": "Supabase N8N"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.email_id }}",
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1712,
+        1088
+      ],
+      "id": "9d6c821f-5e5f-4833-9489-ccd575dfb07c",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"company_id\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"UUID of the company from Supabase portfolio_companies table. Null only if not found after exhaustive search.\"\n    },\n    \"company_not_found\": {\n      \"type\": \"boolean\",\n      \"description\": \"True only if company was not found after all 3 search attempts. Omit or false otherwise.\"\n    },\n    \"company_name_from_report\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Company name as it appears in the report. Only included if company_not_found is true.\"\n    },\n    \"company_name\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Exact company name from Supabase database. ASCII only, no accents, no apostrophes. Null if not found.\"\n    },\n    \"workspace_id\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"UUID of the workspace the sender belongs to. Retrieved via the Find workspace tool.\"\n    },\n    \"report_date\": {\n      \"type\": \"string\",\n      \"description\": \"Date the report email was sent. ISO 8601 format: YYYY-MM-DD\"\n    },\n    \"report_title\": {\n      \"type\": \"string\",\n      \"description\": \"Human-readable title of the report. No slashes or backslashes.\"\n    },\n    \"report_period\": {\n      \"type\": \"string\",\n      \"description\": \"Report period in English. Examples: 'January 2026', 'Q4 2025', 'November - December 2025'. No accents, no long dashes, no slashes.\"\n    },\n    \"storage_period\": {\n      \"type\": \"string\",\n      \"description\": \"File-system safe version of report_period. All spaces replaced by underscores. Examples: 'January_2026', 'Q4_2025', 'November_-_December_2025'\"\n    },\n    \"report_type\": {\n      \"type\": \"string\",\n      \"enum\": [\"monthly\", \"bimonthly\", \"quarterly\", \"semi-annual\", \"annual\"],\n      \"description\": \"Type of report. Lowercase English only.\"\n    },\n    \"headline\": {\n      \"type\": \"string\",\n      \"description\": \"1-2 sentence summary of the report. Can be in French if original report is French.\"\n    },\n    \"key_highlights\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"3-5 key highlights from the report. Can be in French if original report is French.\"\n    },\n    \"metrics\": {\n      \"type\": \"object\",\n      \"description\": \"Financial and operational metrics extracted from the report. Keys in snake_case, values are numbers only (no strings). Percentages as decimals (5% = 0.05). Only include metrics present in the report.\",\n      \"additionalProperties\": {\n        \"type\": \"number\"\n      }\n    }\n  },\n  \"required\": [\n    \"company_id\",\n    \"company_name\",\n    \"workspace_id\",\n    \"report_date\",\n    \"report_title\",\n    \"report_period\",\n    \"storage_period\",\n    \"report_type\",\n    \"headline\",\n    \"key_highlights\",\n    \"metrics\"\n  ]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        992
+      ],
+      "id": "035cb5b4-3926-4095-a3cf-5080c54e8e9a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "// L'agent peut retourner plusieurs items (un par input du Merge)\n// On prend le premier qui a un output valide\nconst allItems = $input.all();\nlet input = null;\n\nfor (const item of allItems) {\n  const candidate = item.json.output || item.json;\n  if (candidate && (candidate.report_period || candidate.headline)) {\n    input = candidate;\n    break;\n  }\n}\n\nif (!input) {\n  input = allItems[0].json.output || allItems[0].json;\n}\n\n// Helper : nettoyer les caractères interdits dans les champs structurels\nfunction sanitize(str) {\n  if (!str) return str;\n  return str\n    .replace(/['']/g, ' ')\n    .replace(/[\"\"]/g, \"'\")\n    .replace(/[/\\\\]/g, '-')\n    .replace(/[—–]/g, '-')\n    .replace(/[&]/g, 'and')\n    .replace(/[éèêë]/g, 'e')\n    .replace(/[àâä]/g, 'a')\n    .replace(/[ùûü]/g, 'u')\n    .replace(/[ôö]/g, 'o')\n    .replace(/[îï]/g, 'i')\n    .replace(/[ç]/g, 'c')\n    .replace(/[ÉÈÊË]/g, 'E')\n    .replace(/[ÀÂÄ]/g, 'A')\n    .replace(/[ÙÛÜ]/g, 'U')\n    .replace(/[ÔÖ]/g, 'O')\n    .replace(/[ÎÏ]/g, 'I')\n    .replace(/[Ç]/g, 'C')\n    .replace(/[()[\\]@%$!?*+={}|<>~`^#]/g, '')\n    .trim();\n}\n\n// Mois FR → EN\nconst monthMap = {\n  'janvier': 'January', 'février': 'February', 'mars': 'March',\n  'avril': 'April', 'mai': 'May', 'juin': 'June',\n  'juillet': 'July', 'août': 'August', 'septembre': 'September',\n  'octobre': 'October', 'novembre': 'November', 'décembre': 'December'\n};\n\nfunction translatePeriod(str) {\n  if (!str) return str;\n  let result = str;\n  for (const [fr, en] of Object.entries(monthMap)) {\n    result = result.replace(new RegExp(fr, 'gi'), en);\n  }\n  return result;\n}\n\nconst errors = [];\n\n// 1. company_id : UUID valide ou null\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (input.company_id && !uuidRegex.test(input.company_id)) {\n  errors.push(`company_id invalid: ${input.company_id}`);\n  input.company_id = null;\n  input.company_not_found = true;\n}\n\n// 2. company_name : sanitize\nif (input.company_name) {\n  input.company_name = sanitize(input.company_name);\n}\n\n// 3. report_date : format YYYY-MM-DD\nconst dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nif (!dateRegex.test(input.report_date)) {\n  errors.push(`report_date invalid: ${input.report_date}`);\n  const d = new Date(input.report_date);\n  if (!isNaN(d.getTime())) {\n    input.report_date = d.toISOString().split('T')[0];\n  }\n}\n\n// 4. report_period : traduire FR→EN, sanitize\nif (input.report_period) {\n  input.report_period = translatePeriod(input.report_period);\n  input.report_period = sanitize(input.report_period);\n}\n\n// 5. storage_period : recalculer depuis report_period\nif (input.report_period) {\n  input.storage_period = input.report_period.replace(/\\s/g, '_');\n}\n\n// 6. report_type : enum strict\nconst validTypes = ['monthly', 'bimonthly', 'quarterly', 'semi-annual', 'annual'];\nif (input.report_type) {\n  input.report_type = input.report_type.toLowerCase().trim();\n  if (!validTypes.includes(input.report_type)) {\n    errors.push(`report_type invalid: ${input.report_type}`);\n    const typeMap = {\n      'mensuel': 'monthly', 'bimensuel': 'bimonthly', 'trimestriel': 'quarterly',\n      'semestriel': 'semi-annual', 'annuel': 'annual'\n    };\n    input.report_type = typeMap[input.report_type] || 'monthly';\n  }\n}\n\n// 7. report_title : sanitize léger (garder accents FR)\nif (input.report_title) {\n  input.report_title = input.report_title\n    .replace(/[/\\\\]/g, '-')\n    .replace(/[[\\]\"&]/g, '')\n    .trim();\n}\n\n// 8. metrics : forcer toutes les valeurs en nombre, supprimer les nulls\nif (input.metrics && typeof input.metrics === 'object') {\n  const cleanMetrics = {};\n  for (const [key, value] of Object.entries(input.metrics)) {\n    const cleanKey = key.toLowerCase().replace(/\\s+/g, '_').replace(/[^a-z0-9_]/g, '');\n    const numVal = Number(value);\n    if (value !== null && value !== undefined && !isNaN(numVal)) {\n      cleanMetrics[cleanKey] = numVal;\n    }\n  }\n  input.metrics = cleanMetrics;\n\n  if (input.metrics.runway_months && input.metrics.runway_days) {\n    delete input.metrics.runway_days;\n  }\n  if (input.metrics.runway_years) {\n    input.metrics.runway_months = input.metrics.runway_years * 12;\n    delete input.metrics.runway_years;\n  }\n}\n\n// 9. key_highlights : forcer array de strings\nif (!Array.isArray(input.key_highlights)) {\n  input.key_highlights = input.key_highlights ? [String(input.key_highlights)] : [];\n}\ninput.key_highlights = input.key_highlights.map(h => String(h).replace(/\"/g, \"'\"));\n\n// 10. Nettoyage des champs company_not_found\nif (input.company_id) {\n  delete input.company_not_found;\n  delete input.company_name_from_report;\n}\n\n// 11. workspace_id : valider UUID si présent\nif (input.workspace_id && !uuidRegex.test(input.workspace_id)) {\n  errors.push(`workspace_id invalid: ${input.workspace_id}`);\n  input.workspace_id = null;\n}\n\nreturn {\n  json: {\n    ...input,\n    _validation_errors: errors.length > 0 ? errors : undefined,\n    _validated: true,\n    has_attachments: $('Premier filtre').first().json.has_analyzable_attachments || false,\n    cleaned_content: $('Clean original text report').first().json.html_content || '',\n    email_from: $('Start + Download').first().json.from.value[0].address,\n    email_subject: $('Clean original text report').first().json.email_subject || $('Start + Download').first().json.subject,\n    email_cc_0: $('Start + Download').first().json.cc?.value?.[0]?.address || '',\n    email_cc_1: $('Start + Download').first().json.cc?.value?.[1]?.address || ''\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2032,
+        848
+      ],
+      "id": "21423cc4-47a3-4897-803e-6129b3c9cbec",
+      "name": "Extract Final Result2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyse ce report d'investissement et produis le JSON structuré.\n\nCompany ID : {{ $('Get company_id1').first().json.company_id || '' }}\nCompany name : {{ $('Get company_id1').first().json.company_name || '' }}\nWorkspace ID : {{ $('Get company_id1').first().json.workspace_id || '' }}\n\nSender email : {{ $('Clean original text report').first().json.email_from }}\nEmail subject : {{ $('Clean original text report').first().json.email_subject }}\n\n{{ $input.all()[0].json.content && $input.all()[0].json.content[0] ? \"--- OCR DU DOCUMENT ---\\n\" + $input.all()[0].json.content[0].text : \"\" }}\n\n--- CONTENU DU MAIL ---\n{{ $('Clean original text report').first().json.text_content }}\n\n{{ $('Code in JavaScript').isExecuted ? \"--- CONTENU NOTION ---\\n\" + $('Code in JavaScript').first().json.contentMarkdown : \"\" }}\n\n{{ $('Excel recap').isExecuted ? \"--- RÉSUMÉ EXCEL ---\\n\" + $('Excel recap').first().json.llm_prompt : \"\" }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "RÔLE\nTu es un agent spécialisé dans l'analyse des investor updates (reports) envoyés par les startups du portefeuille d'un club de Business Angels. Tu opères dans un workflow N8N automatisé.\n\nCONTEXTE\nTu reçois en entrée :\n- Le contenu d'un mail (thread email nettoyé)\n- Optionnellement : le texte OCR d'un document PDF attaché\n- Optionnellement : le contenu d'une page Notion\n- Le company_id, company_name et workspace_id déjà résolus (fournis dans le prompt)\n\nTon objectif : extraire les informations clés du report de manière structurée.\n\n═══════════════════════════════════════════════════════════\nTOOLS DISPONIBLES\n═══════════════════════════════════════════════════════════\n\n🔧 TOOL : \"Perplexity\" (recherche web)\n   QUAND : UNIQUEMENT si tu as besoin de contexte supplémentaire sur la startup pour mieux comprendre son activité ou ses métriques\n   COMMENT : Pose une question courte et précise, ex: \"What does the startup Bocoloco do?\"\n   NE PAS UTILISER SI : le report est suffisamment détaillé pour extraire toutes les infos\n\n═══════════════════════════════════════════════════════════\nPROCÉDURE — SUIS CES ÉTAPES DANS L'ORDRE\n═══════════════════════════════════════════════════════════\n\nÉTAPE 1 — COMPANY ID ET WORKSPACE ID\n\nLe company_id, company_name et workspace_id sont DÉJÀ fournis dans le prompt.\n- Si company_id est présent et non vide → utilise-le tel quel\n- Si company_id est vide → company_not_found = true, utilise le workspace_id fourni\n- Ne JAMAIS inventer un UUID. Ne JAMAIS chercher la company toi-même.\n\nÉTAPE 2 — EXTRACTION DES INFORMATIONS\n\nAnalyse le contenu (OCR + mail + Notion) et extrais :\n- headline : résumé en 1-2 phrases de l'essentiel du report\n- key_highlights : 3-5 points clés les plus importants\n- metrics : toutes les métriques chiffrées présentes dans le report\n- report_period : la période couverte par le report\n- report_date : la date d'envoi du mail (PAS la période du report)\n- report_type : le type de report (monthly, quarterly, etc.)\n- report_title : un titre lisible\n\n═══════════════════════════════════════════════════════════\nRÈGLES DE FORMATAGE — LE NON-RESPECT CASSE LE WORKFLOW\n═══════════════════════════════════════════════════════════\n\nLANGUE\n- Champs structurels (company_name, report_period, storage_period, report_type, report_date) → ANGLAIS obligatoire\n- headline et key_highlights → langue du report original (souvent français)\n\nCOMPANY_NAME\n- Nom EXACT tel que fourni dans le prompt (provient de Supabase)\n- Si non fourni, extrais-le du report\n- Caractères autorisés : lettres ASCII (A-Z, a-z), chiffres, espaces, tirets (-)\n- INTERDIT : apostrophes ' guillemets \" accents éèêàùç slashs / points . parenthèses ()\n\nREPORT_PERIOD\n- En anglais, mois avec majuscule initiale\n- Formats valides : \"January 2026\" | \"November - December 2025\" | \"Q4 2025\" | \"2025\"\n- INTERDIT : tirets longs — – | slashs / | accents | abréviations (Jan., Nov.)\n\nSTORAGE_PERIOD\n- = report_period avec tous les espaces remplacés par des underscores _\n- Exemples : \"January_2026\" | \"Q4_2025\" | \"November_-_December_2025\"\n- AUCUN espace, AUCUN accent, AUCUN caractère spécial\n\nREPORT_DATE\n- Format ISO strict : YYYY-MM-DD\n- C'est la date d'envoi du mail, PAS la période couverte\n\nREPORT_TYPE\n- Enum strict, minuscules : \"monthly\" | \"bimonthly\" | \"quarterly\" | \"semi-annual\" | \"annual\"\n\nREPORT_TITLE\n- Titre lisible et descriptif\n- INTERDIT : slashs / antislashs \\ guillemets doubles \" crochets [] esperluettes &\n\nMETRICS\n- Clés en snake_case strict : lettres minuscules, chiffres, underscores uniquement\n- Valeurs = nombres JavaScript uniquement (pas de strings, pas de guillemets)\n- Pas de symbole € ni séparateur de milliers\n- Pourcentages en décimal : 5% → 0.05\n- Multiplicateurs tels quels : x1.8 → 1.8\n- Si une métrique est ABSENTE du report → NE PAS l'inclure (pas de null, pas de 0)\n- runway : toujours en mois (runway_months) ou jours (runway_days), jamais en années\n\nMétriques courantes à chercher :\nrevenue, mrr, arr, gmv, ebitda, gross_margin, cash_position, runway_months, burn_rate, customers, users, employees, churn_rate, conversion_rate, nps, aum\n\nCARACTÈRES GLOBALEMENT INTERDITS dans les champs structurels :\n' \" / \\ — – & é è ê à ù ç ô î ( ) [ ] @ % $ ! ? * + = { } < > | ~ ` ^"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1552,
+        848
+      ],
+      "id": "12f554ec-680a-4c98-8128-268ff485dcae",
+      "name": "Report Agent"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search the web for information about a company. Use this tool to find additional context about a startup when the report content alone is insufficient to understand the company's activity, sector, or key metrics. For example, search for the company's website, recent news, or funding rounds. Do NOT use this tool to identify the company in Supabase - use the Supabase tools for that.",
+        "messages": {
+          "message": [
+            {
+              "content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message0_Text', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.perplexityTool",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        1008
+      ],
+      "id": "7fdc15ff-4a6e-46c9-bf2b-0e55bf67075e",
+      "name": "Message a model in Perplexity",
+      "credentials": {
+        "perplexityApi": {
+          "id": "7KsNSEYdPwunvJhT",
+          "name": "Perplexity account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "85865e7c-8f3a-4271-bc46-1c0ccd4423b2",
+              "leftValue": "={{ $('Start + Download').item.json.hasAttachments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4384,
+        1120
+      ],
+      "id": "ac083b55-9ebd-4f4b-8614-f8b090da565a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "report_inbox",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1920,
+        1008
+      ],
+      "id": "eb421159-243b-4830-97d7-8121c6233dd3",
+      "name": "Webhook",
+      "webhookId": "a148c94c-55c6-4e19-89f6-ed117812d2f2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// START + DOWNLOAD ALL ATTACHMENTS\n// 1. Reformate le payload webhook Unipile\n// 2. Télécharge TOUS les fichiers attachés (PDF, Excel, etc.)\n// ============================================\nconst body = $input.first().json.body;\n\n// --- Reformater from/to/cc au format Gmail Trigger ---\nconst from = {\n  value: [{\n    address: body.from_attendee?.identifier || '',\n    name: body.from_attendee?.display_name || ''\n  }]\n};\nconst to = {\n  value: (body.to_attendees || []).map(a => ({\n    address: a.identifier || '',\n    name: a.display_name || ''\n  }))\n};\nconst cc = {\n  value: (body.cc_attendees || []).map(a => ({\n    address: a.identifier || '',\n    name: a.display_name || ''\n  }))\n};\n\n// --- Filtrer les attachments valides (exclure les images inline) ---\nconst validAttachments = (body.attachments || []).filter(att => {\n  // Exclure les images inline (avec cid et mime image/*)\n  if (att.cid && (att.mime || '').startsWith('image/')) return false;\n  return true;\n});\n\n// --- Base JSON compatible Gmail Trigger ---\nconst baseJson = {\n  // Compat Gmail Trigger\n  id: body.email_id,\n  threadId: body.thread_id,\n  subject: body.subject || '(Sans objet)',\n  from: from,\n  from_value: from.value,\n  to: to,\n  cc: cc,\n  date: body.date,\n  text: body.body_plain || '',\n  html: body.body || '',\n  snippet: (body.body_plain || '').substring(0, 200),\n  // Unipile\n  unipile_email_id: body.email_id,\n  unipile_account_id: body.account_id,\n  message_id: body.message_id,\n  provider_id: body.provider_id,\n  folders: body.folders || [],\n  route: body._route || 'report',\n  // Attachments\n  hasAttachments: body.has_attachments || false,\n  attachmentCount: validAttachments.length,\n  email: body.from_attendee?.identifier || ''\n};\n\n// --- Si pas d'attachments, retourner sans binary ---\nif (validAttachments.length === 0) {\n  return [{\n    json: {\n      ...baseJson,\n      hasAttachments: false,\n      files: []\n    }\n  }];\n}\n\n// --- Télécharger TOUS les fichiers via Unipile API ---\nconst UNIPILE_BASE = 'https://api27.unipile.com:15779';\nconst UNIPILE_KEY = '5vOB1abl.vo5PqByMrhrCdlw+XpyV0gio8d/kKM4xxxmaNQgqxZA=';\n\nconst downloadedFiles = [];\nconst failedFiles = [];\nconst binaryData = {};\n\nfor (const attachment of validAttachments) {\n  const urls = [\n    `${UNIPILE_BASE}/api/v1/emails/${body.email_id}/attachments/${attachment.id}`,\n    `${UNIPILE_BASE}/api/v1/emails/${body.provider_id}/attachments/${attachment.id}?account_id=${body.account_id}`,\n  ];\n  \n  let downloaded = false;\n  const errors = [];\n  \n  for (const url of urls) {\n    try {\n      const response = await this.helpers.httpRequest({\n        method: 'GET',\n        url: url,\n        headers: { 'X-API-KEY': UNIPILE_KEY },\n        encoding: 'arraybuffer',\n        returnFullResponse: false,\n      });\n      \n      // Générer un nom de clé unique pour le binary (sans caractères spéciaux)\n      const safeKey = `file_${downloadedFiles.length}`;\n      \n      binaryData[safeKey] = await this.helpers.prepareBinaryData(\n        Buffer.from(response),\n        attachment.name || `attachment_${downloadedFiles.length}`,\n        attachment.mime || 'application/octet-stream'\n      );\n      \n      downloadedFiles.push({\n        key: safeKey,\n        name: attachment.name,\n        extension: attachment.extension,\n        size: attachment.size,\n        sizeMB: ((attachment.size || 0) / (1024 * 1024)).toFixed(2),\n        mime: attachment.mime,\n        id: attachment.id\n      });\n      \n      downloaded = true;\n      break; // Sortir de la boucle des URLs si succès\n      \n    } catch (err) {\n      errors.push(err.message);\n      continue;\n    }\n  }\n  \n  if (!downloaded) {\n    failedFiles.push({\n      name: attachment.name,\n      extension: attachment.extension,\n      size: attachment.size,\n      error: errors.join(' | ')\n    });\n  }\n}\n\n// --- Retourner le résultat avec tous les binaries ---\nreturn [{\n  json: {\n    ...baseJson,\n    hasAttachments: downloadedFiles.length > 0,\n    downloadedCount: downloadedFiles.length,\n    failedCount: failedFiles.length,\n    files: downloadedFiles,\n    failedFiles: failedFiles,\n    // Pour compatibilité avec le reste du workflow\n    hasPdf: downloadedFiles.some(f => f.extension === 'pdf'),\n    hasExcel: downloadedFiles.some(f => ['xlsx', 'xls'].includes(f.extension)),\n    // Liste des fichiers par type\n    pdfFiles: downloadedFiles.filter(f => f.extension === 'pdf'),\n    excelFiles: downloadedFiles.filter(f => ['xlsx', 'xls'].includes(f.extension)),\n  },\n  binary: binaryData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        1008
+      ],
+      "id": "05a82b50-7d0e-4ae5-b150-e5ac92c28bd5",
+      "name": "Start + Download"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// PREMIER FILTRE — Multi-route splitter\n// Émet UN ITEM PAR TYPE DÉTECTÉ\n// routeType numérique pour le Switch\n// 0 = text_only (toujours émis)\n// 1 = pdf\n// 2 = excel  \n// 3 = image inline\n// 4 = notion\n// 5 = google_drive\n// 6 = docsend\n// 7 = sendbim\n// ============================================\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const email = item.json || item;\n  \n  const textContent = email.text || email.snippet || '';\n  const htmlContent = email.html || '';\n  const fullContent = textContent + ' ' + htmlContent;\n  const subject = email.subject || '';\n  \n  // === BASE COMMUNE ===\n  const base = {\n    emailId: email.id || email.unipile_email_id || '',\n    threadId: email.threadId || '',\n    messageId: email.message_id || '',\n    providerId: email.provider_id || '',\n    accountId: email.unipile_account_id || '',\n    subject: subject,\n    from: email.from || '',\n    fromEmail: email.email || '',\n    to: email.to || '',\n    cc: email.cc || '',\n    date: email.date || '',\n    bodyText: textContent,\n    bodyHtml: htmlContent,\n  };\n  \n  // === FICHIERS TÉLÉCHARGÉS ===\n  const files = email.files || [];\n  const pdfFiles = files.filter(f => (f.extension || '').toLowerCase() === 'pdf');\n  const excelFiles = files.filter(f => ['xlsx', 'xls', 'xlsm', 'csv'].includes((f.extension || '').toLowerCase()));\n  \n  // === IMAGES INLINE (> 20KB) ===\n  const imageFiles = files.filter(f => {\n    const ext = (f.extension || '').toLowerCase();\n    return ['png', 'jpg', 'jpeg'].includes(ext) && (f.size || 0) > 20000;\n  });\n  let rawAttachments = [];\n  try { rawAttachments = $('Webhook').first().json.body?.attachments || []; } catch(e) {}\n  const inlineImageAttachments = rawAttachments.filter(att => {\n    const mime = (att.mime || '').toLowerCase();\n    return att.cid \n      && (mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/jpg')\n      && (att.size || 0) > 20000;\n  });\n  \n  // === DÉTECTION LIENS ===\n  function extractNotionLinks(content) {\n    const links = []; const seen = new Set();\n    [/https?:\\/\\/(www\\.)?notion\\.so\\/[^\\s<\")']+/gi, /https?:\\/\\/[a-zA-Z0-9-]+\\.notion\\.site\\/[^\\s<\")']+/gi].forEach(rx => {\n      let m; while ((m = rx.exec(content)) !== null) {\n        const url = m[0].replace(/[<>\"')]+$/, '');\n        if (!seen.has(url)) { seen.add(url); links.push({ url }); }\n      }\n    });\n    let hm; const hrefRx = /href=[\"']([^\"']*notion\\.(so|site)[^\"']*)[\"']/gi;\n    while ((hm = hrefRx.exec(content)) !== null) {\n      if (!seen.has(hm[1])) { seen.add(hm[1]); links.push({ url: hm[1] }); }\n    }\n    return links;\n  }\n\n  function extractGoogleDriveLinks(content) {\n    const links = []; const seenIds = new Set();\n    const patterns = [\n      { rx: /https?:\\/\\/drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_-]+)[^\\s<\")'\"]*/gi, grp: 1 },\n      { rx: /https?:\\/\\/drive\\.google\\.com\\/open\\?id=([a-zA-Z0-9_-]+)/gi, grp: 1 },\n      { rx: /https?:\\/\\/docs\\.google\\.com\\/(document|presentation|spreadsheets|drawings)\\/d\\/([a-zA-Z0-9_-]+)[^\\s<\")'\"]*/gi, grp: 2 },\n      { rx: /https?:\\/\\/drive\\.google\\.com\\/drive\\/folders\\/([a-zA-Z0-9_-]+)[^\\s<\")'\"]*/gi, grp: 1 }\n    ];\n    for (const p of patterns) {\n      let m; while ((m = p.rx.exec(content)) !== null) {\n        const url = m[0].replace(/[<>\"')]+$/, ''); const fileId = m[p.grp];\n        if (!seenIds.has(fileId)) { seenIds.add(fileId); links.push({ url, fileId }); }\n      }\n    }\n    return links;\n  }\n\n  function extractDocSendLinks(content) {\n    const links = []; const seen = new Set();\n    [/https?:\\/\\/(www\\.)?docsend\\.com\\/(view|v)\\/[a-zA-Z0-9_-]+/gi, /https?:\\/\\/(www\\.)?docsend\\.com\\/d\\/[a-zA-Z0-9_-]+/gi, /https?:\\/\\/[a-zA-Z0-9-]+\\.docsend\\.com\\/view\\/[a-zA-Z0-9_-]+/gi].forEach(rx => {\n      let m; while ((m = rx.exec(content)) !== null) { if (!seen.has(m[0])) { seen.add(m[0]); links.push({ url: m[0] }); } }\n    });\n    let hm; const hrefRx = /href=[\"']([^\"']*docsend\\.com[^\"']*)[\"']/gi;\n    while ((hm = hrefRx.exec(content)) !== null) { if (!seen.has(hm[1])) { seen.add(hm[1]); links.push({ url: hm[1] }); } }\n    return links;\n  }\n\n  function extractSendBimLinks(content) {\n    const links = []; const seen = new Set();\n    [/https?:\\/\\/(www\\.)?sendbim\\.com\\/[^\\s<\")']+/gi, /https?:\\/\\/[a-zA-Z0-9-]+\\.sendbim\\.com\\/[^\\s<\")']+/gi].forEach(rx => {\n      let m; while ((m = rx.exec(content)) !== null) {\n        const url = m[0].replace(/[<>\"')]+$/, '');\n        if (!seen.has(url)) { seen.add(url); links.push({ url }); }\n      }\n    });\n    let hm; const hrefRx = /href=[\"']([^\"']*sendbim\\.com[^\"']*)[\"']/gi;\n    while ((hm = hrefRx.exec(content)) !== null) { if (!seen.has(hm[1])) { seen.add(hm[1]); links.push({ url: hm[1] }); } }\n    return links;\n  }\n\n  // === EXÉCUTER ===\n  const notionLinks = extractNotionLinks(fullContent);\n  const googleDriveLinks = extractGoogleDriveLinks(fullContent);\n  const docSendLinks = extractDocSendLinks(fullContent);\n  const sendBimLinks = extractSendBimLinks(fullContent);\n  const allInlineImages = [\n    ...inlineImageAttachments.map(a => ({ id: a.id, name: a.name, mime: a.mime, size: a.size, cid: a.cid })),\n    ...imageFiles.map(f => ({ id: f.id, key: f.key, name: f.name, mime: f.mime, size: f.size }))\n  ];\n\n  // ============================================\n  // ÉMETTRE UN ITEM PAR TYPE — routeType numérique\n  // ============================================\n\n // --- routeType 1 : PDF — 1 ITEM PAR FICHIER ---\n  if (pdfFiles.length > 0) {\n    for (const f of pdfFiles) {\n      const out = { \n        json: { \n          ...base, \n          routeType: 1, \n          routeName: 'pdf',\n          _fileName: f.name,\n          _fileKey: f.key,\n          _fileMime: f.mime,\n          _fileSize: f.size,\n          _fileSizeMB: f.sizeMB,\n          pdfFiles: pdfFiles.map(pf => ({ key: pf.key, name: pf.name, size: pf.size, sizeMB: pf.sizeMB, mime: pf.mime })),\n          pdfCount: pdfFiles.length,\n        }\n      };\n      if (item.binary && f.key && item.binary[f.key]) {\n        out.binary = { data: item.binary[f.key] };\n      }\n      results.push(out);\n    }\n  }\n    // --- routeType 2 : Excel — 1 ITEM PAR FICHIER pour loop ---\n  if (excelFiles.length > 0) {\n    for (const f of excelFiles) {\n      const out = { \n        json: { \n          ...base, \n          routeType: 2, \n          routeName: 'excel',\n          _fileName: f.name,\n          _fileKey: f.key,\n          _fileExtension: f.extension,\n          _fileMime: f.mime,\n          _fileSize: f.size,\n          _fileSizeMB: f.sizeMB,\n          excelFiles: excelFiles.map(ef => ({ key: ef.key, name: ef.name, size: ef.size, sizeMB: ef.sizeMB, mime: ef.mime, extension: ef.extension })),\n          excelCount: excelFiles.length,\n        }\n      };\n      // Attacher LE binary de ce fichier sous la clé \"data\"\n      if (item.binary && f.key && item.binary[f.key]) {\n        out.binary = { data: item.binary[f.key] };\n      }\n      results.push(out);\n    }\n  }\n // --- routeType 3 : Image — 1 ITEM PAR IMAGE ---\n  if (allInlineImages.length > 0) {\n    for (const img of allInlineImages) {\n      const fileKey = img.key || img.id;\n      const out = { \n        json: { \n          ...base, \n          routeType: 3, \n          routeName: 'image',\n          _fileName: img.name,\n          _fileKey: fileKey,\n          _fileMime: img.mime,\n          _fileSize: img.size,\n          _fileCid: img.cid || null,\n          inlineImages: allInlineImages,\n          inlineImageCount: allInlineImages.length,\n        }\n      };\n      if (item.binary && fileKey && item.binary[fileKey]) {\n        out.binary = { data: item.binary[fileKey] };\n      }\n      results.push(out);\n    }\n  }\n  // --- routeType 4 : Notion ---\n  if (notionLinks.length > 0) {\n    results.push({ json: { ...base, routeType: 4, routeName: 'notion',\n      notionLinks, notionUrls: notionLinks.map(l => l.url), notionCount: notionLinks.length }});\n  }\n\n  // --- routeType 5 : Google Drive ---\n  if (googleDriveLinks.length > 0) {\n    results.push({ json: { ...base, routeType: 5, routeName: 'google_drive',\n      googleDriveLinks, googleDriveUrls: googleDriveLinks.map(l => l.url),\n      googleDriveFileIds: googleDriveLinks.map(l => l.fileId), googleDriveCount: googleDriveLinks.length }});\n  }\n\n  // --- routeType 6 : DocSend ---\n  if (docSendLinks.length > 0) {\n    results.push({ json: { ...base, routeType: 6, routeName: 'docsend',\n      docSendLinks, docSendUrls: docSendLinks.map(l => l.url), docSendCount: docSendLinks.length }});\n  }\n\n  // --- routeType 7 : SendBim ---\n  if (sendBimLinks.length > 0) {\n    results.push({ json: { ...base, routeType: 7, routeName: 'sendbim',\n      sendBimLinks, sendBimUrls: sendBimLinks.map(l => l.url), sendBimCount: sendBimLinks.length }});\n  }\n\n  // --- routeType 0 : Text only (TOUJOURS émis) ---\n  results.push({ json: { ...base, routeType: 0, routeName: 'text_only' }});\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        1008
+      ],
+      "id": "b74e548f-130c-4806-bdec-c5800179e094",
+      "name": "Premier filtre"
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailText = $('Clean original text report').first().json.text_content || '';\nconst senderEmail = $('Start + Download').first().json.from.value[0].address;\nconst senderDomain = senderEmail.split('@')[1];\n\nconst ignoreDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', \n  'icloud.com', 'googlemail.com', 'alboteam.com', 'morning.fr'];\n\n// Extraire tous les emails du thread\nconst emailRegex = /[\\w.+-]+@[\\w-]+\\.[\\w.-]+/g;\nconst allEmails = emailText.match(emailRegex) || [];\n\n// Trouver le domaine de la company\nlet companyDomain = null;\nlet companyName = null;\n\nfor (const email of allEmails) {\n  const domain = email.split('@')[1].toLowerCase();\n  if (!ignoreDomains.includes(domain) && domain !== senderDomain) {\n    companyDomain = domain;\n    break;\n  }\n}\n\n// Extraire le nom de la company depuis le subject\nconst subject = $('Start + Download').first().json.subject || '';\n// Pattern: \"Report/Update [CompanyName]\" ou \"[CompanyName] Report\"\nconst subjectClean = subject\n  .replace(/^(Fwd:|Re:|Fw:)\\s*/gi, '')\n  .replace(/investor(s)?\\s*(update|report)(s)?/gi, '')\n  .replace(/rapport\\s*d'activité/gi, '')\n  .replace(/confidential/gi, '')\n  .replace(/\\d{2}\\/\\d{2}/g, '')\n  .replace(/[-–—]/g, ' ')\n  .trim();\n\nif (subjectClean.length > 1) {\n  companyName = subjectClean.split(/\\s+/).slice(0, 3).join(' ').trim();\n}\n\nreturn [{\n  json: {\n    sender_email: senderEmail,\n    company_domain: companyDomain,\n    company_name: companyName\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        512
+      ],
+      "id": "424cc56d-3593-4c7a-a151-f04273a98992",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1/rpc/find_company_for_report",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_sender_email\": \"{{ $json.sender_email }}\",\n  \"p_company_domain\": {{ $json.company_domain ? '\"' + $json.company_domain + '\"' : 'null' }},\n  \"p_company_name\": {{ $json.company_name ? '\"' + $json.company_name + '\"' : 'null' }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        704,
+        544
+      ],
+      "id": "8c34130e-a4da-4a0f-9be3-c727a1f2cfc2",
+      "name": "Get company_id1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "N2jJq4ne6AX405VC",
+          "name": "Supabase Albote prod"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// Recherche l'ID fallback - Multi-stratégie\n// ============================================\n\nconst input = $input.first().json;\nconst SUPABASE_URL = 'https://kpvbcqilzfeitxzwhmou.supabase.co/rest/v1';\nconst SUPABASE_KEY = 'sb_secret_fOIt9ATu5TphFS0B0AxZzQ_KfbW7n58';\n\nconst headers = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': `Bearer ${SUPABASE_KEY}`,\n  'Content-Type': 'application/json'\n};\n\n// Stratégies de recherche par priorité\nconst searches = [];\n\n// 1. Recherche par domaine exact (le plus fiable)\nif (input.debug?.domainInfo?.domain) {\n  searches.push({\n    strategy: 'domain_exact',\n    params: `domain=eq.${input.debug.domainInfo.domain}&select=id,company_name,domain&limit=1`\n  });\n}\n\n// 2. Recherche par domaine partiel (ex: \"act-running\" dans domain)\nif (input.fromDomain) {\n  const domainSlug = input.fromDomain.toLowerCase().replace(/\\s+/g, '');\n  searches.push({\n    strategy: 'domain_like',\n    params: `domain=ilike.*${domainSlug}*&select=id,company_name,domain&limit=1`\n  });\n}\n\n// 3. Recherche par nom Dust (company_name_from_report)\nif (input.fromDust) {\n  searches.push({\n    strategy: 'name_dust',\n    params: `company_name=ilike.*${encodeURIComponent(input.fromDust)}*&select=id,company_name,domain&limit=1`\n  });\n}\n\n// 4. Recherche par nom depuis PDF\nif (input.fromPdf) {\n  searches.push({\n    strategy: 'name_pdf',\n    params: `company_name=ilike.*${encodeURIComponent(input.fromPdf)}*&select=id,company_name,domain&limit=1`\n  });\n}\n\n// 5. Recherche par nom depuis subject\nif (input.fromSubject && input.fromSubject !== input.fromPdf) {\n  searches.push({\n    strategy: 'name_subject',\n    params: `company_name=ilike.*${encodeURIComponent(input.fromSubject)}*&select=id,company_name,domain&limit=1`\n  });\n}\n\n// Exécuter les recherches dans l'ordre jusqu'à trouver un résultat\nfor (const search of searches) {\n  try {\n    const response = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `${SUPABASE_URL}/portfolio_companies?${search.params}`,\n      headers: headers,\n    });\n    \n    if (Array.isArray(response) && response.length > 0) {\n      return [{\n        json: {\n          found: true,\n          company_id: response[0].id,\n          company_name: response[0].company_name,\n          domain: response[0].domain,\n          matched_by: search.strategy,\n          search_input: input\n        }\n      }];\n    }\n  } catch (err) {\n    // Continuer avec la stratégie suivante\n  }\n}\n\n// Aucun résultat trouvé\nreturn [{\n  json: {\n    found: false,\n    company_id: null,\n    company_name: null,\n    domain: null,\n    matched_by: null,\n    strategies_tried: searches.map(s => s.strategy),\n    search_input: input\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2832,
+        848
+      ],
+      "id": "f9a960cb-aad3-4c43-b757-63cbcb026928",
+      "name": "Search into workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// Clean original text report — version minimale\n// Lit les données du Set juste avant\n// ============================================\n\nconst data = $input.first().json;\n\nlet html = data.html || '';\nhtml = html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '');\nhtml = html.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '');\nhtml = html.replace(/<!--[\\s\\S]*?-->/g, '');\nhtml = html.replace(/<img[^>]*>/gi, '');\nhtml = html.replace(/<[^>]+>/g, ' ');\nhtml = html.replace(/&nbsp;/g, ' ');\nhtml = html.replace(/&amp;/g, '&');\nhtml = html.replace(/&lt;/g, '<');\nhtml = html.replace(/&gt;/g, '>');\nhtml = html.replace(/&#?\\w+;/g, '');\nhtml = html.replace(/\\s+/g, ' ').trim();\n\nreturn [{\n  json: {\n    html_content: html,\n    text_content: data.text || '',\n    email_from: data.email_from || '',\n    email_subject: data.email_subject || ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        480
+      ],
+      "id": "897a263e-8828-4ed0-9030-c24bb9a8df54",
+      "name": "Clean original text report"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff6e15eb-0074-4218-9ddc-f900f2a7d807",
+              "name": "text",
+              "value": "={{ $('Start + Download').item.json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "6145a429-5f77-4475-8d99-c2768cd7b4b5",
+              "name": "html",
+              "value": "={{ $('Start + Download').item.json.html }}",
+              "type": "string"
+            },
+            {
+              "id": "e1773854-8f6e-4141-928a-a782d8639836",
+              "name": "threadId",
+              "value": "={{ $('Start + Download').item.json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "e4562077-db87-4365-8044-fec9aa7a1151",
+              "name": "subject",
+              "value": "={{ $('Start + Download').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "dc554a9b-d885-4f58-9c07-54400b60880e",
+              "name": "from.value[0].address",
+              "value": "={{ $('Start + Download').item.json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "30a2631f-a040-4fa2-97fc-2e1d01488fba",
+              "name": "unipile_email_id",
+              "value": "={{ $('Start + Download').item.json.unipile_email_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b7765884-d650-4379-801e-e28c4851ff2c",
+              "name": "unipile_account_id",
+              "value": "={{ $('Start + Download').item.json.unipile_account_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -192,
+        480
+      ],
+      "id": "2a95cabf-edae-4ef6-9588-0bf26c165bca",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b3bb2897-d04d-4c79-867d-7a661227a289",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text only"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1a3269af-9b48-477a-95b4-8ea9ec09d6e9",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Excel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a6d72419-e27a-47cc-8b51-5962332cf31d",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Notion"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8e12d969-e767-4663-8e33-548922a70dbd",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pdf"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "d980ad62-ed47-44af-b50a-18d6166387d7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6c0ea51d-f3b2-4415-b5e8-d8126319b5f0",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Google drive"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "68faa967-e79b-4bab-b2c3-a553e1ecb679",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 7,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sendbim"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "21c74ec5-71f5-4439-ba5b-cc2fc0d947a2",
+                    "leftValue": "={{ $('Premier filtre').item.json.routeType }}",
+                    "rightValue": 6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Doc Send"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        864
+      ],
+      "id": "2fb87143-d94a-4d7f-a092-b9f5fa30d3f2",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Format Excel → Texte LLM-friendly\n// Reçoit les items bruts du node \"Extract from File\"\n// Reconstruit un tableau lisible avec headers propres\n// ============================================================\n\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { extractedText: '', sourceType: 'excel', status: 'empty' } }];\n}\n\n// === Récupérer les metadata email depuis Premier filtre ===\nlet emailMeta = {};\ntry {\n  const pf = $('Premier filtre').all();\n  const excelItem = pf.find(i => i.json.routeType === 2);\n  if (excelItem) {\n    emailMeta = {\n      emailId: excelItem.json.emailId,\n      subject: excelItem.json.subject,\n      from: excelItem.json.from,\n      fromEmail: excelItem.json.fromEmail,\n      date: excelItem.json.date,\n      bodyText: excelItem.json.bodyText,\n    };\n  }\n} catch(e) {}\n\n// === Mapper les colonnes __EMPTY vers des headers lisibles ===\n// Le pattern c'est : col 0 = label, puis groupes de 3 (ACTUAL, BUDGET, DELTA)\n// Les dates sont des serial Excel (45658 = Jan 2025, etc.)\n\nfunction excelDateToLabel(serial) {\n  if (typeof serial !== 'number' || serial < 40000) return String(serial);\n  const date = new Date((serial - 25569) * 86400000);\n  const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];\n  return `${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;\n}\n\n// Trouver la ligne des dates (row 2 = \"Profit & Loss €\")\nconst rows = items.map(i => i.json);\n\n// Identifier les colonnes\nconst allKeys = Object.keys(rows[0] || {}).sort((a, b) => {\n  const numA = parseInt(a.replace('__EMPTY_', '').replace('__EMPTY', '0')) || 0;\n  const numB = parseInt(b.replace('__EMPTY_', '').replace('__EMPTY', '0')) || 0;\n  return numA - numB;\n});\n\n// Construire les headers à partir des 2 premières lignes\nconst headerRow = rows[0] || {};  // ACTUAL/BUDGET/DELTA\nconst dateRow = rows[1] || {};    // serial dates\n\n// Créer un mapping colonne → header lisible\nconst columnHeaders = {};\nfor (const key of allKeys) {\n  if (key === '__EMPTY') {\n    columnHeaders[key] = 'Poste';\n    continue;\n  }\n  \n  const headerVal = headerRow[key] || '';\n  const dateVal = dateRow[key];\n  \n  let dateLabel = '';\n  if (typeof dateVal === 'number' && dateVal > 40000) {\n    dateLabel = excelDateToLabel(dateVal);\n  } else if (typeof dateVal === 'string') {\n    dateLabel = dateVal; // \"YTD\"\n  }\n  \n  if (dateLabel && headerVal) {\n    columnHeaders[key] = `${dateLabel} ${headerVal}`;\n  } else if (headerVal) {\n    columnHeaders[key] = headerVal;\n  } else {\n    columnHeaders[key] = key;\n  }\n}\n\n// === Formater les données (skip les 2 premières lignes = headers) ===\nconst dataRows = rows.slice(2);\nconst sections = [];\n\nfor (const row of dataRows) {\n  const label = row['__EMPTY'];\n  if (!label || typeof label !== 'string') continue;\n  \n  // Skip les lignes vides ou séparateurs\n  if (label.trim() === '') continue;\n  \n  // Vérifier si c'est une ligne de % \n  const isPercent = label.includes('% on');\n  \n  // Construire la ligne\n  const values = [];\n  for (const key of allKeys) {\n    if (key === '__EMPTY') continue;\n    \n    const val = row[key];\n    if (val === undefined || val === null || val === '') continue;\n    \n    const header = columnHeaders[key] || key;\n    \n    let formatted;\n    if (typeof val === 'number') {\n      if (isPercent || (Math.abs(val) < 2 && Math.abs(val) > 0 && !Number.isInteger(val))) {\n        formatted = (val * 100).toFixed(1) + '%';\n      } else if (Math.abs(val) >= 1000) {\n        formatted = '€' + Math.round(val).toLocaleString('fr-FR');\n      } else {\n        formatted = '€' + val.toFixed(0);\n      }\n    } else {\n      formatted = String(val);\n    }\n    \n    values.push(`${header}: ${formatted}`);\n  }\n  \n  if (values.length > 0) {\n    // Regrouper par mois pour lisibilité\n    const isTotal = label.includes('TOTAL') || label.includes('EBITDA') || \n                    label.includes('Gross Margin') || label.includes('CASH FLOW') ||\n                    label.includes('FREE CASH FLOW');\n    const prefix = isTotal ? '▶ ' : '  ';\n    \n    sections.push(`${prefix}${label}\\n    ${values.join(' | ')}`);\n  }\n}\n\n// === Assembler le texte final ===\nconst extractedText = [\n  `📊 RAPPORT FINANCIER EXCEL`,\n  `${'='.repeat(60)}`,\n  `Fichier(s) traité(s): données P&L et Cash Flow`,\n  `Lignes extraites: ${dataRows.length}`,\n  `${'='.repeat(60)}`,\n  '',\n  ...sections\n].join('\\n');\n\nreturn [{\n  json: {\n    extractedText,\n    sourceType: 'excel',\n    status: 'success',\n    rowCount: dataRows.length,\n    ...emailMeta,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        704
+      ],
+      "id": "a9ae5120-cd6b-4994-87a4-af9d250684a6",
+      "name": "Extract All excel sheets"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Tu es un expert en nettoyage de texte OCR.\n\nNettoie ce texte OCR brut :\n\n{{ $json.extractedText }}\n\nInstructions :\n1. SUPPRIME TOUTES les références d'images : ![img-X.jpeg](img-X.jpeg)\n2. Corrige les erreurs OCR\n3. Améliore la fluidité\n4. Structure en markdown (#, ##, ###)\n5. Garde tous les chiffres, tableaux, données\n6. Texte COMPLET, pas de troncature\n\nRETOURNE UNIQUEMENT LE TEXTE NETTOYÉ, RIEN D'AUTRE. PAS DE JSON, PAS DE PRÉAMBULE, PAS DE CONCLUSION.\nCOMMENCE DIRECTEMENT AVEC LE PREMIER MOT DU TEXTE NETTOYÉ."
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {
+          "maxTokens": 10000,
+          "temperature": 1,
+          "maxToolsIterations": 15
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        816,
+        1040
+      ],
+      "id": "fcb72ce4-4415-4713-b88f-4bcc8cd44b5c",
+      "name": "OCR",
+      "credentials": {
+        "anthropicApi": {
+          "id": "8ao9IfPxGvE3JKCi",
+          "name": "Supabase N8N"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "binaryProperty": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        576,
+        1120
+      ],
+      "id": "48984533-0e93-4484-8a72-06f5506c5e58",
+      "name": "Extract text1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "nUrMWHLX63Ow5mcE",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        736
+      ],
+      "id": "bcd7e553-efa2-47e9-8ed0-d71aa5e83302",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -288,
+        720
+      ],
+      "id": "687d7a84-e3f5-437e-81d1-7b1158721dc4",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// N8N Code Node v2 : Parser Excel Financial → 3 sorties\n// \n// PLACEMENT : Après extraction Excel, AVANT split vers DB + LLM\n// \n// SORTIES :\n//   1. metrics_for_db  → tableau prêt à UPSERT dans portfolio_company_metrics\n//   2. llm_prompt      → texte compact SANS métriques brutes (juste contexte narratif)\n//   3. structured_data → JSON complet (backup optionnel)\n//\n// WORKFLOW N8N SUGGÉRÉ :\n//   [Extract Excel] → [CE CODE] → Split en 2 branches :\n//     Branche A : {{ $json.metrics_for_db }} → Noeud Supabase (batch upsert)\n//     Branche B : {{ $json.llm_prompt }}     → Noeud LLM (analyse narrative)\n// ============================================================\n\nconst extractedText = $input.first().json.extractedText;\n\n// --- On récupère aussi les métadonnées de l'email pour le contexte ---\nconst emailSubject = $input.first().json.subject || '';\nconst emailFrom = $input.first().json.fromEmail || '';\nconst emailDate = $input.first().json.date || '';\nconst emailBody = $input.first().json.bodyText || '';\n\n// --- CONFIGURATION ---\nconst MONTHS_MAP = {\n  'Jan': '01', 'Fév': '02', 'Mar': '03', 'Avr': '04',\n  'Mai': '05', 'Jun': '06', 'Jul': '07', 'Aoû': '08',\n  'Sep': '09', 'Oct': '10', 'Nov': '11', 'Déc': '12'\n};\n\nconst MONTHS_DISPLAY = {\n  '01': 'January', '02': 'February', '03': 'March', '04': 'April',\n  '05': 'May', '06': 'June', '07': 'July', '08': 'August',\n  '09': 'September', '10': 'October', '11': 'November', '12': 'December'\n};\n\n// Labels qui sont des revenus\nconst REVENUE_LABELS = [\n  'Revenues', 'PRODUCTION/SERVICE', '2W CORE PROJECT', 'DISPLAY ADV',\n  'TALENT', 'BRANDED PROJECT', 'Other Income', 'MEDIA'\n];\n\n// Labels qui sont des coûts\nconst COST_LABELS = [\n  'Cost', 'var.', 'AGENCY', 'Travelling', 'Premises', 'Marketing',\n  'Consulting', 'HR', 'entertainment', 'IT Expenses', 'Operational Tools',\n  'Labour', 'BRANDED PARTNERSHIP'\n];\n\n// --- HELPERS ---\nfunction parseValue(raw) {\n  if (!raw) return null;\n  raw = raw.trim();\n  if (raw.endsWith('%')) return raw;\n  const cleaned = raw.replace('€', '').replace(/\\s/g, '').trim();\n  const num = parseInt(cleaned, 10);\n  return isNaN(num) ? raw : num;\n}\n\nfunction parseDataLine(line) {\n  const result = { monthly: {}, ytd: {} };\n  const segments = line.split(' | ');\n  for (const seg of segments) {\n    const trimmed = seg.trim();\n    const ytdMatch = trimmed.match(/^YTD\\s+(ACTUAL|BUDGET|DELTA):\\s*(.+)$/);\n    if (ytdMatch) {\n      result.ytd[ytdMatch[1].toLowerCase()] = parseValue(ytdMatch[2]);\n      continue;\n    }\n    const monthMatch = trimmed.match(/^(\\w+)\\s+(\\d{4})\\s+(ACTUAL|BUDGET|DELTA):\\s*(.+)$/);\n    if (monthMatch) {\n      const monthNum = MONTHS_MAP[monthMatch[1]];\n      if (!monthNum) continue;\n      const key = `${monthMatch[2]}-${monthNum}`;\n      if (!result.monthly[key]) result.monthly[key] = {};\n      result.monthly[key][monthMatch[3].toLowerCase()] = parseValue(monthMatch[4]);\n    }\n  }\n  return result;\n}\n\nfunction toSnakeCase(label) {\n  return label\n    .toLowerCase()\n    .replace(/[()]/g, '')\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_|_$/g, '');\n}\n\nfunction categorizeLabel(label) {\n  if (REVENUE_LABELS.some(r => label.includes(r))) return 'revenue';\n  if (COST_LABELS.some(c => label.includes(c))) return 'cost';\n  return 'other';\n}\n\n// --- PARSING PRINCIPAL (même logique qu'avant) ---\nconst lines = extractedText.split('\\n');\nconst financialData = { entities: {} };\nlet currentEntity = 'main';\nlet currentLabel = null;\nlet isMainKPI = false;\n\nfor (const line of lines) {\n  if (!line.trim() || line.startsWith('📊') || line.startsWith('===') || \n      line.startsWith('Fichier') || line.startsWith('Lignes')) continue;\n\n  if (line.match(/^\\s{2}2WATCH GROUP/) || line.match(/^\\s{2}[A-Z].+GROUP/)) {\n    currentEntity = line.trim().toLowerCase().replace(/\\s+/g, '_');\n    continue;\n  }\n\n  if (line.startsWith('▶')) {\n    currentLabel = line.replace('▶', '').trim();\n    isMainKPI = true;\n    continue;\n  }\n\n  if (line.match(/^\\s{2}\\S/) && !line.match(/^\\s{4}/)) {\n    currentLabel = line.trim();\n    isMainKPI = false;\n    continue;\n  }\n\n  if (line.match(/^\\s{4}/) && currentLabel) {\n    const data = parseDataLine(line.trim());\n    if (!financialData.entities[currentEntity]) {\n      financialData.entities[currentEntity] = { kpis: {}, details: {}, percentages: {} };\n    }\n    const entity = financialData.entities[currentEntity];\n    if (currentLabel.startsWith('%')) entity.percentages[currentLabel] = data;\n    else if (isMainKPI) entity.kpis[currentLabel] = data;\n    else entity.details[currentLabel] = data;\n  }\n}\n\n// ============================================================\n// SORTIE 1 : METRICS FOR DB\n// Format : tableau d'objets prêts pour upsert dans portfolio_company_metrics\n// Chaque objet = { metric_key, metric_value, metric_type, report_period }\n// ============================================================\n\nconst metricsForDb = [];\n\n// On ne traite que l'entité \"main\" (la société solo, pas le groupe)\nconst mainEntity = financialData.entities['main'];\n\nif (mainEntity) {\n  \n  // --- Détecter la période du report (dernier mois avec des données) ---\n  const allMonths = new Set();\n  for (const data of Object.values(mainEntity.kpis)) {\n    Object.keys(data.monthly).forEach(m => allMonths.add(m));\n  }\n  const sortedMonths = [...allMonths].sort();\n  const lastMonth = sortedMonths[sortedMonths.length - 1]; // ex: \"2025-12\"\n  const lastYear = lastMonth ? lastMonth.split('-')[0] : '2025';\n  \n  // Période pour le report_period (format existant : \"December 2025\")\n  const reportPeriodYTD = `${lastYear} YTD`;\n  \n  function addMetric(key, value, type, period) {\n    if (value === null || value === undefined) return;\n    metricsForDb.push({\n      metric_key: key,\n      metric_value: String(value),\n      metric_type: type,\n      report_period: period\n    });\n  }\n\n  // --- KPIs principaux : YTD ---\n  for (const [label, data] of Object.entries(mainEntity.kpis)) {\n    const baseKey = toSnakeCase(label);\n    if (data.ytd.actual !== undefined) {\n      addMetric(baseKey, data.ytd.actual, 'currency', reportPeriodYTD);\n    }\n    if (data.ytd.budget !== undefined) {\n      addMetric(`${baseKey}_budget`, data.ytd.budget, 'currency', reportPeriodYTD);\n    }\n    if (data.ytd.delta !== undefined) {\n      addMetric(`${baseKey}_delta`, data.ytd.delta, 'currency', reportPeriodYTD);\n    }\n  }\n\n  // --- KPIs principaux : mensuel (chaque mois = une métrique avec son report_period) ---\n  for (const [label, data] of Object.entries(mainEntity.kpis)) {\n    const baseKey = toSnakeCase(label);\n    for (const [month, values] of Object.entries(data.monthly)) {\n      const [year, monthNum] = month.split('-');\n      const monthDisplay = `${MONTHS_DISPLAY[monthNum]} ${year}`;\n      \n      if (values.actual !== undefined) {\n        addMetric(`${baseKey}_monthly`, values.actual, 'currency', monthDisplay);\n      }\n      if (values.budget !== undefined) {\n        addMetric(`${baseKey}_monthly_budget`, values.budget, 'currency', monthDisplay);\n      }\n    }\n  }\n\n  // --- Détails revenus/coûts : YTD ---\n  for (const [label, data] of Object.entries(mainEntity.details)) {\n    const baseKey = toSnakeCase(label);\n    if (data.ytd && data.ytd.actual !== undefined) {\n      const type = typeof data.ytd.actual === 'string' && data.ytd.actual.includes('%') \n        ? 'percentage' : 'currency';\n      addMetric(baseKey, data.ytd.actual, type, reportPeriodYTD);\n      if (data.ytd.budget !== undefined) {\n        addMetric(`${baseKey}_budget`, data.ytd.budget, type, reportPeriodYTD);\n      }\n    }\n  }\n\n  // --- Détails revenus/coûts : mensuel ---\n  for (const [label, data] of Object.entries(mainEntity.details)) {\n    const baseKey = toSnakeCase(label);\n    for (const [month, values] of Object.entries(data.monthly)) {\n      const [year, monthNum] = month.split('-');\n      const monthDisplay = `${MONTHS_DISPLAY[monthNum]} ${year}`;\n      \n      if (values.actual !== undefined) {\n        addMetric(`${baseKey}_monthly`, values.actual, 'currency', monthDisplay);\n      }\n    }\n  }\n\n  // --- Marges (%) ---\n  for (const [label, data] of Object.entries(mainEntity.percentages)) {\n    const baseKey = toSnakeCase(label);\n    if (data.ytd) {\n      if (data.ytd.actual !== undefined) {\n        addMetric(baseKey, data.ytd.actual, 'percentage', reportPeriodYTD);\n      }\n      if (data.ytd.budget !== undefined) {\n        addMetric(`${baseKey}_budget`, data.ytd.budget, 'percentage', reportPeriodYTD);\n      }\n    }\n    // Mensuel %\n    for (const [month, values] of Object.entries(data.monthly)) {\n      const [year, monthNum] = month.split('-');\n      const monthDisplay = `${MONTHS_DISPLAY[monthNum]} ${year}`;\n      if (values.actual !== undefined) {\n        addMetric(`${baseKey}_monthly`, values.actual, 'percentage', monthDisplay);\n      }\n    }\n  }\n}\n\n// ============================================================\n// SORTIE 2 : LLM PROMPT (allégé — pas de métriques brutes)\n// Le LLM n'a PAS besoin des chiffres détaillés puisqu'ils sont en DB.\n// On lui donne juste :\n//   - Le contexte email (qui envoie, quand, sujet)\n//   - Le narratif du CEO (body de l'email)\n//   - Un résumé des KPIs clés pour qu'il puisse commenter\n// ============================================================\n\nfunction formatNum(val) {\n  if (val === null || val === undefined) return 'N/A';\n  if (typeof val === 'string') return val;\n  return new Intl.NumberFormat('fr-FR').format(val) + '€';\n}\n\nlet llmPrompt = `## CONTEXTE\nSource: ${emailFrom}\nDate: ${emailDate}\nSujet: ${emailSubject}\n\n## RÉSUMÉ FINANCIER (données Excel extraites)\n`;\n\nif (mainEntity) {\n  // Seulement les 5-6 KPIs clés en YTD\n  const keyKPIs = ['TOTAL REVENUES', 'Gross Margin', 'EBITDA', 'FREE CASH FLOW OF THE PERIOD'];\n  \n  for (const kpiName of keyKPIs) {\n    const kpi = mainEntity.kpis[kpiName];\n    if (kpi && kpi.ytd && kpi.ytd.actual !== undefined) {\n      const pctDelta = kpi.ytd.budget && kpi.ytd.budget !== 0\n        ? ` (${Math.round((kpi.ytd.actual / kpi.ytd.budget - 1) * 100)}% vs budget)`\n        : '';\n      llmPrompt += `- ${kpiName}: ${formatNum(kpi.ytd.actual)}${pctDelta}\\n`;\n    }\n  }\n\n  // Marges\n  for (const [label, data] of Object.entries(mainEntity.percentages)) {\n    if (data.ytd && data.ytd.actual) {\n      llmPrompt += `- Marge EBITDA: Actual ${data.ytd.actual} vs Budget ${data.ytd.budget || 'N/A'}\\n`;\n    }\n  }\n  \n  // Tendance 3 derniers mois EBITDA\n  const ebitda = mainEntity.kpis['EBITDA'];\n  if (ebitda) {\n    const months = Object.keys(ebitda.monthly).sort();\n    if (months.length >= 3) {\n      const last3 = months.slice(-3);\n      const trend = last3.map(m => {\n        const [y, mn] = m.split('-');\n        return `${MONTHS_DISPLAY[mn]}: ${formatNum(ebitda.monthly[m].actual)}`;\n      }).join(' → ');\n      llmPrompt += `- Tendance EBITDA (3 derniers mois): ${trend}\\n`;\n    }\n  }\n}\n\n// Ajouter le narratif du CEO (tronqué si trop long)\nif (emailBody) {\n  // Extraire le contenu principal (avant les signatures)\n  const bodyClean = emailBody\n    .split(/^--\\s*$/m)[0] // Couper avant la signature\n    .replace(/\\[image:.*?\\]/g, '') // Retirer les images\n    .replace(/<https?:\\/\\/[^>]+>/g, '') // Retirer les URLs\n    .trim();\n  \n  if (bodyClean.length > 100) {\n    // Limiter à ~2000 chars pour pas surcharger\n    const truncated = bodyClean.length > 2000 \n      ? bodyClean.substring(0, 2000) + '...' \n      : bodyClean;\n    llmPrompt += `\\n## MESSAGE DU CEO\\n${truncated}\\n`;\n  }\n}\n\n// ============================================================\n// SORTIE 3 : STRUCTURED DATA (backup complet, identique à v1)\n// ============================================================\nconst structuredData = {\n  report_type: 'financial_pl_cashflow',\n  extraction_date: new Date().toISOString(),\n  entities: financialData.entities\n};\n\n// ============================================================\n// RETURN\n// ============================================================\nreturn [{\n  json: {\n    // Pour la branche DB → Supabase batch upsert\n    metrics_for_db: metricsForDb,\n    \n    // Pour la branche LLM → analyse narrative\n    llm_prompt: llmPrompt,\n    \n    // Backup complet\n    structured_data: structuredData,\n    \n    // Stats\n    stats: {\n      metrics_count: metricsForDb.length,\n      entities_count: Object.keys(financialData.entities).length,\n      original_size_chars: extractedText.length,\n      llm_prompt_chars: llmPrompt.length,\n      llm_prompt_reduction_percent: Math.round(\n        (1 - llmPrompt.length / extractedText.length) * 100\n      )\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        720
+      ],
+      "id": "5fcf5f84-81e8-4ff2-8fd2-8cadd3f3a37f",
+      "name": "Excel recap"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4224,
+        1120
+      ],
+      "id": "f04b740c-17a7-4b96-9773-e75d2e9ca8e9",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les infos du report\nconst reportId = $('Merge').first().json.report_id;\nconst companyId = $('Merge').first().json.company_id;\nconst reportPeriod = $('Merge').first().json.cleaned_report_period;\n\n// Récupérer TOUS les items binaires depuis le noeud de download\n// Remplace 'Start + Download' par le nom exact du noeud qui télécharge les fichiers\nconst downloadItems = $('Start + Download').all();\nconst results = [];\n\nfor (let i = 0; i < downloadItems.length; i++) {\n  const item = downloadItems[i];\n  const binaryKeys = Object.keys(item.binary || {});\n  \n  for (const binaryKey of binaryKeys) {\n    const binaryData = item.binary[binaryKey];\n    const originalName = binaryData.fileName || `file_${i}`;\n    const ext = originalName.includes('.')\n      ? originalName.split('.').pop().toLowerCase()\n      : 'bin';\n    const mimeType = binaryData.mimeType || 'application/octet-stream';\n    \n    const cleanName = originalName\n      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n      .replace(/[^a-zA-Z0-9._-]/g, '_')\n      .replace(/_+/g, '_');\n    \n    const suffix = `_${results.length}`;\n    const storagePath = `${companyId}/${reportId}/${reportPeriod}${suffix}.${ext}`;\n    \n    results.push({\n      json: {\n        storagePath,\n        originalName,\n        cleanName,\n        mimeType,\n        reportId,\n        companyId,\n        reportPeriod,\n        fileIndex: results.length,\n        binaryKey\n      },\n      binary: {\n        data: item.binary[binaryKey]\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4528,
+        928
+      ],
+      "id": "41298359-efc6-4b71-9521-674dd8cc3058",
+      "name": "Prepares files"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.alboteam.com",
+            "user-agent": "Deno/2.1.4 (variant; SupabaseEdgeRuntime/1.71.0)",
+            "content-length": "20471",
+            "accept": "*/*",
+            "accept-encoding": "gzip,br",
+            "accept-language": "*",
+            "content-type": "application/json",
+            "traceparent": "00-6cb9cabfbe4cabf5aa84fb3690c73622-81a7027b91d778d6-01",
+            "x-forwarded-for": "15.188.62.98",
+            "x-forwarded-host": "n8n.alboteam.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "5702534c9e1a",
+            "x-real-ip": "15.188.62.98"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "email_id": "9dXrl1CQVN6qevRRBFrUvQ",
+            "account_id": "_6sjZD6zSUmIEb1N8gqAow",
+            "subject": "Fwd: EUTOPIA CO INVEST DYNAMO | REPORTING Q4 2025",
+            "from_attendee": {
+              "display_name": "Raphaëlle Néré",
+              "identifier": "raphaelle@alboteam.com",
+              "identifier_type": "EMAIL_ADDRESS"
+            },
+            "to_attendees": [
+              {
+                "display_name": "report@alboteam.com",
+                "identifier": "report@alboteam.com",
+                "identifier_type": "EMAIL_ADDRESS"
+              }
+            ],
+            "cc_attendees": [],
+            "body": "<div dir=\"ltr\"><br><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">---------- Forwarded message ---------<br>De : <strong class=\"gmail_sendername\" dir=\"auto\">Clément Alteresco</strong> <span dir=\"auto\">&lt;<a href=\"mailto:clement.alteresco@gmail.com\">clement.alteresco@gmail.com</a>&gt;</span><br>Date: jeu. 5 mars 2026 à 19:47<br>Subject: Fwd: EUTOPIA CO INVEST DYNAMO | REPORTING Q4 2025<br>To: &#39;Mathieu Turban&#39; via Hello &lt;<a href=\"mailto:hello@alboteam.com\">hello@alboteam.com</a>&gt;<br></div><br><br><div><br clear=\"all\"><br clear=\"all\"><div><div dir=\"ltr\" class=\"gmail_signature\" data-smartmail=\"gmail_signature\">C./</div></div></div><div><br></div><div><br><div class=\"gmail_quote\"><div dir=\"ltr\" class=\"gmail_attr\">---------- Message transféré ---------<br>De : <strong class=\"gmail_sendername\" dir=\"auto\">Camille Kriebitzsch</strong> <span dir=\"auto\">&lt;<a href=\"mailto:camille@eutopia.vc\" target=\"_blank\">camille@eutopia.vc</a>&gt;</span><br>Date : jeu. 5 mars 2026 à 16:47<br>Objet : EUTOPIA CO INVEST DYNAMO | REPORTING Q4 2025<br>À : <br>CC : Antoine Fine &lt;<a href=\"mailto:antoine@eutopia.vc\" target=\"_blank\">antoine@eutopia.vc</a>&gt;, Myriam de Tournemire &lt;<a href=\"mailto:myriam@eutopia.vc\" target=\"_blank\">myriam@eutopia.vc</a>&gt;<br></div><br><br>\r\n\r\n\r\n\r\n\r\n\r\n<div lang=\"FR\" link=\"#467886\" vlink=\"#96607D\" style=\"word-wrap:break-word\">\r\n<div>\r\n<p class=\"MsoNormal\">Chers Souscripteurs,<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\" style=\"margin-bottom:12.0pt\">Vous trouverez en pièce-jointe le reporting du <b>4e trimestre 2025 d&#39;EUTOPIA CO-INVEST DYNAMO.<u></u><u></u></b></p>\r\n<p class=\"MsoNormal\" style=\"margin-bottom:12.0pt\">La société enregistre sur la période un CA de\r\n<b>€3.2m, </b>toujours en progression par rapport à l’année dernière (<b>+7%</b>) mais en recul important par rapport au budget (<b>-20%</b>).<u></u><u></u></p>\r\n<p class=\"MsoNormal\">La rentabilité se maintient grâce à des coûts bien tenus, avec un\r\n<b>EBITDA studio de €0.7m (21% du CA)</b> et un <b>EBITDA groupe à l’équilibre (4% du CA)</b>.<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><i>* à noter que l’EBITDA du trimestre est plus faible qu’attendu compte tenu de reclassements de fin d’année<u></u><u></u></i></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">En cumulé sur l’année, la société réalise un <b>CA de €13.3m (+13% vs. N-1, -25% vs. budget)</b> et un\r\n<b>EBITDA de €1.5m (11%) (+ €0.4m vs. N-1, -€1.0m  vs. budget).</b><u></u><u></u></p>\r\n<p class=\"MsoNormal\"><br>\r\nLa position de trésorerie à la fin de l’année s’établit à <b>€1.2m</b> (dont €0.7m de cash bloqué) et la dette nette à <b>€4.9m.<u></u><u></u></b></p>\r\n<p class=\"MsoNormal\"><b><u></u> <u></u></b></p>\r\n<p class=\"MsoNormal\">Le bilan de l’année souligne des défis à relever : <u></u><u></u></p>\r\n<ul style=\"margin-top:0cm\" type=\"disc\">\r\n<li style=\"margin-left:0cm\">La dynamique de croissance a été mitigée avec des tendances très variables selon les concepts :\r\n<u></u><u></u></li><ul style=\"margin-top:0cm\" type=\"circle\">\r\n<li style=\"margin-left:0cm\"><b>RIISE\r\n</b>(yoga, pilates), grâce au lancement de son activité de pilates reformer, a tiré la croissance du groupe (+108% YoY / +4% vs. budget)<u></u><u></u></li><li style=\"margin-left:0cm\"><b>Dynamo\r\n</b>(cycling)<b> </b>avec ses 9 studios reste le plus gros contributeur en termes de CA et d’EBITDA (57% du CA / 59% de l’EBITDA studio) mais connait un ralentissement de son activité qui s’est accentué au fil de l’année (-9% en LfL sur le Q4) et montre un\r\n besoin de renouvellement <u></u><u></u></li><li style=\"margin-left:0cm\"><b>Punch</b> (boxe) est l’activité la plus en difficulté (<b>-19%</b> en LfL sur le Q4) avec un travail de refonte du concept encore insuffisant pour relancer la dynamique<u></u><u></u></li></ul>\r\n<li style=\"margin-left:0cm\">La pression concurrentielle s’est intensifiée avec un marché de plus en plus orienté vers l’activité de pilates reformer (80% des réservations sur les plateformes type classpass /\r\n gymlib). Le groupe a montré sa capacité à cibler ces nouvelles attentes (transformation de 2 studios Dynamo et Punch en reformer) mais cela impacte le modèle économique initial et donc la performance globale.\r\n<u></u><u></u></li></ul>\r\n<ul style=\"margin-top:0cm\" type=\"disc\">\r\n<li style=\"margin-left:0cm\">Les difficultés organisationnelles se sont multipliées. Après le départ des 4 co-fondateurs du groupe, le Directeur General arrivé en novembre 2024 a décidé de quitter ses fonctions\r\n en décembre 25. Une nouvelle organisation a rapidement été mise en place avec l’arrivée d’un manager de transition (amené à rester) mais cela entraine à nouveau du changement et de la perturbation.<u></u><u></u></li></ul>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">Dans ce contexte chahuté, le budget retenu pour l’année 2026 a été revu à\r\n<b>€13.4m de CA et €1.8m d’EBITDA </b>(en deçà des chiffres transmis au Q3 dans une approche plus conservatrice et prudente sur le pilotage de la trésorerie).<u></u><u></u></p>\r\n<p class=\"MsoNormal\">Les priorités ont été clairement identifiées :<u></u><u></u></p>\r\n<ul style=\"margin-top:0cm\" type=\"disc\">\r\n<li style=\"margin-left:0cm\">Stabilisation de l’équipe de direction autour du nouveau manager de transition, amené à prendre la direction générale de manière permanente<u></u><u></u></li><li style=\"margin-left:0cm\">Stabilisation du chiffre d’affaires avec :<u></u><u></u></li><ul style=\"margin-top:0cm\" type=\"circle\">\r\n<li style=\"margin-left:0cm\">le ramp-up des derniers studios RIISE ouverts, notamment par la transformation récente des studios Dynamo Neuilly et Punch République<u></u><u></u></li><li style=\"margin-left:0cm\">une reprise des activités sur Dynamo et Punch grâce à (i) un travail de fond sur les expériences et sur l’offre et (ii) une meilleure stratégie d’acquisition et de rétention<u></u><u></u></li></ul>\r\n<li style=\"margin-left:0cm\">Contrôle stricte des coûts et de la trésorerie avec un plan d’économie de €0.9m initié (dont la moitié pourra être matérialisée dès 2026)<u></u><u></u></li></ul>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">Compte-tenu des performances actuelles et des perspectives sur 2026, nous avons revu à la baisse la valorisation précédemment retenue et affichons un multiple de 0.7x sur la ligne (soit un TVPI de 0.69x sur les parts A).<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">Nous restons toutefois confiants à moyen terme sur les perspectives de création de valeur du fait des tendances de fond adressées par le groupe, de la désirabilité de ses marques et du plan d’action initié.<u></u><u></u></p>\r\n<p class=\"MsoNormal\">Le management vise toujours d’amener la société à €17m de CA et €5m d’EBITDA ce qui permettra dans la durée de retrouver des niveaux de valeur satisfaisants.<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">Nous sommes bien entendu à votre disposition si vous avez des questions sur la ligne.<u></u><u></u></p>\r\n<p class=\"MsoNormal\">Je profite de cet email pour vous annoncer mon départ en congé maternité à la fin de la semaine, Antoine prendra le relai sur le suivi de la ligne en mon absence.<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\">Bien cordialement,<u></u><u></u></p>\r\n<p class=\"MsoNormal\">Camille / l’équipe Eutopia.<u></u><u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n<p class=\"MsoNormal\"><span style=\"font-family:&quot;Calibri&quot;,sans-serif\"><u></u> <u></u></span></p>\r\n<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse\">\r\n<tbody>\r\n<tr>\r\n<td width=\"123\" valign=\"top\" style=\"width:92.15pt;padding:0cm 0cm 0cm 0cm\">\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><span style=\"font-size:12.0pt;line-height:105%\"><img src=\"cid:ii_19cbf52f67811bfad141\" style=\"max-width:100%\"></span><b><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Times New Roman&quot;,serif;color:black\"><u></u><u></u></span></b></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><b><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Times New Roman&quot;,serif;color:black\"><u></u> <u></u></span></b></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><b><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Times New Roman&quot;,serif;color:black\"><u></u> <u></u></span></b></p>\r\n</td>\r\n<td width=\"566\" valign=\"top\" style=\"width:424.25pt;padding:0cm 5.4pt 0cm 5.4pt\">\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><b><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif;color:black\">Camille Richter - Kriebitzsch<u></u><u></u></span></b></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><b><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif;color:black\">Co-founder &amp; Partner</span></b><b><span lang=\"EN-US\" style=\"font-size:5.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif;color:black\"><u></u><u></u></span></b></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><span style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif;color:black\">T: + 33 6 42 18 56 59<i><u></u><u></u></i></span></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><span style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif;color:black\"><a href=\"https://www.google.com/maps/search/9+rue+des+Filles+St+Thomas,+75002+Paris?entry=gmail&amp;source=g\" target=\"_blank\">9 rue des Filles St Thomas, 75002 Paris</a><u></u><u></u></span></p>\r\n<p class=\"MsoNormal\" style=\"line-height:105%\"><span style=\"font-size:12.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\"><a href=\"http://eutopia.vc/\" target=\"_blank\"><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;color:#1155cc\">Website</span></a></span><span style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\">\r\n<span lang=\"EN-US\">|<span style=\"color:black\"> </span></span></span><span style=\"font-size:12.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\"><a href=\"https://www.linkedin.com/in/camille-kriebitzsch-8bb61251/\" target=\"_blank\"><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;color:#0563c1\">LinkedIn</span><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;color:#0563c1;text-decoration:none\"> </span></a></span><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\">|\r\n</span><span style=\"font-size:12.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\"><a href=\"https://eutopia.us16.list-manage.com/subscribe?u=b34a65d7580ced1852f233beb&amp;id=24f9e38d5f\" target=\"_blank\"><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;color:#0563c1\">Newsletter</span></a></span><span lang=\"EN-US\" style=\"font-size:9.0pt;line-height:105%;font-family:&quot;Arial&quot;,sans-serif\"><u></u><u></u></span></p>\r\n<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\r\n<tbody>\r\n<tr>\r\n<td style=\"padding:.75pt .75pt .75pt .75pt\"></td>\r\n</tr>\r\n</tbody>\r\n</table>\r\n</td>\r\n</tr>\r\n</tbody>\r\n</table>\r\n<p class=\"MsoNormal\"><span style=\"font-size:12.0pt\"><u></u> <u></u></span></p>\r\n<p class=\"MsoNormal\"><u></u> <u></u></p>\r\n</div>\r\n</div>\r\n\r\n</div></div>\r\n</div></div>\r\n",
+            "body_plain": "---------- Forwarded message ---------\r\nDe : Clément Alteresco <clement.alteresco@gmail.com>\r\nDate: jeu. 5 mars 2026 à 19:47\r\nSubject: Fwd: EUTOPIA CO INVEST DYNAMO | REPORTING Q4 2025\r\nTo: 'Mathieu Turban' via Hello <hello@alboteam.com>\r\n\r\n\r\n\r\n\r\nC./\r\n\r\n\r\n---------- Message transféré ---------\r\nDe : Camille Kriebitzsch <camille@eutopia.vc>\r\nDate : jeu. 5 mars 2026 à 16:47\r\nObjet : EUTOPIA CO INVEST DYNAMO | REPORTING Q4 2025\r\nÀ :\r\nCC : Antoine Fine <antoine@eutopia.vc>, Myriam de Tournemire <\r\nmyriam@eutopia.vc>\r\n\r\n\r\nChers Souscripteurs,\r\n\r\n\r\n\r\nVous trouverez en pièce-jointe le reporting du *4e trimestre 2025 d'EUTOPIA\r\nCO-INVEST DYNAMO.*\r\n\r\nLa société enregistre sur la période un CA de *€3.2m, *toujours en\r\nprogression par rapport à l’année dernière (*+7%*) mais en recul important\r\npar rapport au budget (*-20%*).\r\n\r\nLa rentabilité se maintient grâce à des coûts bien tenus, avec un *EBITDA\r\nstudio de €0.7m (21% du CA)* et un *EBITDA groupe à l’équilibre (4% du CA)*.\r\n\r\n** à noter que l’EBITDA du trimestre est plus faible qu’attendu compte tenu\r\nde reclassements de fin d’année*\r\n\r\n\r\n\r\nEn cumulé sur l’année, la société réalise un *CA de €13.3m (+13% vs. N-1,\r\n-25% vs. budget)* et un *EBITDA de €1.5m (11%) (+ €0.4m vs. N-1, -€1.0m\r\n vs. budget).*\r\n\r\n\r\nLa position de trésorerie à la fin de l’année s’établit à *€1.2m* (dont\r\n€0.7m de cash bloqué) et la dette nette à *€4.9m.*\r\n\r\n\r\n\r\nLe bilan de l’année souligne des défis à relever :\r\n\r\n   - La dynamique de croissance a été mitigée avec des tendances très\r\n   variables selon les concepts :\r\n      - *RIISE *(yoga, pilates), grâce au lancement de son activité de\r\n      pilates reformer, a tiré la croissance du groupe (+108% YoY / +4% vs.\r\n      budget)\r\n      - *Dynamo *(cycling) avec ses 9 studios reste le plus gros\r\n      contributeur en termes de CA et d’EBITDA (57% du CA / 59% de l’EBITDA\r\n      studio) mais connait un ralentissement de son activité qui s’est accentué\r\n      au fil de l’année (-9% en LfL sur le Q4) et montre un besoin de\r\n      renouvellement\r\n      - *Punch* (boxe) est l’activité la plus en difficulté (*-19%* en LfL\r\n      sur le Q4) avec un travail de refonte du concept encore insuffisant pour\r\n      relancer la dynamique\r\n   - La pression concurrentielle s’est intensifiée avec un marché de plus\r\n   en plus orienté vers l’activité de pilates reformer (80% des réservations\r\n   sur les plateformes type classpass / gymlib). Le groupe a montré sa\r\n   capacité à cibler ces nouvelles attentes (transformation de 2 studios\r\n   Dynamo et Punch en reformer) mais cela impacte le modèle économique initial\r\n   et donc la performance globale.\r\n\r\n\r\n   - Les difficultés organisationnelles se sont multipliées. Après le\r\n   départ des 4 co-fondateurs du groupe, le Directeur General arrivé en\r\n   novembre 2024 a décidé de quitter ses fonctions en décembre 25. Une\r\n   nouvelle organisation a rapidement été mise en place avec l’arrivée d’un\r\n   manager de transition (amené à rester) mais cela entraine à nouveau du\r\n   changement et de la perturbation.\r\n\r\n\r\n\r\nDans ce contexte chahuté, le budget retenu pour l’année 2026 a été\r\nrevu à *€13.4m\r\nde CA et €1.8m d’EBITDA *(en deçà des chiffres transmis au Q3 dans une\r\napproche plus conservatrice et prudente sur le pilotage de la trésorerie).\r\n\r\nLes priorités ont été clairement identifiées :\r\n\r\n   - Stabilisation de l’équipe de direction autour du nouveau manager de\r\n   transition, amené à prendre la direction générale de manière permanente\r\n   - Stabilisation du chiffre d’affaires avec :\r\n      - le ramp-up des derniers studios RIISE ouverts, notamment par la\r\n      transformation récente des studios Dynamo Neuilly et Punch République\r\n      - une reprise des activités sur Dynamo et Punch grâce à (i) un\r\n      travail de fond sur les expériences et sur l’offre et (ii) une meilleure\r\n      stratégie d’acquisition et de rétention\r\n   - Contrôle stricte des coûts et de la trésorerie avec un plan d’économie\r\n   de €0.9m initié (dont la moitié pourra être matérialisée dès 2026)\r\n\r\n\r\n\r\nCompte-tenu des performances actuelles et des perspectives sur 2026, nous\r\navons revu à la baisse la valorisation précédemment retenue et affichons un\r\nmultiple de 0.7x sur la ligne (soit un TVPI de 0.69x sur les parts A).\r\n\r\n\r\n\r\nNous restons toutefois confiants à moyen terme sur les perspectives de\r\ncréation de valeur du fait des tendances de fond adressées par le groupe,\r\nde la désirabilité de ses marques et du plan d’action initié.\r\n\r\nLe management vise toujours d’amener la société à €17m de CA et €5m\r\nd’EBITDA ce qui permettra dans la durée de retrouver des niveaux de valeur\r\nsatisfaisants.\r\n\r\n\r\n\r\nNous sommes bien entendu à votre disposition si vous avez des questions sur\r\nla ligne.\r\n\r\nJe profite de cet email pour vous annoncer mon départ en congé maternité à\r\nla fin de la semaine, Antoine prendra le relai sur le suivi de la ligne en\r\nmon absence.\r\n\r\n\r\n\r\nBien cordialement,\r\n\r\nCamille / l’équipe Eutopia.\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n*Camille Richter - Kriebitzsch*\r\n\r\n*Co-founder & Partner*\r\n\r\nT: + 33 6 42 18 56 59\r\n\r\n9 rue des Filles St Thomas, 75002 Paris\r\n<https://www.google.com/maps/search/9+rue+des+Filles+St+Thomas,+75002+Paris?entry=gmail&source=g>\r\n\r\nWebsite <http://eutopia.vc/> | LinkedIn\r\n<https://www.linkedin.com/in/camille-kriebitzsch-8bb61251/>| Newsletter\r\n<https://eutopia.us16.list-manage.com/subscribe?u=b34a65d7580ced1852f233beb&id=24f9e38d5f>\r\n",
+            "has_attachments": true,
+            "attachments": [
+              {
+                "id": "MTljYzNiOWFlNDg0OTQ5Mi5BTkdqZEo4LUMtUERqMFhlSzNVMjBjSUFwWmdTeF9oS3pMXzBKSTRQTUo4YnRVY0lHcjkwRkJqV21xVzZFM0czRUZxUGtaVHg5djVaOVRfOFBnQ3VfS3ZQTV84d2dLeDlHdUpwRDBZS29pOUhHSWk1Yldoa1pZOEJiN1lUd1EwSmo2WllJanFnbUtTR0xGR0hLZlZEb3FuMkZhMThpcmFUZFNJbHl4WHJ1eTdMMElvdFNxX1ZKNHhTWGNLYWUyQkR6bVZUV3ZnMFR6QWdCU1dYcldrZlRmUjRPSmFVYi1NTnpDZDZvR3J6RXI3cHlaVFhESjFIVG1YUUVBbjRna2VFV1M5UWY3QkxtNkhGTjF2MkxTUko0UGYwWnJnRE11Qnk2dTk3aGZvMC11em1IMEFuV0F5TzB0cUllVWo4Ql8zYjN4UG1jYlAxbTMtSFdrZUtsSnhqazU2U1FQeTFqeG44Q0E4ZXhFVW9uU0tfZU9ZVzU2QWhZcHpHVkFBZzNpZU5QY0l5aTVjNkZMWE1COUVQNjhpXy45MTQwLmltYWdlMDAyLnBuZw",
+                "name": "image002.png",
+                "extension": "png",
+                "size": 9140,
+                "mime": "image/png",
+                "cid": "ii_19cbf52f67811bfad141"
+              },
+              {
+                "id": "MTljYzNiOWFlNDg0OTQ5Mi5BTkdqZEpfeFNBQU1ycGxvMVNUbGUyUVRLR2c0YmdYWTJzTnVoOHFDR2owNzB2M0hBV0pqb0hhN0lER3BZYllmS3J1UXZzeElvYU0ySW5mY0tpNm5iX2tZQkpBT1VDdTdzanBTWk9HS2FIZnpaRmd3bEhfdHV4WUJ1MlFHZzhSRVJHWDFtNEdURl83WTFvbHhLSHlpVXUzRC1iUmxaRkFQZ3U2d3hyajhzQV94TjkwQVlxQjY5QWlnLTdNWjRhVEl4YkJOZUUtNHl5blEtUjI2VExpQ1dSU1VFMVNxWjhoRUl6UXg0NnIxOV8zbjhxMVZ1a3hmV3BkTTBPaE9SaE1WTC1zdzBHZUN3ZVBEUW5zU2FhVXNrVjBwb1FSaHVoUFlRbzM4U0x4d2Q0V0pZWnhudVc4eU9mZklDMjItYm5Gb0czcnM2blNzMEpTWHJVTzhwNDEteTkxMlRjRGIxUlY1WExDVEYxcFZWLWhDOXJyQ1Y4S3JzNENSTWhya1V6MXFvOE1EamlPOENOQ2x6OGZFTjYtVS40NzgzMTIuUTQgMjAyNSAtIEVVVE9QSUEgQ08gSU5WRVNUIERZTkFNTyAtIFJFUE9SVElORy5wZGY",
+                "name": "Q4 2025 - EUTOPIA CO INVEST DYNAMO - REPORTING.pdf",
+                "extension": "pdf",
+                "size": 478312,
+                "mime": "application/pdf",
+                "cid": "19cbf52f678701817462"
+              }
+            ],
+            "date": "2026-03-06T15:17:16.000Z",
+            "thread_id": "19cc3b9ae4849492",
+            "message_id": "<CAPWAdTKuU01iN6zVtyXfE9MQ1JKQnWSkm02f-4GN98ZfABYHGg@mail.gmail.com>",
+            "provider_id": "19cc3b9ae4849492",
+            "folders": [
+              "report",
+              "UNREAD",
+              "INBOX",
+              "CATEGORY_PERSONAL"
+            ],
+            "_routed_by": "email-router-webhook",
+            "_route": "report",
+            "_source": "webhook",
+            "_routed_at": "2026-03-06T15:17:48.736Z"
+          },
+          "webhookUrl": "https://n8n.alboteam.com/webhook/report_inbox",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Extract text1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Report Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doc send2pdf": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "By pass SendBim": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "A un compte ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A un compte ?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Fetch Notion Data": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create report": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update with Report": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload storage": {
+      "main": [
+        [
+          {
+            "node": "Insert report files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert report files": {
+      "main": [
+        [
+          {
+            "node": "Update with Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check company_id from Dust": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Search into workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Report Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Report Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Report Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Final Result2": {
+      "main": [
+        [
+          {
+            "node": "Check company_id from Dust",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Agent": {
+      "main": [
+        [
+          {
+            "node": "Extract Final Result2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model in Perplexity": {
+      "ai_tool": [
+        [
+          {
+            "node": "Report Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Prepares files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update with Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Start + Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start + Download": {
+      "main": [
+        [
+          {
+            "node": "Premier filtre",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Premier filtre": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Get company_id1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get company_id1": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search into workflow": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean original text report": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Clean original text report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Notion Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract text1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract text1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "By pass SendBim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Doc send2pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract text1": {
+      "main": [
+        [
+          {
+            "node": "OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Extract All excel sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract All excel sheets": {
+      "main": [
+        [
+          {
+            "node": "Excel recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Excel recap": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepares files": {
+      "main": [
+        [
+          {
+            "node": "Upload storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "versionId": "abd94c26-8226-48cd-b1c7-b78c730e0b3a",
+  "meta": {
+    "instanceId": "168bf1b5955ce1e8eacd6c78f4d2e171aff7ede4131f470445e4802500582ac2"
+  },
+  "id": "gffVXLSHMhnhAdkm",
+  "tags": [
+    {
+      "updatedAt": "2026-01-27T10:54:01.263Z",
+      "createdAt": "2026-01-27T10:54:01.263Z",
+      "id": "QhgotDcMERyh1dV3",
+      "name": "Albo-app"
+    }
+  ]
+}

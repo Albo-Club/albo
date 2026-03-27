@@ -1,0 +1,734 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useWorkspace, WorkspaceRole } from '@/contexts/WorkspaceContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { Loader2, Users, Plus, Crown, Shield, User, X, Clock, Send, Building2, Trash2, AlertTriangle, RefreshCw, ImageIcon, LogOut } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { ImageUploader } from '@/components/onboarding/ImageUploader';
+
+const roleIcons: Record<WorkspaceRole, typeof Crown> = {
+  owner: Crown,
+  admin: Shield,
+  member: User,
+};
+
+const roleColors: Record<WorkspaceRole, string> = {
+  owner: 'bg-amber-100 text-amber-800 border-amber-200',
+  admin: 'bg-blue-100 text-blue-800 border-blue-200',
+  member: 'bg-gray-100 text-gray-800 border-gray-200',
+};
+
+const roleLabels: Record<WorkspaceRole, string> = {
+  owner: 'Propriétaire',
+  admin: 'Admin',
+  member: 'Membre',
+};
+
+export default function WorkspaceSettings() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const {
+    workspace,
+    members,
+    invitations,
+    userRole,
+    loading,
+    isOwner,
+    isAdmin,
+    canManageMembers,
+    createWorkspace,
+    inviteMember,
+    removeMember,
+    updateMemberRole,
+    cancelInvitation,
+    
+    leaveWorkspace,
+    deleteWorkspace,
+    refetch,
+  } = useWorkspace();
+
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('member');
+  const [inviting, setInviting] = useState(false);
+
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  
+  const [deleting, setDeleting] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  const handleCreateWorkspace = async () => {
+    if (!workspaceName.trim()) {
+      toast.error('Veuillez entrer un nom');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await createWorkspace(workspaceName.trim());
+      toast.success('Workspace créé !');
+      setIsCreateDialogOpen(false);
+      setWorkspaceName('');
+    } catch (error: any) {
+      console.error('Error creating workspace:', error);
+      toast.error(error.message || 'Erreur lors de la création');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) {
+      toast.error('Veuillez entrer un email');
+      return;
+    }
+
+    setInviting(true);
+    try {
+      await inviteMember(inviteEmail.trim(), inviteRole);
+      toast.success(`Invitation envoyée à ${inviteEmail}`);
+      setInviteEmail('');
+      setInviteRole('member');
+    } catch (error: any) {
+      console.error('Error inviting:', error);
+      toast.error(error.message || 'Erreur lors de l\'envoi');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!memberToRemove) return;
+
+    setRemoving(true);
+    try {
+      await removeMember(memberToRemove);
+      toast.success('Membre retiré');
+      setMemberToRemove(null);
+    } catch (error: any) {
+      console.error('Error removing member:', error);
+      toast.error(error.message || 'Erreur');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const handleRoleChange = async (memberId: string, newRole: WorkspaceRole) => {
+    try {
+      await updateMemberRole(memberId, newRole);
+      toast.success('Rôle mis à jour');
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      toast.error(error.message || 'Erreur');
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await cancelInvitation(invitationId);
+      toast.success('Invitation annulée');
+    } catch (error: any) {
+      console.error('Error canceling invitation:', error);
+      toast.error(error.message || 'Erreur');
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: string) => {
+    if (!user?.id) return;
+
+    setResending(invitationId);
+    try {
+      // 1. Call the RPC function
+      const { data, error } = await supabase.rpc('resend_workspace_invitation', {
+        _invitation_id: invitationId,
+        _user_id: user.id
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      // 2. Call the Edge Function to send the email
+      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        body: {
+          email: data.email,
+          token: data.token,
+          workspaceId: data.workspace_id,
+          workspaceName: workspace?.name,
+          inviterName: user.user_metadata?.name || user.email,
+          isResend: true
+        }
+      });
+
+      if (emailError) throw emailError;
+
+      toast.success('Invitation renvoyée !');
+      // Refresh the list
+      await refetch();
+
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+
+      // User-friendly error messages
+      const errorMessages: Record<string, string> = {
+        'Maximum resend limit reached': 'Limite de renvois atteinte (max 5)',
+        'Please wait before resending': 'Veuillez attendre 1h entre chaque renvoi',
+        'Invitation is not pending': 'Cette invitation n\'est plus en attente',
+        'Cannot resend link invitations': 'Impossible de renvoyer une invitation par lien',
+        'Invitation not found': 'Invitation introuvable',
+        'Permission denied': 'Permission refusée',
+      };
+
+      toast.error(errorMessages[error.message] || 'Erreur lors du renvoi');
+    } finally {
+      setResending(null);
+    }
+  };
+
+
+  const handleDeleteWorkspace = async () => {
+    if (!workspace?.id) return;
+
+    setDeleting(true);
+    try {
+      await deleteWorkspace(workspace.id);
+      toast.success('Workspace supprimé');
+      navigate('/portfolio');
+    } catch (error: any) {
+      console.error('Error deleting workspace:', error);
+      toast.error(error.message || 'Erreur lors de la suppression');
+    } finally {
+    setDeleting(false);
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    setLeaving(true);
+    try {
+      await leaveWorkspace();
+      toast.success('Vous avez quitté le workspace');
+      navigate('/portfolio');
+    } catch (error: any) {
+      console.error('Error leaving workspace:', error);
+      toast.error(error.message || 'Erreur lors de la sortie du workspace');
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // No workspace yet
+  if (!workspace) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Workspace</h1>
+          <p className="text-muted-foreground">Créez ou rejoignez un workspace pour collaborer</p>
+        </div>
+
+        <Card className="text-center py-12">
+          <CardContent>
+            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Aucun workspace</h3>
+            <p className="text-muted-foreground mb-6">
+              Créez un workspace pour collaborer avec votre équipe sur les deals
+            </p>
+
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Créer un Workspace
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Créer un Workspace</DialogTitle>
+                  <DialogDescription>
+                    Donnez un nom à votre workspace. Vous pourrez ensuite inviter des membres.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Label htmlFor="workspace-name">Nom du workspace</Label>
+                  <Input
+                    id="workspace-name"
+                    value={workspaceName}
+                    onChange={(e) => setWorkspaceName(e.target.value)}
+                    placeholder="Ex: Albo Fund"
+                    className="mt-2"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleCreateWorkspace} disabled={creating}>
+                    {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Créer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const memberToRemoveData = members.find(m => m.id === memberToRemove);
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Workspace</h1>
+        <p className="text-muted-foreground">Gérez votre équipe et les accès</p>
+      </div>
+
+      {/* Workspace Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            {workspace.name}
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2">
+            Votre rôle : 
+            <Badge className={roleColors[userRole!]}>
+              {roleLabels[userRole!]}
+            </Badge>
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {/* Logo du Workspace */}
+      {isOwner && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Logo du workspace
+            </CardTitle>
+            <CardDescription>
+              Ce logo sera visible par tous les membres du workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImageUploader
+              currentImage={workspace.logo_url || null}
+              onImageChange={async (url) => {
+                try {
+                  const { error } = await supabase
+                    .from('workspaces')
+                    .update({ logo_url: url })
+                    .eq('id', workspace.id);
+                  
+                  if (error) throw error;
+                  
+                  // Refresh workspace data
+                  await refetch();
+                } catch (error: any) {
+                  console.error('Error saving logo:', error);
+                  toast.error('Erreur lors de la sauvegarde du logo');
+                }
+              }}
+              bucket="workspace-logos"
+              userId={workspace.id}
+              fallbackInitial={workspace.name}
+              size="lg"
+              shape="square"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Members List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Membres ({members.length})
+          </CardTitle>
+          <CardDescription>
+            Membres de votre workspace
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {members.map((member) => {
+              const RoleIcon = roleIcons[member.role];
+              const isCurrentUser = member.user_id === user?.id;
+              const canEdit = canManageMembers && !isCurrentUser && member.role !== 'owner';
+              const canRemove = canManageMembers && !isCurrentUser && member.role !== 'owner';
+
+              return (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      {member.profile?.avatar_url && (
+                        <AvatarImage 
+                          src={member.profile.avatar_url} 
+                          alt={member.profile?.name || 'Avatar'} 
+                        />
+                      )}
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {member.profile?.name?.charAt(0).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">
+                        {member.profile?.name || 'Utilisateur'}
+                        {isCurrentUser && <span className="text-muted-foreground ml-1">(vous)</span>}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{member.profile?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canEdit ? (
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => handleRoleChange(member.id, value as WorkspaceRole)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="member">Membre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className={roleColors[member.role]}>
+                        <RoleIcon className="h-3 w-3 mr-1" />
+                        {roleLabels[member.role]}
+                      </Badge>
+                    )}
+                    {canRemove && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMemberToRemove(member.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Invite Member */}
+      {canManageMembers && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Inviter un membre
+            </CardTitle>
+            <CardDescription>
+              Envoyez une invitation par email
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleInvite} className="flex gap-3">
+              <Input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="email@exemple.com"
+                className="flex-1"
+              />
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as WorkspaceRole)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="member">Membre</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit" disabled={inviting}>
+                {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Inviter
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Invitations */}
+      {canManageMembers && invitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Invitations en attente ({invitations.filter(inv => !inv.is_link_invite).length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {invitations
+                .filter(inv => !inv.is_link_invite)
+                .map((invitation) => {
+                  const isExpired = invitation.status === 'expired' || new Date(invitation.expires_at) < new Date();
+                  
+                  return (
+                    <div
+                      key={invitation.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
+                    >
+                      <div>
+                        <p className="font-medium">{invitation.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDistanceToNow(new Date(invitation.created_at), {
+                            addSuffix: true,
+                            locale: fr,
+                          })}
+                          {invitation.resend_count > 0 && (
+                            <span className="ml-2 text-xs">
+                              (renvoyé {invitation.resend_count}x)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Status badge */}
+                        {isExpired ? (
+                          <Badge variant="destructive">Expirée</Badge>
+                        ) : (
+                          <Badge className={roleColors[invitation.role]}>
+                            {roleLabels[invitation.role]}
+                          </Badge>
+                        )}
+
+                        {/* Resend button - only if pending and not link invite */}
+                        {invitation.status === 'pending' && !invitation.is_link_invite && !isExpired && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleResendInvitation(invitation.id)}
+                            disabled={resending === invitation.id}
+                            title="Renvoyer l'invitation"
+                          >
+                            {resending === invitation.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Cancel button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                          title="Annuler l'invitation"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Remove Member Dialog */}
+      <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirer ce membre ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemoveData?.profile?.name || 'Ce membre'} sera retiré du workspace et n'aura plus accès aux deals.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveMember}
+              disabled={removing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Retirer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Leave Workspace - For non-owners */}
+      {!isOwner && workspace && (
+        <Card className="border-orange-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <LogOut className="h-5 w-5" />
+              Quitter le workspace
+            </CardTitle>
+            <CardDescription>
+              Vous ne serez plus membre de ce workspace et n'aurez plus accès aux deals partagés.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-orange-50">
+              <div>
+                <p className="font-medium">Quitter "{workspace.name}"</p>
+                <p className="text-sm text-muted-foreground">
+                  Vous pouvez rejoindre à nouveau ce workspace si vous recevez une nouvelle invitation.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-100">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Quitter
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Quitter ce workspace ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vous allez quitter le workspace "{workspace.name}". 
+                      Vous n'aurez plus accès aux deals partagés avec ce workspace.
+                      Vous pourrez rejoindre à nouveau si vous recevez une nouvelle invitation.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLeaveWorkspace}
+                      disabled={leaving}
+                      className="bg-orange-600 text-white hover:bg-orange-700"
+                    >
+                      {leaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sortie en cours...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Quitter le workspace
+                        </>
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Danger Zone - Only for owner */}
+      {isOwner && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Actions irréversibles sur votre workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div>
+                <p className="font-medium">Supprimer ce workspace</p>
+                <p className="text-sm text-muted-foreground">
+                  Cette action est irréversible. Tous les membres seront retirés et les partages de deals supprimés.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Supprimer
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action est irréversible. Le workspace "{workspace?.name}" sera définitivement supprimé, 
+                      tous les membres seront retirés et tous les partages de deals seront supprimés.
+                      Les deals eux-mêmes ne seront pas supprimés, ils resteront dans les espaces personnels de leurs propriétaires.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteWorkspace}
+                      disabled={deleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Suppression...
+                        </>
+                      ) : (
+                        'Supprimer définitivement'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
