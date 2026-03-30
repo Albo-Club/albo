@@ -109,6 +109,16 @@ export async function analyzeReport(
   emailFrom: string,
   emailDate: string
 ): Promise<ReportAnalysis> {
+  // Tronquer le contenu pour rester sous les limites de tokens
+  const MAX_TEXT = 30000;
+  const MAX_OCR = 30000;
+  const truncText = textContent.length > MAX_TEXT
+    ? textContent.slice(0, MAX_TEXT) + "\n[...tronqué]"
+    : textContent;
+  const truncOcr = ocrContent && ocrContent.length > MAX_OCR
+    ? ocrContent.slice(0, MAX_OCR) + "\n[...tronqué]"
+    : ocrContent;
+
   const userPrompt = `Analyse ce report d'investissement et produis le JSON structuré.
 
 Company ID : ${company.companyId || ""}
@@ -119,8 +129,8 @@ Sender email : ${emailFrom}
 Email subject : ${emailSubject}
 Email date : ${emailDate}
 
-${ocrContent ? `--- OCR DU DOCUMENT ---\n${ocrContent}\n\n` : ""}--- CONTENU DU MAIL ---
-${textContent}
+${truncOcr ? `--- OCR DU DOCUMENT ---\n${truncOcr}\n\n` : ""}--- CONTENU DU MAIL ---
+${truncText}
 
 Réponds avec un JSON contenant ces champs :
 {
@@ -139,12 +149,29 @@ Réponds avec un JSON contenant ces champs :
   "target_company_name": "string or null"
 }`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  // Retry avec backoff sur les 429 (rate limit Anthropic)
+  const MAX_RETRIES = 3;
+  let response: Awaited<ReturnType<typeof anthropic.messages.create>>;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      break;
+    } catch (err: any) {
+      const is429 = err?.status === 429 || String(err?.message || "").includes("429");
+      if (is429 && attempt < MAX_RETRIES) {
+        const waitSec = 30 * (attempt + 1); // 30s, 60s, 90s
+        console.log(`[analyze-report] Rate limit 429, waiting ${waitSec}s before retry ${attempt + 1}/${MAX_RETRIES}`);
+        await new Promise((r) => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
 
   const text = response.content
     .filter((b) => b.type === "text")

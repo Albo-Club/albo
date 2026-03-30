@@ -39,8 +39,8 @@ const MONTHS_DISPLAY: Record<string, string> = {
 
 // Limites mémoire pour éviter OOM sur les gros fichiers
 const MAX_SHEETS = 10;
-const MAX_ROWS_PER_SHEET = 500;
-const MAX_TOTAL_ROWS = 2000;
+const MAX_ROWS_PER_SHEET = 300;
+const MAX_TOTAL_ROWS = 500;
 
 export function extractExcel(buffer: Buffer, fileName?: string): ExcelResult {
   const label = fileName || "spreadsheet.xlsx";
