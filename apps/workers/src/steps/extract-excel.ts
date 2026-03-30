@@ -37,6 +37,11 @@ const MONTHS_DISPLAY: Record<string, string> = {
   "09": "September", "10": "October", "11": "November", "12": "December",
 };
 
+// Limites mémoire pour éviter OOM sur les gros fichiers
+const MAX_SHEETS = 10;
+const MAX_ROWS_PER_SHEET = 500;
+const MAX_TOTAL_ROWS = 2000;
+
 export function extractExcel(buffer: Buffer, fileName?: string): ExcelResult {
   const label = fileName || "spreadsheet.xlsx";
   console.log(`[extract-excel] Processing ${label} (${(buffer.length / 1024).toFixed(0)}KB)`);
@@ -45,12 +50,30 @@ export function extractExcel(buffer: Buffer, fileName?: string): ExcelResult {
   const allRows: Record<string, unknown>[] = [];
   const sheetTexts: string[] = [];
 
-  for (const sheetName of workbook.SheetNames) {
+  const sheetsToProcess = workbook.SheetNames.slice(0, MAX_SHEETS);
+  if (workbook.SheetNames.length > MAX_SHEETS) {
+    console.log(`[extract-excel] Limiting to ${MAX_SHEETS}/${workbook.SheetNames.length} sheets`);
+  }
+
+  let totalRows = 0;
+
+  for (const sheetName of sheetsToProcess) {
+    if (totalRows >= MAX_TOTAL_ROWS) {
+      console.log(`[extract-excel] Reached ${MAX_TOTAL_ROWS} total rows, skipping remaining sheets`);
+      break;
+    }
+
     const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
     if (rows.length === 0) continue;
 
+    if (rows.length > MAX_ROWS_PER_SHEET) {
+      console.log(`[extract-excel] Sheet "${sheetName}": truncating ${rows.length} → ${MAX_ROWS_PER_SHEET} rows`);
+      rows = rows.slice(0, MAX_ROWS_PER_SHEET);
+    }
+
     allRows.push(...rows);
+    totalRows += rows.length;
 
     // Format sheet as readable text
     const headers = Object.keys(rows[0]);

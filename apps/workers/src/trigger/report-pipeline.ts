@@ -32,6 +32,7 @@ export const reportPipelineTask = schemaTask({
       reprocessReportId: z.string().optional(),
     }).optional(),
   }),
+  machine: { preset: "medium-1x" }, // 2 GB RAM — gros Excel (9 MB+)
   queue: {
     concurrencyLimit: 5,
   },
