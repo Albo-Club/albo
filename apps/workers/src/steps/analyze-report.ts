@@ -156,7 +156,7 @@ Réponds avec un JSON contenant ces champs :
     try {
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 16384,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
       });
@@ -173,22 +173,40 @@ Réponds avec un JSON contenant ces champs :
     }
   }
 
+  // Détection truncation AVANT parsing — sinon on a une erreur trompeuse
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `[analyze-report] Response truncated (hit max_tokens=16384). ` +
+      `Increase max_tokens or shorten the OCR input. Company: ${company.companyName}`
+    );
+  }
+
   const text = response.content
     .filter((b) => b.type === "text")
     .map((b) => b.text)
     .join("");
 
-  // Parse JSON from response (handle potential markdown wrapping)
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error(`[analyze-report] No JSON found in Claude response. Raw: ${text.slice(0, 300)}`);
-  }
+  // Strip markdown fences ```json ... ``` proprement
+  const cleaned = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
 
   let parsed: any;
   try {
-    parsed = JSON.parse(jsonMatch[0]);
+    parsed = JSON.parse(cleaned);
   } catch (parseErr: any) {
-    throw new Error(`[analyze-report] JSON parse failed: ${parseErr.message}. Raw: ${jsonMatch[0].slice(0, 300)}`);
+    // Fallback: tenter d'extraire le JSON avec regex
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error(`[analyze-report] No JSON found in Claude response. Raw: ${cleaned.slice(0, 500)}`);
+    }
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (innerErr: any) {
+      throw new Error(`[analyze-report] JSON parse failed: ${innerErr.message}. Raw: ${jsonMatch[0].slice(0, 500)}`);
+    }
   }
 
   return {
