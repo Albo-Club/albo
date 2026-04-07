@@ -3,7 +3,20 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".mastra/**"]
+      "outputs": ["dist/**", ".mastra/**"],
+      "passThroughEnv": [
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "ANTHROPIC_API_KEY",
+        "MISTRAL_API_KEY",
+        "UNIPILE_API_KEY",
+        "UNIPILE_DSN",
+        "RESEND_API_KEY",
+        "SERPER_API_KEY",
+        "TRIGGER_SECRET_KEY",
+        "MASTRA_API_URL",
+        "MASTRA_ACCESS_TOKEN"
+      ]
     },
     "dev": {
       "cache": false,
