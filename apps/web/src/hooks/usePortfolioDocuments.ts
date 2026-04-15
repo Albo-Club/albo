@@ -24,6 +24,7 @@ export interface PortfolioDocument {
   created_at: string;
   updated_at: string;
   source_bucket?: string; // Optional: indicates the source storage bucket
+  is_archived?: boolean;
 }
 
 
@@ -93,19 +94,25 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     queryFn: async () => {
       if (!companyId) return [];
 
-      // 1. Fetch existing portfolio_documents
+      // 1. Fetch existing portfolio_documents (including archived)
       const { data: docs, error: docsError } = await supabase
         .from('portfolio_documents')
         .select('*')
         .eq('company_id', companyId)
-        .neq('is_archived', true)
         .order('type', { ascending: true })
         .order('name', { ascending: true });
 
       if (docsError) throw docsError;
-      // Filter out image files (keep folders which have no mime_type)
+
+      // Get IDs of report_files linked in ALL docs (including archived)
+      // so archived docs don't reappear as virtual report_file entries
+      const linkedReportFileIds = ((docs || []) as PortfolioDocument[])
+        .filter(d => d.report_file_id !== null)
+        .map(d => d.report_file_id!);
+
+      // Hide archived/orphaned documents + filter out image files
       const allDocs = ((docs || []) as PortfolioDocument[]).filter(
-        doc => doc.type === 'folder' || !doc.mime_type?.startsWith('image/')
+        doc => doc.is_archived !== true && (doc.type === 'folder' || !doc.mime_type?.startsWith('image/'))
       );
 
       // 2. Find the "Reporting" folder for this company
@@ -115,11 +122,6 @@ export function usePortfolioDocuments(companyId: string | undefined) {
 
       // If no Reporting folder exists, return docs as-is
       if (!reportingFolder) return allDocs;
-
-      // 3. Get IDs of report_files already linked in portfolio_documents
-      const linkedReportFileIds = allDocs
-        .filter(d => d.report_file_id !== null)
-        .map(d => d.report_file_id!);
 
       // 4. Fetch report_files for this company that are NOT already linked
       const { data: reportFiles, error: rfError } = await supabase
@@ -142,7 +144,8 @@ export function usePortfolioDocuments(companyId: string | undefined) {
           )
         `)
         .eq('company_reports.company_id', companyId)
-        .eq('company_reports.is_duplicate', false);
+        .eq('company_reports.is_duplicate', false)
+        .eq('company_reports.is_archived', false); // Hide archived/orphaned reports
 
       if (rfError) {
         console.error('Error fetching report_files:', rfError);
