@@ -101,6 +101,27 @@ export async function runReportPipeline(
       }
     }
 
+    // Dedup guard: skip if this email was already processed (webhook fired multiple times)
+    if (parsed.messageId) {
+      const { data: existingReport } = await supabase
+        .from("company_reports")
+        .select("id, company_id")
+        .eq("email_message_id", parsed.messageId)
+        .limit(1)
+        .single();
+
+      if (existingReport) {
+        await log("pipeline", "skip",
+          `Déjà traité: email_message_id=${parsed.messageId} → report=${existingReport.id}`);
+        return {
+          success: true,
+          reportId: existingReport.id,
+          companyId: existingReport.company_id,
+          durationMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // Step 2: Clean content
     const cleaned = cleanEmailContent(
       parsed.bodyHtml,
