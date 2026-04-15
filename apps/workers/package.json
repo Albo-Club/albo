@@ -2,32 +2,24 @@
   "name": "@albo/workers",
   "version": "1.0.0",
   "description": "Email processing workers for Albote",
-  "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@albo/shared": "*",
     "@anthropic-ai/sdk": "^0.52.0",
     "@supabase/supabase-js": "^2.49.1",
     "@trigger.dev/build": "^4.4.3",
     "@trigger.dev/sdk": "^4.4.3",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
     "mammoth": "^1.12.0",
-    "multer": "^2.1.1",
     "puppeteer": "^24.39.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/multer": "^2.1.0",
     "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"

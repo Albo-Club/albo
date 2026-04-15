@@ -133,41 +133,8 @@ const Chat = () => {
       // Afficher immédiatement le message user dans l'UI
       setMessages(prev => [...prev, savedUserMsg as Message]);
       
-      // 3. Appeler le webhook N8N pour obtenir la réponse IA
-      const response = await fetch(
-        'https://n8n.alboteam.com/webhook/chat_with_your_deals',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: currentInput,
-            user_id: user.id,
-            conversation_id: activeConversationId
-          })
-        }
-      );
-
-      if (!response.ok) throw new Error('Erreur de connexion au serveur');
-
-      const data = await response.json();
-      
-      // Parser correctement selon le format N8N (array ou objet)
-      let assistantContent: string;
-      
-      if (Array.isArray(data) && data.length > 0) {
-        // Format: [{ message: "...", conversation_id: "..." }]
-        assistantContent = data[0].message || data[0].output || data[0].response;
-      } else if (data && typeof data === 'object') {
-        // Format: { message: "...", conversation_id: "..." }
-        assistantContent = data.message || data.output || data.response;
-      } else {
-        console.error('Format N8N inattendu:', data);
-        throw new Error('Format de réponse invalide');
-      }
-      
-      if (!assistantContent || assistantContent.trim() === '') {
-        throw new Error('Réponse IA vide');
-      }
+      // 3. Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+      throw new Error('Le chat IA est temporairement indisponible. Migration en cours.');
       
       // 4. Sauvegarder le message assistant dans Supabase
       const { data: savedAssistantMsg, error: aiMsgError } = await supabase

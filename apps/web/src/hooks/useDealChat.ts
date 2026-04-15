@@ -4,7 +4,7 @@
  * Ce hook gère :
  * - Le chargement des conversations existantes
  * - La création de nouvelles conversations
- * - L'envoi de messages au webhook N8N
+ * - L'envoi de messages au backend IA
  * - La sauvegarde des messages dans Supabase
  * - Le streaming simulé (effet machine à écrire)
  */
@@ -42,8 +42,8 @@ export interface DealMessage {
 // Configuration
 // ============================================
 
-// URL du webhook N8N pour le chat deals
-const DEAL_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/chat_with_your_deals';
+// Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+const DEAL_CHAT_WEBHOOK_URL = '';
 
 // Configuration du streaming simulé
 const TYPING_SPEED = 30;
@@ -257,38 +257,9 @@ export function useDealChat(dealId: string | undefined, companyName?: string) {
       if (userMsgError) throw userMsgError;
       
       setMessages(prev => [...prev, savedUserMsg as DealMessage]);
-      
-      const response = await fetch(DEAL_CHAT_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: content,
-          user_id: user.id,
-          conversation_id: conversationId,
-          deal_id: dealId,
-          company_name: companyName || '',
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur serveur: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      let assistantContent: string;
-      
-      if (Array.isArray(data) && data.length > 0) {
-        assistantContent = data[0].message || data[0].output || data[0].response || '';
-      } else if (data && typeof data === 'object') {
-        assistantContent = data.message || data.output || data.response || '';
-      } else {
-        throw new Error('Format de réponse invalide');
-      }
-      
-      if (!assistantContent || assistantContent.trim() === '') {
-        assistantContent = "Je n'ai pas pu générer de réponse. Veuillez réessayer.";
-      }
+
+      // Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+      throw new Error('Le chat IA est temporairement indisponible. Migration en cours.');
 
       setIsLoading(false);
       

@@ -220,17 +220,14 @@ export function usePortfolioDocuments(companyId: string | undefined) {
     },
   });
 
-  // Webhook URL for deck embedding
-  const N8N_DECK_EMBEDDING_WEBHOOK = 'https://n8n.alboteam.com/webhook/deck-embedding';
-
   // Upload file mutation
   const uploadFileMutation = useMutation({
-    mutationFn: async ({ 
-      file, 
+    mutationFn: async ({
+      file,
       parentId,
       reportFileId,
-    }: { 
-      file: File; 
+    }: {
+      file: File;
       parentId?: string | null;
       reportFileId?: string | null;
     }) => {
@@ -254,6 +251,7 @@ export function usePortfolioDocuments(companyId: string | undefined) {
       if (uploadError) throw uploadError;
 
       // Create document record
+      // Deck embedding is handled automatically by a DB trigger + Trigger.dev task
       const { data, error } = await supabase
         .from('portfolio_documents')
         .insert({
@@ -272,107 +270,7 @@ export function usePortfolioDocuments(companyId: string | undefined) {
         .single();
 
       if (error) throw error;
-      
-      // ============================================
-      // DECK EMBEDDING: Détecter si c'est un upload dans le dossier "Deck"
-      // ============================================
-      if (parentId && file.type === 'application/pdf') {
-        // Vérifier si le parent est le dossier "Deck"
-        const { data: parentFolder } = await supabase
-          .from('portfolio_documents')
-          .select('name')
-          .eq('id', parentId)
-          .single();
-        
-        if (parentFolder?.name === 'Deck') {
-          console.log('📂 PDF uploaded to Deck folder. Initiating embedding process...');
-          
-          // Afficher le toast de chargement persistant
-          const toastId = toast.loading("Deck en cours d'ajout...", {
-            description: file.name,
-          });
-          
-          // Récupérer l'entrée deck_embeddings créée par le trigger
-          // On attend un peu pour laisser le trigger s'exécuter
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const { data: deckEmbedding } = await supabase
-            .from('deck_embeddings')
-            .select('id')
-            .eq('document_id', data.id)
-            .single();
-          
-          if (deckEmbedding) {
-            // Récupérer le nom de la company
-            const { data: company } = await supabase
-              .from('portfolio_companies')
-              .select('company_name')
-              .eq('id', companyId)
-              .single();
-            
-            // Appeler le webhook N8N avec FormData (comme SubmitDeal.tsx)
-            try {
-              const formData = new FormData();
-              formData.append('file', file);
-              formData.append('deck_embedding_id', deckEmbedding.id);
-              formData.append('company_id', companyId);
-              formData.append('company_name', company?.company_name || 'Unknown');
-              formData.append('document_id', data.id);
-              formData.append('file_name', file.name);
-              formData.append('storage_path', storagePath);
-              formData.append('event', 'deck_uploaded');
-              
-              console.log('📤 Calling N8N webhook for deck embedding with FormData:', {
-                deck_embedding_id: deckEmbedding.id,
-                company_id: companyId,
-                company_name: company?.company_name || 'Unknown',
-                document_id: data.id,
-                file_name: file.name,
-                storage_path: storagePath,
-                event: 'deck_uploaded'
-              });
-              
-              const response = await fetch(N8N_DECK_EMBEDDING_WEBHOOK, {
-                method: 'POST',
-                body: formData,
-                // Ne pas mettre Content-Type, le browser le gère automatiquement pour FormData
-              });
-              
-              if (!response.ok) {
-                console.error('❌ N8N webhook failed:', response.status, await response.text());
-                toast.error("Erreur lors de l'ajout du deck", {
-                  id: toastId,
-                  description: "Le traitement a échoué. Veuillez réessayer.",
-                  duration: 8000,
-                });
-              } else {
-                console.log('✅ N8N webhook called successfully');
-                toast.success("Ajout réussi !", {
-                  id: toastId,
-                  description: "Vous pouvez dès à présent discuter avec ce document.",
-                  duration: 5000,
-                });
-              }
-            } catch (webhookError) {
-              console.error('❌ Error calling N8N webhook:', webhookError);
-              toast.error("Erreur lors de l'ajout du deck", {
-                id: toastId,
-                description: "Veuillez vérifier votre connexion et réessayer.",
-                duration: 8000,
-              });
-            }
-          } else {
-            console.warn('⚠️ No deck_embedding entry found for document:', data.id);
-            toast.error("Erreur lors de l'ajout du deck", {
-              id: toastId,
-              description: "L'enregistrement n'a pas pu être créé.",
-              duration: 8000,
-            });
-          }
-        }
-      }
-      // ============================================
-      
+
       return data as PortfolioDocument;
     },
     onSuccess: () => {

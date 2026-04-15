@@ -4,7 +4,7 @@
  * Ce hook gère :
  * - Le chargement des conversations existantes
  * - La création de nouvelles conversations
- * - L'envoi de messages au webhook N8N
+ * - L'envoi de messages au backend IA
  * - La sauvegarde des messages dans Supabase
  * - Le streaming simulé (effet machine à écrire)
  */
@@ -42,8 +42,8 @@ export interface PortfolioMessage {
 // Configuration
 // ============================================
 
-// URL du webhook N8N pour le chat portfolio
-const PORTFOLIO_CHAT_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/chat_with_your_deals';
+// Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+const PORTFOLIO_CHAT_WEBHOOK_URL = '';
 
 // Configuration du streaming simulé (effet naturel style ChatGPT)
 const TYPING_SPEED = 30; // millisecondes entre chaque mise à jour
@@ -268,39 +268,8 @@ export function usePortfolioChat(companyId: string | undefined, companyName?: st
       // Afficher immédiatement le message utilisateur
       setMessages(prev => [...prev, savedUserMsg as PortfolioMessage]);
       
-      // 3. Appeler le webhook N8N
-      const response = await fetch(PORTFOLIO_CHAT_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: content,
-          user_id: user.id,
-          conversation_id: conversationId,
-          portfolio_company_id: companyId,
-          company_name: companyName || '',
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur serveur: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Parser la réponse N8N (peut être array ou objet)
-      let assistantContent: string;
-      
-      if (Array.isArray(data) && data.length > 0) {
-        assistantContent = data[0].message || data[0].output || data[0].response || '';
-      } else if (data && typeof data === 'object') {
-        assistantContent = data.message || data.output || data.response || '';
-      } else {
-        throw new Error('Format de réponse invalide');
-      }
-      
-      if (!assistantContent || assistantContent.trim() === '') {
-        assistantContent = "Je n'ai pas pu générer de réponse. Veuillez réessayer.";
-      }
+      // 3. Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+      throw new Error('Le chat IA est temporairement indisponible. Migration en cours.');
 
       // 4. Arrêter le loading, lancer le streaming
       setIsLoading(false);

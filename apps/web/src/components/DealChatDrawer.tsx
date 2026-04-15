@@ -122,40 +122,8 @@ export function DealChatDrawer({ dealId, companyName, isOpen, onOpenChange }: De
       // Display user message immediately
       setMessages((prev) => [...prev, savedUserMsg as Message]);
 
-      // 3. Call N8N webhook with deal_id
-      const response = await fetch(
-        "https://n8n.alboteam.com/webhook/chat_with_your_deals",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: userMessage,
-            user_id: user.id,
-            conversation_id: activeConversationId,
-            deal_id: dealId,
-            company_name: companyName,
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Erreur de connexion au serveur");
-
-      const data = await response.json();
-
-      // Parse N8N response (array or object format)
-      let assistantContent: string;
-
-      if (Array.isArray(data) && data.length > 0) {
-        assistantContent = data[0].message || data[0].output || data[0].response;
-      } else if (data && typeof data === "object") {
-        assistantContent = data.message || data.output || data.response;
-      } else {
-        throw new Error("Format de réponse invalide");
-      }
-
-      if (!assistantContent || assistantContent.trim() === "") {
-        throw new Error("Réponse IA vide");
-      }
+      // 3. Chat AI backend (TODO: migrate to Mastra agent via Edge Function)
+      throw new Error('Le chat IA est temporairement indisponible. Migration en cours.');
 
       // 4. Save assistant message to Supabase
       const { data: savedAssistantMsg, error: aiMsgError } = await supabase

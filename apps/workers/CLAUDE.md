@@ -6,38 +6,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Fondateur/CEO d'Alboteam, holding d'investissement (VC/BA). Pas développeur de formation — je comprends la logique mais pas les subtilités TypeScript. Sois explicite, pas clever. Explique les tradeoffs concrètement avant de coder.
 
 ## Le projet
-Migration de workflows N8N (n8n.alboteam.com) vers des workers TypeScript autonomes. Frontend sur Lovable (React/Vite) à app.alboteam.com.
+Workers backend Albo — tasks Trigger.dev pour le traitement des emails, reports et decks.
+Frontend sur Vercel (React/Vite) à app.alboteam.com. Les Edge Functions Supabase font le pont entre le frontend et Trigger.dev.
 
 ### Stack
-- **Runtime** : Node.js / TypeScript / Express
+- **Runtime** : Node.js / TypeScript / Trigger.dev v4
 - **BDD** : Supabase (Postgres + Storage + Auth + RLS)
 - **IA** : Anthropic Claude (Sonnet = analyse, Haiku = OCR léger)
 - **OCR PDF** : Mistral OCR (`mistral-ocr-latest`) en priorité — Claude Sonnet en fallback uniquement
-- **Email entrant** : Unipile webhooks
+- **Email entrant** : Unipile webhooks → Edge Function → Trigger.dev task
 - **Email sortant** : Resend (ou Gmail API fallback)
 - **Recherche web** : Perplexity API
 
 ### Commands
 ```bash
-npm run dev          # Dev server avec hot reload (tsx watch)
 npm run build        # Compile TypeScript → dist/
-npm run start        # Production server
 npm run typecheck    # Type-check sans emit
+npx trigger.dev@latest dev  # Dev local Trigger.dev
 ```
-Test manuel : `POST /test/report` avec `{ "email_id": "...", "account_id": "..." }`.
 
 ### MCP disponibles
 - **Supabase** : accès direct BDD (list_tables, execute_sql, etc.)
-- **N8N** : workflows de référence (search_workflows, get_workflow_details)
 
 ### Structure
 ```
-albote-workers/
+apps/workers/
 ├── src/
-│   ├── server.ts                  ← Express webhook server
+│   ├── trigger/                   ← Trigger.dev tasks (point d'entrée principal)
+│   │   ├── report-pipeline.ts     ← task report emails
+│   │   ├── report-frontend.ts     ← task report import frontend
+│   │   ├── deck-inbox.ts          ← task deck emails
+│   │   ├── deck-frontend.ts       ← task deck analyse frontend
+│   │   ├── email-sync.ts          ← task sync emails
+│   │   └── process-portfolio-document.ts
 │   ├── pipelines/
-│   │   ├── report-inbox.ts        ← pipeline report@alboteam.com
-│   │   └── deck-inbox.ts          ← pipeline deck@alboteam.com
+│   │   ├── report-pipeline.ts     ← logique métier report (appelé par task)
+│   │   └── deck-inbox.ts          ← logique métier deck (appelé par task)
 │   ├── steps/
 │   │   ├── report/                ← steps du pipeline report
 │   │   └── deck/                  ← steps du pipeline deck
@@ -48,7 +52,6 @@ albote-workers/
 │       ├── unipile.ts             ← API Unipile (provider_id + account_id pour Gmail)
 │       ├── logger.ts              ← logs structurés → pipeline_logs
 │       └── email.ts               ← envoi emails (Resend)
-├── reference/                     ← JSON workflows N8N (lecture seule)
 ├── tasks/
 │   ├── todo.md                    ← plan de travail avec items cochables
 │   └── lessons.md                 ← erreurs corrigées et patterns appris
@@ -228,8 +231,8 @@ Email (Unipile webhook) → vérifier compte expéditeur → router source deck 
 ### Conventions techniques
 - Inline images : Unipile → Supabase Storage (bucket public) → remplacer `cid:` par URLs publiques dans HTML → OCR pour analyse IA.
 - Steps d'extraction (`extract-*.ts`) : retournent du texte, ne throw jamais — catch + return string vide.
-- Webhook répond immédiatement (200), pipeline async pour éviter timeouts.
-- `reference/` : JSON workflows N8N originaux (lecture seule).
+- Trigger.dev tasks sont le point d'entrée principal. Pas de serveur Express.
+- Les Edge Functions Supabase routent les webhooks vers `tasks.trigger()`.
 
 ---
 
@@ -241,7 +244,6 @@ ANTHROPIC_API_KEY=
 UNIPILE_API_KEY=
 UNIPILE_BASE_URL=https://api27.unipile.com:15779
 RESEND_API_KEY=
-PORT=3000
 NODE_ENV=development
 ```
 

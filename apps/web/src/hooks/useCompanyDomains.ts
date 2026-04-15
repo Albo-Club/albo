@@ -18,7 +18,6 @@ const GENERIC_DOMAINS = [
   'yahoo.fr', 'orange.fr', 'free.fr', 'sfr.fr', 'laposte.net',
 ];
 
-const N8N_WEBHOOK_URL = 'https://n8n.alboteam.com/webhook/scan-new-domain';
 
 function cleanDomain(input: string): string {
   let d = input.trim().toLowerCase();
@@ -80,13 +79,6 @@ export function useCompanyDomains(companyId: string | undefined) {
         .single();
 
       if (error) throw error;
-
-      // Fire webhook in background
-      fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_id: companyId, domain, user_id: user.id }),
-      }).catch(console.error);
 
       return data as CompanyDomain;
     },
