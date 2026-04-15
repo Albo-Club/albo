@@ -6,7 +6,6 @@ on:
     branches: [main]
     paths:
       - "apps/workers/**"
-      - "packages/shared/**"
 
 jobs:
   deploy:
@@ -22,6 +21,9 @@ jobs:
           cache: npm
       - run: npm ci
         working-directory: .
-      - run: npx trigger.dev@latest deploy
+      - name: Deploy to Trigger.dev
+        run: |
+          SDK_VERSION=$(node -e "console.log(require('./package.json').dependencies['@trigger.dev/sdk'].replace('^',''))")
+          npx trigger.dev@${SDK_VERSION} deploy
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
