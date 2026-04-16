@@ -24,7 +24,7 @@ jobs:
         working-directory: .
       - name: Deploy to Trigger.dev
         run: |
-          SDK_VERSION=$(node -e "console.log(require('./package.json').dependencies['@trigger.dev/sdk'].replace('^',''))")
+          SDK_VERSION=$(node -e "console.log(require('./package.json').dependencies['@trigger.dev/sdk'])")
           npx trigger.dev@${SDK_VERSION} deploy
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
