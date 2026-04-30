@@ -45,6 +45,7 @@ export interface ParsedEmail {
   from: { address: string; name: string };
   to: { address: string; name: string }[];
   cc: { address: string; name: string }[];
+  bcc: { address: string; name: string }[];
   attachments: ParsedAttachment[];
   inlineImages: InlineImage[];
   routes: RouteType[];
@@ -199,6 +200,7 @@ export async function parseEmail(webhookPayload: Record<string, unknown>): Promi
   const fromAttendee = (emailData.from_attendee || {}) as Record<string, string>;
   const toAttendees = (emailData.to_attendees || []) as Record<string, string>[];
   const ccAttendees = (emailData.cc_attendees || []) as Record<string, string>[];
+  const bccAttendees = (emailData.bcc_attendees || []) as Record<string, string>[];
 
   const providerId = String(emailData.provider_id || "");
   const threadId = String(emailData.thread_id || "");
@@ -333,6 +335,7 @@ export async function parseEmail(webhookPayload: Record<string, unknown>): Promi
     from: { address: fromAttendee.identifier || "", name: fromAttendee.display_name || "" },
     to: toAttendees.map((a) => ({ address: a.identifier || "", name: a.display_name || "" })),
     cc: ccAttendees.map((a) => ({ address: a.identifier || "", name: a.display_name || "" })),
+    bcc: bccAttendees.map((a) => ({ address: a.identifier || "", name: a.display_name || "" })),
     attachments,
     inlineImages,
     routes,
