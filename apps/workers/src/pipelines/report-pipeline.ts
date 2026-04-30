@@ -86,16 +86,24 @@ export async function runReportPipeline(
 
     await log("parse-email", "success", `Parsed: ${parsed.attachments.length} attachments, routes: [${parsed.routes}]`);
 
-    // Filtre : ne traiter que les emails adressés à report@alboteam.com
+    // Filtre : ne traiter que les emails adressés à report@alboteam.com (TO, CC ou BCC)
     // (sauf si skipReportFilter — emails historiques depuis email sync)
     if (!options.skipReportFilter) {
       const toAddresses = parsed.to.map((t) => t.address.toLowerCase());
-      const isReportEmail = toAddresses.some((a) => a === "report@alboteam.com");
+      const ccAddresses = parsed.cc.map((c) => c.address.toLowerCase());
+      const bccAddresses = parsed.bcc.map((b) => b.address.toLowerCase());
+      const isReportEmail = [...toAddresses, ...ccAddresses, ...bccAddresses].some(
+        (a) => a === "report@alboteam.com"
+      );
       if (!isReportEmail) {
-        await log("pipeline", "skip", `Destinataire: [${toAddresses.join(", ")}] — pas report@alboteam.com`);
+        await log(
+          "pipeline",
+          "skip",
+          `Destinataire: to=[${toAddresses.join(", ")}] cc=[${ccAddresses.join(", ")}] bcc=[${bccAddresses.join(", ")}] — pas report@alboteam.com`
+        );
         return {
           success: false,
-          error: `Not addressed to report@alboteam.com (to: ${toAddresses.join(", ")})`,
+          error: `Not addressed to report@alboteam.com (to: [${toAddresses.join(", ")}], cc: [${ccAddresses.join(", ")}], bcc: [${bccAddresses.join(", ")}])`,
           durationMs: Date.now() - startTime,
         };
       }
