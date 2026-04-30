@@ -56,3 +56,10 @@
 **Contexte** : Castafiore avait 6 reports "January 2025", Adrenalead 2x "April 2025", + ~30 autres doublons.
 **Cause** : La contrainte `uq_report_company_thread` sur `(company_id, source_thread_id)` ne protège pas les imports frontend car `source_thread_id` est NULL. PostgreSQL traite `NULL != NULL`, donc la contrainte ne s'applique pas.
 **Règle** : Les contraintes unique avec des colonnes nullable ne protègent pas contre les doublons quand la colonne est NULL. Besoin d'un guard applicatif (check company_id + report_period avant INSERT) ou d'un index partiel `WHERE source_thread_id IS NULL`.
+
+## BCC Gmail invisible côté Unipile — se reposer sur le router upstream
+**Date** : 2026-04-30
+**Contexte** : Un email avec `report@alboteam.com` en **BCC** échouait dans `report-pipeline` avec "Not addressed to report@alboteam.com" alors que l'email était bien arrivé dans la mailbox `deck@alboteam.com` et avait déclenché le webhook Unipile vers la task report.
+**Cause** : Gmail voit son propre BCC en interne (et applique correctement le label/folder `report` via filtre) mais Unipile ne remonte **pas** le BCC dans `bcc_attendees` côté API. Le filtre du pipeline qui regardait uniquement les adresses TO/CC/BCC du payload rejetait donc l'email. L'edge function `email-router-webhook` (qui fait le routing en amont via le folder Gmail) était de toute façon la source de vérité — le filtre interne au pipeline était redondant et trop strict.
+**Fix** : Filtre router-aware dans `report-pipeline.ts` — accepter si `webhookPayload._route === "report"` OU `folders` contient "report" (signaux du router) OU `report@alboteam.com` est dans TO/CC/BCC (fallback pour les invocations frontend/batch sans router).
+**Règle** : Quand un composant upstream (edge function, router, webhook) a déjà fait le routing/validation, ne pas redoubler le check côté worker avec une logique plus stricte qui ne voit pas les mêmes signaux. Soit faire confiance à l'upstream (et passer ses tags/route dans le payload), soit utiliser exactement les mêmes règles. Le BCC Gmail n'est jamais visible via l'API IMAP/Unipile pour le destinataire — seul le filtre Gmail côté serveur le voit.

@@ -86,24 +86,36 @@ export async function runReportPipeline(
 
     await log("parse-email", "success", `Parsed: ${parsed.attachments.length} attachments, routes: [${parsed.routes}]`);
 
-    // Filtre : ne traiter que les emails adressés à report@alboteam.com (TO, CC ou BCC)
+    // Filtre : accepter si le router en amont a tagué "report"
+    // (cas webhook — le router lit le folder Gmail "report" qui couvre les BCC,
+    // car Gmail voit son propre BCC en interne et l'applique via filtre).
+    // OU fallback : report@alboteam.com dans TO/CC/BCC (invocations frontend/batch
+    // qui ne passent pas par le router).
     // (sauf si skipReportFilter — emails historiques depuis email sync)
     if (!options.skipReportFilter) {
+      const route = String(webhookPayload._route || "").toLowerCase();
+      const foldersRaw = (webhookPayload.folders || []) as unknown[];
+      const folders = Array.isArray(foldersRaw)
+        ? foldersRaw.map((f) => String(f).toLowerCase())
+        : [];
+      const isRoutedAsReport = route === "report" || folders.includes("report");
+
       const toAddresses = parsed.to.map((t) => t.address.toLowerCase());
       const ccAddresses = parsed.cc.map((c) => c.address.toLowerCase());
       const bccAddresses = parsed.bcc.map((b) => b.address.toLowerCase());
-      const isReportEmail = [...toAddresses, ...ccAddresses, ...bccAddresses].some(
+      const hasReportAddress = [...toAddresses, ...ccAddresses, ...bccAddresses].some(
         (a) => a === "report@alboteam.com"
       );
-      if (!isReportEmail) {
+
+      if (!isRoutedAsReport && !hasReportAddress) {
         await log(
           "pipeline",
           "skip",
-          `Destinataire: to=[${toAddresses.join(", ")}] cc=[${ccAddresses.join(", ")}] bcc=[${bccAddresses.join(", ")}] — pas report@alboteam.com`
+          `Pas un email report — route=${route || "none"} folders=[${folders.join(", ")}] to=[${toAddresses.join(", ")}] cc=[${ccAddresses.join(", ")}] bcc=[${bccAddresses.join(", ")}]`
         );
         return {
           success: false,
-          error: `Not addressed to report@alboteam.com (to: [${toAddresses.join(", ")}], cc: [${ccAddresses.join(", ")}], bcc: [${bccAddresses.join(", ")}])`,
+          error: `Not a report email (route=${route || "none"}, folders=[${folders.join(", ")}], to=[${toAddresses.join(", ")}], cc=[${ccAddresses.join(", ")}], bcc=[${bccAddresses.join(", ")}])`,
           durationMs: Date.now() - startTime,
         };
       }
