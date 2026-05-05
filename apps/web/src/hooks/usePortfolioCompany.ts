@@ -41,8 +41,6 @@ export interface PortfolioCompanyFull {
   investment_type: string | null;
   ownership_percentage: number | null;
   entry_valuation_euros: number | null;
-  last_news: string | null;
-  last_news_updated_at: string | null;
   latest_metrics: PortfolioCompanyMetrics | null;
   latest_report_id: string | null;
   displayed_metrics: string[] | null;

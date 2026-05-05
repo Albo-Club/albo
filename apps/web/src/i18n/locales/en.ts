@@ -479,7 +479,6 @@ const en = {
       coInvestors: 'Co-investors',
       noCoInvestors: 'No co-investors listed',
       investmentDate: 'Investment date',
-      lastNews: 'Latest news',
       lastReport: 'Last Report',
       relatedPeople: 'Related People',
       type: 'Type',

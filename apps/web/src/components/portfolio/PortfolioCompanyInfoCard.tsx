@@ -11,9 +11,8 @@ import {
   Building,
   FileText,
   Users,
-  Calendar,
 } from "lucide-react";
-import { differenceInMonths, format } from "date-fns";
+import { format } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { formatAmount, cn } from "@/lib/utils";
@@ -32,7 +31,6 @@ interface PortfolioCompanyInfoCardProps {
     domain: string | null;
     sectors: string[] | null;
     investment_date: string | null;
-    last_news_updated_at: string | null;
   };
 }
 
@@ -43,13 +41,6 @@ export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardPr
 
   const primaryDomain = companyDomains.find(d => d.is_primary)?.domain || company.domain;
   const extraDomainsCount = Math.max(0, companyDomains.length - 1);
-  const isOlderThanOneMonth = company.last_news_updated_at
-    ? differenceInMonths(new Date(), new Date(company.last_news_updated_at)) >= 1
-    : false;
-
-  const lastNewsDate = company.last_news_updated_at
-    ? format(new Date(company.last_news_updated_at), "d MMM yyyy", { locale })
-    : null;
 
   const investmentDate = company.investment_date
     ? format(new Date(company.investment_date), "d MMMM yyyy", { locale })
@@ -142,23 +133,6 @@ export function PortfolioCompanyInfoCard({ company }: PortfolioCompanyInfoCardPr
             </div>
           ))}
         </div>
-
-        {lastNewsDate && (
-          <div className="pt-4 border-t">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{t('companyDetail.info.lastNews')}</span>
-            </div>
-            <p
-              className={cn(
-                "font-medium",
-                isOlderThanOneMonth ? "text-destructive" : "text-foreground"
-              )}
-            >
-              {lastNewsDate}
-            </p>
-          </div>
-        )}
 
         {company.sectors && company.sectors.length > 0 && (
           <div className="pt-4 border-t">

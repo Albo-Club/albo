@@ -479,7 +479,6 @@ const fr = {
       coInvestors: 'Co-investisseurs',
       noCoInvestors: 'Aucun co-investisseur renseigné',
       investmentDate: 'Date d\'investissement',
-      lastNews: 'Dernières nouvelles',
       lastReport: 'Last Report',
       relatedPeople: 'Related People',
       type: 'Type',

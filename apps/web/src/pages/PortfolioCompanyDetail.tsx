@@ -16,7 +16,6 @@ import { CompanyEmailsTab } from "@/components/portfolio/CompanyEmailsTab";
 import { MetricsDashboard } from "@/components/portfolio/metrics/MetricsDashboard";
 import { DealTabs } from "@/components/deals/DealTabs";
 import { UploadReportModal } from "@/components/portfolio/UploadReportModal";
-import { CompanyNewsCarousel } from "@/components/company/CompanyNewsCarousel";
 import { ReportDetailSheet } from "@/components/portfolio/ReportDetailSheet";
 import { useTranslation } from "react-i18next";
 
@@ -100,7 +99,6 @@ export default function PortfolioCompanyDetail() {
             </Button>
           </div>
           <ReportsTimeline reports={sortedReports} companyId={company.id} companyName={company.company_name} onClickReport={(report) => setDetailReportId(report.id)} />
-          {/* <CompanyNewsCarousel companyId={company.id} /> */}
         </div>
         <div className="lg:col-span-3">
           <div className="sticky top-4">

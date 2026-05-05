@@ -8,7 +8,6 @@ import { parseReportPeriodToSortDate, isPeriodRange } from "@/lib/reportPeriodPa
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { CompanyMetricsModule } from "@/components/company/CompanyMetricsModule";
 import { CompanyReportsList } from "@/components/company/CompanyReportsList";
-import { CompanyNewsCarousel } from "@/components/company/CompanyNewsCarousel";
 
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -74,13 +73,6 @@ export default function CompanyDetail() {
         <h2 className="text-lg font-semibold mb-4">Rapports</h2>
         <CompanyReportsList reports={sortedReports} isLoading={reportsLoading} />
       </section>
-
-      {/* News Section — hidden for now
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Actualités</h2>
-        <CompanyNewsCarousel companyId={company.id} />
-      </section>
-      */}
     </div>
   );
 }
