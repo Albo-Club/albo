@@ -259,7 +259,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
 
-    const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+    const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
       body: {
         email: email.toLowerCase(),
         workspaceName: workspace.name,
@@ -270,9 +270,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    if (emailError) {
+    if (emailError || emailData?.success === false) {
       await supabase.from('workspace_invitations').delete().eq('id', invitation.id);
-      throw new Error('Failed to send invitation email');
+      const detail = emailData?.missing?.length
+        ? ` (champs manquants: ${emailData.missing.join(', ')})`
+        : emailData?.error
+          ? `: ${emailData.error}`
+          : '';
+      throw new Error(`Failed to send invitation email${detail}`);
     }
 
     await loadWorkspaceData();
