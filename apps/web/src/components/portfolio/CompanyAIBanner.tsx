@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 // ── ScoreRing ──────────────────────────────────────────
 
 function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
-  const strokeWidth = 5;
+  const strokeWidth = Math.max(3, Math.round(size / 14));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 10) * circumference;
