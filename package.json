@@ -8,10 +8,8 @@
   ],
   "scripts": {
     "dev:web": "npm run dev -w @albo/web",
-    "dev:mastra": "npm run dev -w @albo/mastra",
     "build:web": "npm run build -w @albo/web",
     "build:workers": "npm run build -w @albo/workers",
-    "build:mastra": "npm run build -w @albo/mastra",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck"
