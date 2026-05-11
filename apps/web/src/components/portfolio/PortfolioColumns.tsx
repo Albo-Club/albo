@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, ExternalLink, Loader2, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,26 +16,68 @@ import {
   formatPercentage,
 } from "@/lib/portfolioFormatters";
 import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/portfolio";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { supabase } from "@/integrations/supabase/client";
 import { SectorBadges } from "./SectorBadges";
 import { ScoreRing } from "./CompanyAIBanner";
 import { cn } from "@/lib/utils";
 import { TFunction } from "i18next";
 
 function AIScoreCell({ company, t }: { company: PortfolioCompany; t: TFunction }) {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { workspace } = useWorkspace();
   const score = company.ai_analysis?.health_score?.score;
   const isProcessing = company.ai_analysis_status === "processing";
 
-  if (isProcessing) {
+  const triggerAnalysis = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke("company-intelligence", {
+        body: {
+          company_id: company.id,
+          mode: "analysis",
+          force_refresh: false,
+        },
+      });
+      if (error) throw error;
+    },
+    onMutate: async () => {
+      const queryKey = ["portfolio-companies", workspace?.id];
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<PortfolioCompany[]>(queryKey);
+      queryClient.setQueryData<PortfolioCompany[]>(queryKey, (rows) =>
+        rows?.map((row) =>
+          row.id === company.id
+            ? { ...row, ai_analysis_status: "processing" }
+            : row
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["portfolio-companies", workspace?.id],
+          context.previous
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-companies", workspace?.id],
+      });
+    },
+  });
+
+  if (isProcessing || triggerAnalysis.isPending) {
     return (
-      <div className="flex items-center justify-center w-10 h-10">
+      <div className="flex items-center justify-center w-8 h-8">
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (typeof score === "number" && score > 0) {
-    return <ScoreRing score={score} size={40} />;
+    return <ScoreRing score={score} size={32} />;
   }
 
   return (
@@ -47,7 +89,7 @@ function AIScoreCell({ company, t }: { company: PortfolioCompany; t: TFunction }
           className="h-8 w-8 text-muted-foreground/60 hover:text-primary"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/portfolio/${company.id}?analyze=true`);
+            triggerAnalysis.mutate();
           }}
         >
           <Sparkles className="h-4 w-4" />
