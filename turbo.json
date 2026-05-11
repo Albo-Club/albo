@@ -14,7 +14,13 @@
         "RESEND_API_KEY",
         "TRIGGER_SECRET_KEY",
         "MASTRA_API_URL",
-        "MASTRA_ACCESS_TOKEN"
+        "MASTRA_ACCESS_TOKEN",
+        "MASTRA_CLOUD_ACCESS_TOKEN",
+        "VERCEL_TOKEN",
+        "VERCEL_TEAM_SLUG",
+        "VERCEL_PROJECT_NAME",
+        "TURSO_DATABASE_URL",
+        "TURSO_AUTH_TOKEN"
       ]
     },
     "dev": {

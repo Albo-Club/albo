@@ -2,6 +2,7 @@ import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 import { Observability, DefaultExporter, CloudExporter, SensitiveDataFilter } from '@mastra/observability';
+import { VercelDeployer } from '@mastra/deployer-vercel';
 // ✅ Supprimé : toolCallAppropriatenessScorer, completenessScorer, translationScorer (weather-scorer)
 import { portfolioEnricher } from './agents/portfolio-enricher';
 import { companyIntelligenceAgent } from './agents/company-intelligence';
@@ -17,6 +18,13 @@ export const mastra = new Mastra({
   server: {
     timeout: 10 * 60 * 1000,
   },
+  deployer: new VercelDeployer({
+    teamSlug: process.env.VERCEL_TEAM_SLUG!,
+    projectName: process.env.VERCEL_PROJECT_NAME ?? 'albo-mastra',
+    token: process.env.VERCEL_TOKEN!,
+    maxDuration: 600,
+    memory: 1024,
+  }),
   // ✅ Supprimé : weatherWorkflow, investmentMemoWorkflow (fichiers supprimés)
   agents: { portfolioEnricher, companyIntelligenceAgent, deckAnalyzer },
   // ✅ Supprimé : toolCallAppropriatenessScorer, completenessScorer, translationScorer, weatherAgent
@@ -27,8 +35,8 @@ export const mastra = new Mastra({
     sourceAttributionScorer,
   },
   storage: new LibSQLStore({
-    id: "mastra-storage",
-    url: "file:./mastra.db",
+    url: process.env.TURSO_DATABASE_URL ?? "file:./mastra.db",
+    authToken: process.env.TURSO_AUTH_TOKEN,
   }),
   logger: new PinoLogger({
     name: 'Mastra',

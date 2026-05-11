@@ -19,6 +19,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.44",
     "@mastra/core": "^1.13.0",
+    "@mastra/deployer-vercel": "^1.1.26",
     "@mastra/evals": "^1.1.2",
     "@mastra/libsql": "^1.7.0",
     "@mastra/loggers": "^1.0.2",
