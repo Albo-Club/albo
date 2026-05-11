@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpDown, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,12 +16,45 @@ import {
   formatPercentage,
 } from "@/lib/portfolioFormatters";
 import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/portfolio";
+import { getStaleInfo } from "@/lib/staleData";
+import { format as formatDateFns } from "date-fns";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SectorBadges } from "./SectorBadges";
 import { ScoreRing } from "./CompanyAIBanner";
 import { cn } from "@/lib/utils";
 import { TFunction } from "i18next";
+
+function StaleIcon({ company, t }: { company: PortfolioCompany; t: TFunction }) {
+  const stale = getStaleInfo(company.latest_report);
+  if (!stale.isStale) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="space-y-0.5 text-xs">
+          <p className="font-semibold">{t('portfolio.stale.title')}</p>
+          {stale.monthsSinceReceived !== null ? (
+            <p>{t('portfolio.stale.tooltipReceived', { months: stale.monthsSinceReceived })}</p>
+          ) : (
+            <p>{t('portfolio.stale.noReport')}</p>
+          )}
+          {stale.coverageEnd && (
+            <p>
+              {t('portfolio.stale.tooltipCoverage', {
+                date: formatDateFns(stale.coverageEnd, 'dd MMM yyyy'),
+              })}
+            </p>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function AIScoreCell({ company, t }: { company: PortfolioCompany; t: TFunction }) {
   const queryClient = useQueryClient();
@@ -125,6 +158,7 @@ export const getPortfolioColumns = (t: TFunction): ColumnDef<PortfolioCompany>[]
             size="sm"
           />
           <span className="font-medium">{company.company_name}</span>
+          <StaleIcon company={company} t={t} />
         </div>
       );
     },

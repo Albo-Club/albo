@@ -458,12 +458,24 @@ const fr = {
       noResults: 'Aucun résultat.',
       clearFilters: 'Effacer les filtres',
     },
+    stale: {
+      title: 'Données obsolètes',
+      tooltipReceived: 'Dernier report reçu il y a {{months}} mois',
+      tooltipCoverage: 'Couverture jusqu\'au {{date}}',
+      noReport: 'Aucun report valide reçu',
+    },
   },
 
   companyDetail: {
     notFound: 'Entreprise non trouvée',
     backToPortfolio: 'Retour au Portfolio',
     addReport: 'Ajouter un report',
+    stale: {
+      title: 'Données obsolètes.',
+      description: 'Le dernier reporting date d\'il y a {{months}} mois. Pensez à demander une mise à jour.',
+      noReport: 'Aucun reporting valide reçu pour cette entreprise.',
+      coverage: '(Couverture jusqu\'au {{date}}.)',
+    },
     tabs: {
       overview: 'Overview',
       emails: 'Emails',

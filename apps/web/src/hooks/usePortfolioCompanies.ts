@@ -21,6 +21,13 @@ export interface PortfolioCompany {
   sender_emails: string[] | null;
   ai_analysis: { health_score?: { score?: number } } | null;
   ai_analysis_status: 'processing' | 'completed' | 'error' | null;
+  latest_report: {
+    id: string;
+    report_date: string | null;
+    report_period: string | null;
+    processing_status: string | null;
+    is_duplicate: boolean;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +42,16 @@ export function usePortfolioCompanies() {
 
       const { data, error } = await supabase
         .from('portfolio_companies')
-        .select('*')
+        .select(`
+          *,
+          latest_report:company_reports!fk_portfolio_companies_latest_report(
+            id,
+            report_date,
+            report_period,
+            processing_status,
+            is_duplicate
+          )
+        `)
         .eq('workspace_id', workspace.id)
         .order('company_name');
 

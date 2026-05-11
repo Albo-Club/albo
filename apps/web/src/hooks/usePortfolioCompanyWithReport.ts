@@ -13,6 +13,8 @@ export interface CompanyReportData {
   key_highlights: string[] | null;
   metrics: Record<string, unknown> | null;
   processed_at: string | null;
+  processing_status: string | null;
+  is_duplicate: boolean;
 }
 
 export interface PortfolioCompanyWithReport extends PortfolioCompany {
@@ -41,7 +43,9 @@ export function usePortfolioCompanyWithReport(companyId: string | undefined) {
             cleaned_content,
             key_highlights,
             metrics,
-            processed_at
+            processed_at,
+            processing_status,
+            is_duplicate
           )
         `)
         .eq('id', companyId)
