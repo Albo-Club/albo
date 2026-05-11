@@ -1,4 +1,5 @@
 
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -71,11 +72,27 @@ export const badgeClasses = (dir: string) =>
 
 interface CompanyAIBannerProps {
   companyId: string;
+  autoAnalyze?: boolean;
 }
 
-export function CompanyAIBanner({ companyId }: CompanyAIBannerProps) {
+export function CompanyAIBanner({ companyId, autoAnalyze = false }: CompanyAIBannerProps) {
   const { analysis, loading, analyzing, analysisStatus, analysisError, handleRunAnalysis } = useCompanyAIAnalysis(companyId);
   const { t } = useTranslation();
+  const autoTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      autoAnalyze &&
+      !autoTriggeredRef.current &&
+      !loading &&
+      !analysis &&
+      !analyzing &&
+      analysisStatus !== "processing"
+    ) {
+      autoTriggeredRef.current = true;
+      handleRunAnalysis(false);
+    }
+  }, [autoAnalyze, loading, analysis, analyzing, analysisStatus, handleRunAnalysis]);
 
   // ── Loading ──
   if (loading) {

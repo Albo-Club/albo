@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, ExternalLink } from "lucide-react";
+import { ArrowUpDown, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,8 +17,48 @@ import {
 } from "@/lib/portfolioFormatters";
 import { getInvestmentTypeColors, getInvestmentTypeDisplayLabel } from "@/types/portfolio";
 import { SectorBadges } from "./SectorBadges";
+import { ScoreRing } from "./CompanyAIBanner";
 import { cn } from "@/lib/utils";
 import { TFunction } from "i18next";
+
+function AIScoreCell({ company, t }: { company: PortfolioCompany; t: TFunction }) {
+  const navigate = useNavigate();
+  const score = company.ai_analysis?.health_score?.score;
+  const isProcessing = company.ai_analysis_status === "processing";
+
+  if (isProcessing) {
+    return (
+      <div className="flex items-center justify-center w-10 h-10">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (typeof score === "number" && score > 0) {
+    return <ScoreRing score={score} size={40} />;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground/60 hover:text-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/portfolio/${company.id}?analyze=true`);
+          }}
+        >
+          <Sparkles className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <p className="text-xs">{t('portfolio.aiAnalysis.launch')}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export const getPortfolioColumns = (t: TFunction): ColumnDef<PortfolioCompany>[] => [
   {
@@ -41,21 +82,7 @@ export const getPortfolioColumns = (t: TFunction): ColumnDef<PortfolioCompany>[]
             companyName={company.company_name}
             size="sm"
           />
-          <div className="flex flex-col">
-            <span className="font-medium">{company.company_name}</span>
-            {company.preview && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground line-clamp-1 max-w-[200px] cursor-help">
-                    {company.preview}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-sm">
-                  <p>{company.preview}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <span className="font-medium">{company.company_name}</span>
         </div>
       );
     },
@@ -72,6 +99,22 @@ export const getPortfolioColumns = (t: TFunction): ColumnDef<PortfolioCompany>[]
       if (!filterValues || filterValues.length === 0) return true;
       return filterValues.some((value) => sectors.includes(value));
     },
+  },
+  {
+    id: "ai_score",
+    accessorFn: (row) => row.ai_analysis?.health_score?.score ?? 0,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="-ml-4"
+      >
+        {t('portfolio.columns.aiScore')}
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <AIScoreCell company={row.original} t={t} />,
+    sortingFn: "basic",
   },
   {
     accessorKey: "amount_invested_euros",

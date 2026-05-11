@@ -19,6 +19,8 @@ export interface PortfolioCompany {
   latest_report_id: string | null;
   displayed_metrics: string[] | null;
   sender_emails: string[] | null;
+  ai_analysis: { health_score?: { score?: number } } | null;
+  ai_analysis_status: 'processing' | 'completed' | 'error' | null;
   created_at: string;
   updated_at: string;
 }
