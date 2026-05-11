@@ -59,5 +59,9 @@ export function usePortfolioCompanies() {
       return data as PortfolioCompany[];
     },
     enabled: !!workspace?.id,
+    refetchInterval: (query) => {
+      const data = query.state.data as PortfolioCompany[] | undefined;
+      return data?.some((c) => c.ai_analysis_status === 'processing') ? 3000 : false;
+    },
   });
 }

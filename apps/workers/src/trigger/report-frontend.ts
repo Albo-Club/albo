@@ -20,6 +20,7 @@ import { analyzeReport } from "../steps/analyze-report.js";
 import { validateResult } from "../steps/validate-result.js";
 import { storeReport, type EmailMeta } from "../steps/store-report.js";
 import { sendNotification } from "../steps/send-notification.js";
+import { triggerCompanyAnalysis } from "../lib/trigger-company-analysis.js";
 
 const storagePathSchema = z.object({
   path: z.string(),
@@ -129,6 +130,9 @@ export const reportFrontendTask = schemaTask({
     // --- Step 7 : Curate display metrics (Haiku) ---
     metadata.set("status", "curating_metrics");
     await curateDisplayMetrics(company_id);
+
+    // --- Step 7b : Auto-trigger AI analysis with the fresh report data ---
+    await triggerCompanyAnalysis(company_id);
 
     // --- Step 8 : Notification ---
     await sendNotification({
