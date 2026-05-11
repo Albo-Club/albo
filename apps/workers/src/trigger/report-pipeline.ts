@@ -14,6 +14,7 @@ import { schemaTask, logger, metadata, tags } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { runReportPipeline, type PipelineOptions } from "../pipelines/report-pipeline.js";
 import { curateDisplayMetrics } from "../steps/report/curate-display-metrics.js";
+import { triggerCompanyAnalysis } from "../lib/trigger-company-analysis.js";
 
 export const reportPipelineTask = schemaTask({
   id: "report-pipeline",
@@ -63,6 +64,10 @@ export const reportPipelineTask = schemaTask({
       if (result.companyId) {
         metadata.set("status", "curating_metrics");
         await curateDisplayMetrics(result.companyId);
+
+        // Auto-trigger AI analysis with the fresh report data (fire-and-forget,
+        // ai_analysis_status flips to processing then completed in the DB).
+        await triggerCompanyAnalysis(result.companyId);
       }
 
       metadata.set("status", "completed");
