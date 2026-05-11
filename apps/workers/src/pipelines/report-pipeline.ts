@@ -44,6 +44,8 @@ export interface PipelineResult {
   filesCount?: number;
   error?: string;
   durationMs: number;
+  /** Erreur définitive — notification déjà envoyée, pas la peine de réessayer */
+  fatal?: boolean;
 }
 
 export interface PipelineOptions {
@@ -290,6 +292,7 @@ export async function runReportPipeline(
 
           return {
             success: false,
+            fatal: true,
             error: `Notion extraction failed: ${err.message}`,
             durationMs: Date.now() - startTime,
           };
@@ -496,6 +499,7 @@ export async function runReportPipeline(
       }
       return {
         success: false,
+        fatal: true,
         error: "Company not found",
         durationMs: Date.now() - startTime,
       };
