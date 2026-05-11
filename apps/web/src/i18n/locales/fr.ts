@@ -431,11 +431,15 @@ const fr = {
     columns: {
       company: 'Entreprise',
       sector: 'Secteur',
+      aiScore: 'Note IA',
       amountInvested: 'Montant investi',
       date: 'Date',
       type: 'Type',
       participation: 'Participation',
       site: 'Site',
+    },
+    aiAnalysis: {
+      launch: 'Lancer l\'analyse IA',
     },
     stats: {
       totalInvested: 'Total investi',

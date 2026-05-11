@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2, TriangleAlert, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,6 +22,8 @@ import { useTranslation } from "react-i18next";
 export default function PortfolioCompanyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoAnalyze = searchParams.get("analyze") === "true";
   const { t } = useTranslation();
   const { data: company, isLoading, error } = usePortfolioCompanyWithReport(id);
   const { data: allReports = [], isLoading: reportsLoading } = useCompanyReports(id);
@@ -90,7 +92,7 @@ export default function PortfolioCompanyDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
         <div className="lg:col-span-7 space-y-4">
-          <CompanyAIBanner companyId={company.id} />
+          <CompanyAIBanner companyId={company.id} autoAnalyze={autoAnalyze} />
           <div className="flex items-center justify-between">
             <div />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setUploadModalOpen(true)}>
