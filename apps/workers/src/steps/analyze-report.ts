@@ -5,6 +5,7 @@
  * Uses Claude to extract structured data from report content.
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "../lib/anthropic";
 import type { ResolvedCompany } from "./resolve-company";
 
@@ -151,7 +152,7 @@ Réponds avec un JSON contenant ces champs :
 
   // Retry avec backoff sur les 429 (rate limit Anthropic)
   const MAX_RETRIES = 3;
-  let response: Awaited<ReturnType<typeof anthropic.messages.create>>;
+  let response!: Anthropic.Message;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       response = await anthropic.messages.create({
@@ -182,7 +183,7 @@ Réponds avec un JSON contenant ces champs :
   }
 
   const text = response.content
-    .filter((b) => b.type === "text")
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
 
