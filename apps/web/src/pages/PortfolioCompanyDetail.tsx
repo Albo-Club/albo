@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, TriangleAlert, Upload } from "lucide-react";
+import { Clock, Loader2, TriangleAlert, Upload } from "lucide-react";
+import { format as formatDateFns } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePortfolioCompanyWithReport } from "@/hooks/usePortfolioCompanyWithReport";
 import { useCompanyReports } from "@/hooks/useCompanyReports";
 import { useCompanyAIAnalysis } from "@/hooks/useCompanyAIAnalysis";
 import { parseReportPeriodToSortDate, isPeriodRange } from "@/lib/reportPeriodParser";
+import { getStaleInfo } from "@/lib/staleData";
 import { PortfolioCompanyHeader } from "@/components/portfolio/PortfolioCompanyHeader";
 import { ReportsTimeline } from "@/components/portfolio/ReportsTimeline";
 import { PortfolioCompanyOverview } from "@/components/portfolio/PortfolioCompanyOverview";
@@ -56,6 +58,11 @@ export default function PortfolioCompanyDetail() {
     return (analysis?.alerts || []).filter((a: any) => a.severity === "critical");
   }, [analysis]);
 
+  const staleInfo = useMemo(
+    () => getStaleInfo(company?.latest_report),
+    [company?.latest_report]
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -77,6 +84,21 @@ export default function PortfolioCompanyDetail() {
 
   const overviewContent = (
     <div>
+      {staleInfo.isStale && (
+        <Alert variant="warning" className="mb-6">
+          <Clock className="h-4 w-4" />
+          <AlertDescription>
+            <span className="font-semibold">{t('companyDetail.stale.title')}</span>{' '}
+            {staleInfo.monthsSinceReceived !== null
+              ? t('companyDetail.stale.description', { months: staleInfo.monthsSinceReceived })
+              : t('companyDetail.stale.noReport')}
+            {staleInfo.coverageEnd && (
+              <> {t('companyDetail.stale.coverage', { date: formatDateFns(staleInfo.coverageEnd, 'dd MMM yyyy') })}</>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {criticalAlerts.length > 0 && (
         <div className="space-y-2 mb-6">
           {criticalAlerts.map((alert: any, i: number) => (

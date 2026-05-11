@@ -47,6 +47,21 @@ export function parseReportPeriodToSortDate(period: string | null): Date {
   return new Date(0);
 }
 
+// Returns the last day of the period (e.g. "Q3 2025" -> 2025-09-30,
+// "December 2024" -> 2024-12-31). Returns null if the period can't be parsed.
+export function getReportPeriodEndDate(period: string | null): Date | null {
+  if (!period) return null;
+  const sortDate = parseReportPeriodToSortDate(period);
+  if (sortDate.getTime() === 0) return null;
+  // For year-only and year-range, parseReportPeriodToSortDate already returns Dec 31.
+  const p = period.trim().toLowerCase();
+  if (/^\d{4}$/.test(p) || /^\d{4}\s*-\s*\d{4}$/.test(p)) {
+    return sortDate;
+  }
+  // Otherwise sortDate is the 1st of the end month → last day of that month.
+  return new Date(sortDate.getFullYear(), sortDate.getMonth() + 1, 0);
+}
+
 export function isPeriodRange(period: string | null): boolean {
   if (!period) return false;
   const p = period.trim().toLowerCase();

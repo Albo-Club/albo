@@ -458,12 +458,24 @@ const en = {
       noResults: 'No results.',
       clearFilters: 'Clear filters',
     },
+    stale: {
+      title: 'Outdated data',
+      tooltipReceived: 'Last report received {{months}} months ago',
+      tooltipCoverage: 'Coverage through {{date}}',
+      noReport: 'No valid report received',
+    },
   },
 
   companyDetail: {
     notFound: 'Company not found',
     backToPortfolio: 'Back to Portfolio',
     addReport: 'Add a report',
+    stale: {
+      title: 'Outdated data.',
+      description: 'The last reporting is {{months}} months old. Consider asking for an update.',
+      noReport: 'No valid reporting received for this company.',
+      coverage: '(Coverage through {{date}}.)',
+    },
     tabs: {
       overview: 'Overview',
       emails: 'Emails',
