@@ -112,7 +112,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Albo <noreply@app.alboteam.com>",
+        from: "Albo <noreply@alboteam.com>",
         to: [email],
         subject: `Invitation à rejoindre ${workspaceName} sur Albo`,
         html: htmlContent,
