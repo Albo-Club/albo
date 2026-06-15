@@ -10,7 +10,7 @@
  * Déclenché par : edge function email-router-webhook → tasks.trigger()
  */
 
-import { schemaTask, logger, metadata, tags } from "@trigger.dev/sdk";
+import { schemaTask, logger, metadata, tags, AbortTaskRunError } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { runReportPipeline, type PipelineOptions } from "../pipelines/report-pipeline.js";
 import { curateDisplayMetrics } from "../steps/report/curate-display-metrics.js";
@@ -74,9 +74,13 @@ export const reportPipelineTask = schemaTask({
       metadata.set("companyName", result.companyName || "");
       metadata.set("reportId", result.reportId || "");
     } else {
-      logger.error("Report pipeline failed", { error: result.error });
+      logger.error("Report pipeline failed", { error: result.error, fatal: result.fatal });
       metadata.set("status", "failed");
       metadata.set("error", result.error || "");
+      // Erreur fatale = notification déjà envoyée, retry inutile (Notion privé, company inconnue…)
+      if (result.fatal) {
+        throw new AbortTaskRunError(`Report pipeline failed: ${result.error || "unknown"}`);
+      }
       throw new Error(`Report pipeline failed: ${result.error || "unknown"}`);
     }
 
