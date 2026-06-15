@@ -35,6 +35,7 @@ import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageUploader } from '@/components/onboarding/ImageUploader';
+import { APP_CONFIG } from '@/config/app';
 
 const roleIcons: Record<WorkspaceRole, typeof Crown> = {
   owner: Crown,
@@ -185,14 +186,15 @@ export default function WorkspaceSettings() {
       if (!data.success) throw new Error(data.error);
 
       // 2. Call the Edge Function to send the email
+      const invitation = invitations.find((inv) => inv.id === invitationId);
       const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
         body: {
           email: data.email,
-          token: data.token,
-          workspaceId: data.workspace_id,
           workspaceName: workspace?.name,
           inviterName: user.user_metadata?.name || user.email,
-          isResend: true
+          role: invitation?.role || 'member',
+          token: data.token,
+          appUrl: APP_CONFIG.baseUrl
         }
       });
 
