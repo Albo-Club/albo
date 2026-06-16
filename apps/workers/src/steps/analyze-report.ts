@@ -156,7 +156,7 @@ Réponds avec un JSON contenant ces champs :
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 16384,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
