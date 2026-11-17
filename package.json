@@ -9,7 +9,6 @@
   "scripts": {
     "dev:web": "npm run dev -w @albo/web",
     "build:web": "npm run build -w @albo/web",
-    "build:workers": "npm run build -w @albo/workers",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck"
