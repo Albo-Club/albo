@@ -5,7 +5,6 @@
 ```
 apps/
   web/       → Frontend React+Vite (déployé sur Vercel)
-  workers/   → Pipelines Trigger.dev (tasks backend)
 ```
 
 ## Commands
